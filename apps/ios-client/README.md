@@ -1,59 +1,72 @@
-# apps/ios-client
+# apps/ios-client — PosturePulse AI
 
 Native iOS (Swift/SwiftUI) capture + display front end. Per the product's
 architecture decision, this app does **not** run pose/AI inference on-device
 in this phase - it captures camera frames and streams them to backend-api,
 which forwards them to ml-service (see root `README.md`).
 
-## Build/run requirements
+## Build and run
 
-This code targets iOS/SwiftUI/AVFoundation and **requires Xcode on macOS** to
-build, run, or test. It was authored in a Linux sandbox with no Swift
-toolchain available (`swift`/`swiftc` not installed, and no path to install
-one - `apt` has no `swift-lang` package on this distro, and swift.org's
-download host is not reachable through this sandbox's network policy). This
-means:
+Requires Xcode 26 on macOS and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
-- The code has been carefully written and reviewed against the documented
-  Foundation/UIKit/AVFoundation/SwiftUI APIs, but **has not been compiled or
-  run** anywhere in this repository's history so far.
-- `Tests/PoseLandmarkFrameDecodingTests.swift` exists to document the intended
-  DTO-decoding contract but has not been executed. Run it via Xcode
-  (`swift test` or the Test navigator) once this package is opened on macOS,
-  and treat the first build as the real verification step for this app -
-  don't assume it's bug-free just because it's checked in.
+```bash
+cd apps/ios-client
+xcodegen generate            # after adding/removing files or packages
+open PosturePulse.xcodeproj  # scheme "PosturePulse": the app + its unit tests
+```
+
+- `project.yml` defines the app target (`PosturePulse`, bundle id
+  `com.amgi.posturepulse`, light appearance only) and `PosturePulseTests`.
+  The generated `PosturePulse.xcodeproj` is committed; regenerate rather than
+  hand-edit it.
+- `Package.swift` is kept for the same `Sources/` as a library. With the
+  project present, command-line `xcodebuild` picks the project, so run tests
+  through the app scheme:
+  `xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'platform=iOS Simulator,name=iPhone 17' test`
+- The app talks to `https://posture.beaive.com` (`Sources/Networking/BackendConfig.swift`).
+- Status: builds and its unit tests pass on the iOS Simulator; not yet run on
+  a physical device.
+
+### Design previews (DEBUG only)
+
+Launch with `-designPreview report|report-movement|capture|reps|setup` to see
+screens with sample data (e.g. Xcode scheme → Run → Arguments, or
+`xcrun simctl launch <sim> com.amgi.posturepulse -designPreview report`).
+
+### Brand assets
+
+`AppResources/Assets.xcassets` holds the icon (mark only), the in-app logo and
+the accent colour. Regenerate both images from a new logo file:
+
+```bash
+cd AppResources/Assets.xcassets
+swift ../../scripts/make-brand-assets.swift <logo.png> AppIcon.appiconset BrandLogo.imageset
+```
 
 ## Structure
 
-- `Sources/App/` - app entry point (`BeAIveApp`) and root navigation (`RootView`).
-- `Sources/Capture/` - `CameraCaptureController` (AVFoundation), `FrameEncoder`
-  (JPEG encode/downsample for upload).
-- `Sources/Session/` - `SessionViewModel` (orchestrates capture -> upload ->
-  render), `CalibrationFlowView`, `ProtocolSelectionView`.
-- `Sources/Networking/` - HTTP/WebSocket clients (`SessionsClient`,
-  `ProtocolsClient`, `FrameStreamingClient`, `SessionWebSocketClient`) and
-  hand-kept DTOs (`Networking/DTOs/`) mirroring `packages/schemas` - see
-  `docs/adr/004-ios-dtos-hand-kept.md` for why these aren't codegenned yet.
-- `Sources/Safety/` - `SymptomStopButton` (local-first stop action) and its
-  networking client. The local stop must complete before any network call is
-  awaited - see the doc comment on `SymptomStopButton`.
+- `Sources/App/` - app entry (`BeAIveApp`, forces light appearance) and `RootView`
+  (consent -> protocol -> calibrate -> live session).
+- `Sources/Consent/`, `Sources/Identity/` - consent screen/client and the
+  pseudonymous device id (random UUID in Keychain) - docs/adr/012.
+- `Sources/Capture/` - `CameraCaptureController` (AVFoundation), `FrameEncoder`.
+- `Sources/Session/` - `SessionViewModel`, `CalibrationFlowView`,
+  `ProtocolSelectionView`, `GuidedCaptureView` (guided scan chrome, spec §5).
+- `Sources/Networking/` - REST clients, `SessionWebSocketClient`
+  (socket.io-client-swift), `SessionCredentials`, and hand-kept DTOs mirroring
+  `packages/schemas` (docs/adr/004).
+- `Sources/Safety/` - `SymptomStopButton` (local-first stop) and its client.
+  The local stop must complete before any network call is awaited.
 - `Sources/Overlay/` - `PoseOverlayView`, which renders the quality-gate
-  "unsupported" state distinctly and never fabricates guidance when
-  suppressed.
-- `Sources/DesignSystem/` - `DraftBadge`, shown on every draft (unvalidated)
-  protocol.
+  "unsupported" state distinctly and never fabricates guidance when suppressed.
+- `Sources/Report/` - report model and readout UI (spec §7); not yet fed by a
+  backend endpoint.
+- `Sources/DesignSystem/` - `Theme` (paper + ink, brand purple, serif display,
+  monospaced measurements), `DraftBadge`.
 
-## Known gaps in this phase
+## Known gaps
 
-- `SessionWebSocketClient` uses a raw `URLSessionWebSocketTask` against a
-  plain WebSocket URL. The real backend gateway
-  (`services/backend-api/src/ws/session.gateway.ts`) is Socket.IO
-  (`@nestjs/platform-socket.io`), which uses its own handshake/framing on top
-  of WebSocket - this client will **not** actually interoperate with it as
-  written. A Socket.IO-compatible Swift client library is needed; this class
-  documents the intended message shapes so that swap-in is mechanical.
-- No ARKit anchoring, no on-device pose estimation - both deferred per the
-  implementation plan.
-- `subjectPseudoId`/`consentRecordId` in `RootView` are hardcoded placeholders;
-  there is no real login or consent-collection flow yet
-  (docs/consent-and-retention.md).
+- Guided capture and the report screen are UI only until pieces 2–5 of
+  docs/superpowers/specs/2026-10-01-posture-report-design.md land.
+- Session tokens last 4 h with no refresh (docs/adr/012).
+- No ARKit anchoring or on-device pose estimation - both deferred.

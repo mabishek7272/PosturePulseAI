@@ -17,16 +17,17 @@ user-facing copy, protocol content, or sample data.
 
 - `apps/ios-client/` — native iOS (Swift/SwiftUI) capture + display front end. No AI
   inference runs on-device in this phase; it streams frames to the backend and renders
-  results returned by the server. **Unverified** — no Swift toolchain in this repo's
-  build environment; see `apps/ios-client/README.md`.
+  results returned by the server. Builds and passes its unit tests on the iOS
+  Simulator (Xcode 26); not yet run on a device — see `apps/ios-client/README.md`.
 - `apps/clinician-web/` — read-only web dashboard for clinician review: session queue,
   safety state, exposure summary, the full event timeline (with live updates), an
   audit log of who has accessed what, aggregate pilot safety-monitoring metrics, and
   clinical-trial adverse event documentation (read-only; creation is API-only). Its
   REST calls require clinician login (`docs/adr/010-clinician-authentication.md`,
   which also covers audit logging); live WebSocket updates and every device/
-  subject-facing endpoint remain unauthenticated — see
-  `docs/adr/009-clinician-web-trust-model.md` for what's covered and what isn't
+  subject-facing endpoint require a clinician or session-scoped subject token
+  (`docs/adr/012-subject-session-tokens.md`). See
+  `docs/adr/009-clinician-web-trust-model.md` for what's still not covered
   before pointing this at anything but local/synthetic data.
 - `services/backend-api/` — NestJS service owning session lifecycle, the protocol/plan
   store, the append-only event log, the deterministic safety/policy engine (never
@@ -106,8 +107,8 @@ substitute for the manual review the doc describes.
 
 ## What is deliberately not here yet
 
-Authentication on the WebSocket gateway and every device/subject-facing REST
-route (`docs/adr/010-clinician-authentication.md`'s named scope limit); 3 of
+Token refresh and revocation for subject session tokens
+(`docs/adr/012-subject-session-tokens.md`); 3 of
 4 TRD scale-calibration methods (only `subject_specific` is implemented —
 `docs/adr/008`); a trained ST-GCN/TCN checkpoint (the models run, but on
 random weights — never safety-relevant, `docs/adr/005`); task-specific

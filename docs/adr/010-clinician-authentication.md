@@ -76,10 +76,8 @@ blocks the read it's auditing - `AuditLogService.record()` catches and logs
 a warning rather than throwing.
 
 **Still open:**
-- Gate the Socket.IO gateway - requires first deciding how a subject's
-  device authenticates to its own session (a session-scoped token minted at
-  `POST /sessions` is the most likely shape, but that's a real design
-  decision, not a one-line guard).
+- ~~Gate the Socket.IO gateway~~ - done in ADR-012 (session-scoped subject
+  tokens), which also gates every device/subject-facing REST route.
 - Token revocation / logout (`JwtAuthGuard` only checks expiry; there is no
   server-side revocation list) - acceptable for an 8h-lifetime token in a
   local/trusted deployment, not for anything wider.
