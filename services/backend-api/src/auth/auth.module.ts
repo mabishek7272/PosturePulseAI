@@ -5,6 +5,7 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { RolesGuard } from "./roles.guard";
+import { SubjectAuthService } from "./subject-auth.service";
 
 const DEV_ONLY_JWT_SECRET_FALLBACK = "dev-only-insecure-secret-do-not-use-in-any-shared-environment";
 
@@ -31,7 +32,7 @@ function resolveJwtSecret(): string {
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, JwtAuthGuard, RolesGuard],
-  exports: [JwtAuthGuard, RolesGuard],
+  providers: [AuthService, PrismaService, JwtAuthGuard, RolesGuard, SubjectAuthService],
+  exports: [JwtAuthGuard, RolesGuard, SubjectAuthService],
 })
 export class AuthModule {}
