@@ -86,7 +86,7 @@ struct BrandHeader: View {
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
-                .frame(height: 72)
+                .frame(height: 96)
                 .accessibilityLabel("PosturePulse AI")
             if let subtitle {
                 Text(subtitle)
