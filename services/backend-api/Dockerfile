@@ -2,6 +2,10 @@
 # service depends on packages/schemas (npm workspace) and protocols/*.json.
 FROM node:22-slim
 
+# Prisma's query/schema engines need libssl at runtime; the slim image lacks it.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /srv
 
 COPY package.json /srv/package.json

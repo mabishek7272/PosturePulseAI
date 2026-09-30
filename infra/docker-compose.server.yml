@@ -1,0 +1,47 @@
+# Shared-server overrides for infra/docker-compose.yml. Only Caddy (80/443,
+# TLS for posture.beaive.com) is published; backend-api, postgres, redis and
+# ml-service are reachable on the compose network only. Secrets come from
+# infra/.env on the server (gitignored):
+#   POSTGRES_PASSWORD=...   JWT_SECRET=...
+#
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.server.yml \
+#     --env-file infra/.env up -d --build
+services:
+  postgres:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}
+    restart: unless-stopped
+
+  redis:
+    ports: !reset []
+    restart: unless-stopped
+
+  ml-service:
+    ports: !reset []
+    restart: unless-stopped
+
+  backend-api:
+    ports: !reset []
+    environment:
+      DATABASE_URL: postgresql://beaive:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}@postgres:5432/beaive
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in infra/.env}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend-api
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

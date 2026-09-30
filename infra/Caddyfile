@@ -1,0 +1,7 @@
+# TLS termination for the shared server (infra/docker-compose.server.yml).
+# Caddy obtains and renews Let's Encrypt certificates automatically; the
+# domain's A record must point at this server and ports 80/443 must be open.
+posture.beaive.com {
+	encode gzip
+	reverse_proxy backend-api:3000
+}
