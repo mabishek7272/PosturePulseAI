@@ -14,36 +14,73 @@ struct CalibrationFlowView: View {
 
     private let client = SessionsClient()
 
+    private let checklist: [(icon: String, title: String, detail: String)] = [
+        ("iphone", "Prop your phone upright", "Waist height, against something stable, screen facing you."),
+        ("figure.stand", "Step back 2–3 metres", "Your whole body, head to feet, should fit in the frame."),
+        ("lightbulb", "Face the light", "Avoid a bright window behind you."),
+        ("tshirt", "Wear fitted clothing", "Loose clothes hide the joints the camera looks for."),
+    ]
+
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Position your device so your full body is visible")
-                .font(.title3)
-                .multilineTextAlignment(.center)
-                .padding()
-
-            Text("Estimated measurements only - not a diagnosis. See in-app privacy and consent details.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-
-            if let errorMessage {
-                Text(errorMessage).foregroundColor(.red)
-            }
-
-            Button {
-                calibrate()
-            } label: {
-                if isCalibrating {
-                    ProgressView()
-                } else {
-                    Text("I'm ready").frame(maxWidth: .infinity)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Eyebrow("Before you start", color: Theme.brand)
+                    Text("Set up your space")
+                        .font(Typo.hero)
+                        .foregroundColor(Theme.ink)
                 }
+                .padding(.top, 16)
+
+                VStack(spacing: 0) {
+                    ForEach(Array(checklist.enumerated()), id: \.offset) { index, item in
+                        HStack(alignment: .top, spacing: 14) {
+                            Image(systemName: item.icon)
+                                .font(.title3)
+                                .foregroundColor(Theme.brand)
+                                .frame(width: 40, height: 40)
+                                .background(Circle().fill(Theme.brandTint))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(item.title).font(.headline).foregroundColor(Theme.ink)
+                                Text(item.detail).font(.footnote).foregroundColor(Theme.inkSoft)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 12)
+                        if index < checklist.count - 1 {
+                            Rectangle().fill(Theme.hairline).frame(height: 1).padding(.leading, 54)
+                        }
+                    }
+                }
+                .card()
+
+                Text("You can stop at any time with the red Stop button. The results are camera-based estimates that your clinician reviews.")
+                    .font(.footnote)
+                    .foregroundColor(Theme.inkSoft)
+
+                if let errorMessage {
+                    Text(errorMessage).font(.footnote).foregroundColor(Theme.ink)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.draftTint))
+                }
+
+                Button {
+                    calibrate()
+                } label: {
+                    if isCalibrating {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text("I'm ready")
+                    }
+                }
+                .buttonStyle(.primary)
+                .disabled(isCalibrating)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(isCalibrating)
-            .padding(.horizontal)
+            .padding(.horizontal, Theme.gutter)
+            .padding(.bottom, 24)
         }
+        .paperBackground()
     }
 
     private func calibrate() {
@@ -54,7 +91,7 @@ struct CalibrationFlowView: View {
                 _ = try await client.calibrate(sessionId: sessionId)
                 onCalibrated()
             } catch {
-                errorMessage = "Could not start the session: \(error.localizedDescription)"
+                errorMessage = "Could not start the session. Check your connection and try again."
             }
         }
     }
