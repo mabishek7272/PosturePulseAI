@@ -104,7 +104,7 @@ private struct ScopeRow: View {
                 .frame(width: 40, height: 40)
                 .background(Circle().fill(Theme.brandTint))
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(scope.title).font(.headline).foregroundColor(Theme.ink)
                     if scope.isRequired {
                         Text("REQUIRED")
