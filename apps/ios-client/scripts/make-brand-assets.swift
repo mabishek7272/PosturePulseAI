@@ -2,6 +2,9 @@
 // logo from a full brand lockup PNG (mark above wordmark, light background):
 //   cd apps/ios-client/AppResources/Assets.xcassets
 //   swift ../../scripts/make-brand-assets.swift <logo.png> AppIcon.appiconset BrandLogo.imageset
+import AppKit
+import CoreImage
+
 // Logo pixels are purple; the textured paper is near-neutral. Classify by
 // saturation, not brightness, so paper grain never survives as specks.
 let a = CommandLine.arguments
