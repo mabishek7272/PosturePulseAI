@@ -35,7 +35,29 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amgi.posturepulse
+        # Same module name as the Package.swift library so Tests/ can `@testable import` either.
+        PRODUCT_MODULE_NAME: PostureAnalysisClient
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
+  PosturePulseTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: PosturePulse
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.amgi.posturepulse.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  PosturePulse:
+    build:
+      targets:
+        PosturePulse: all
+        PosturePulseTests: [test]
+    test:
+      targets:
+        - PosturePulseTests

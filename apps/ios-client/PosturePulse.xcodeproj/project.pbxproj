@@ -22,6 +22,7 @@
 		7D87EFED76CECD883671B0DE /* CameraCaptureController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9371ECE77FFAC457237CD343 /* CameraCaptureController.swift */; };
 		7F586F7F58F4503B2A74D279 /* QualityGateFlag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A8F8370652955B982625420 /* QualityGateFlag.swift */; };
 		831207A307A8A75AEDFA13D6 /* ReferenceGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51245B6B6CE2A8B753AAE620 /* ReferenceGauge.swift */; };
+		83DFDC552AC68B5C4B5148D7 /* PoseLandmarkFrameDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0BA1BDE7420999FC2AA4E9 /* PoseLandmarkFrameDecodingTests.swift */; };
 		85912A844193CFE0C408DC64 /* HeightEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A4E7552211A36818A6F730 /* HeightEntryView.swift */; };
 		8E05A898B677804D5D5AA6F2 /* CameraPoseStreamingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800B773F8451686FC2D1DB82 /* CameraPoseStreamingClient.swift */; };
 		920E0A5FF85382B212357C63 /* BeAIveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1C8FBD01F7164F77272946 /* BeAIveApp.swift */; };
@@ -42,6 +43,16 @@
 		F7BDD255856D3560E2735A5C /* PoseLandmarkFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84F04BF2C1E77BC85117D48C /* PoseLandmarkFrame.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		F56A02DCB3497CB9016BB8F1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FF22F04555C643FC3FB4FEBA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B8B9457E439113ACA61946A8;
+			remoteInfo = PosturePulse;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		0163CB9979B48F8B30EADA3E /* GuidedCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidedCaptureView.swift; sourceTree = "<group>"; };
 		09B319AEAF06CCDA55B34FAE /* FrameStreamingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameStreamingClient.swift; sourceTree = "<group>"; };
@@ -59,6 +70,7 @@
 		5E3660E5B3EE516E66E5ACC0 /* SafetyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetyState.swift; sourceTree = "<group>"; };
 		6280C2E43B051FE0F85A953E /* DecisionEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionEvent.swift; sourceTree = "<group>"; };
 		631179AE5335BD7C96AF5C64 /* CalibrationFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationFlowView.swift; sourceTree = "<group>"; };
+		6F0BA1BDE7420999FC2AA4E9 /* PoseLandmarkFrameDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseLandmarkFrameDecodingTests.swift; sourceTree = "<group>"; };
 		6F1C8FBD01F7164F77272946 /* BeAIveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeAIveApp.swift; sourceTree = "<group>"; };
 		7DE351FF6F8ACE56434CE12A /* CameraPose.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPose.swift; sourceTree = "<group>"; };
 		7E1DF9A9FB22055230942447 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -72,6 +84,7 @@
 		B632212D6990D898DF4922FD /* SessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionViewModel.swift; sourceTree = "<group>"; };
 		D134C19270911B3A7BB3E99F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		E3B1D70C55F23B31B6846802 /* TwoDFallbackBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwoDFallbackBanner.swift; sourceTree = "<group>"; };
+		E5C001CA23CCCA7ED0B9705C /* PosturePulseTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PosturePulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E843086F9BD8E5BBC78E09FE /* DraftBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftBadge.swift; sourceTree = "<group>"; };
 		EF9BC4C8656F5C479198267F /* ProtocolSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolSelectionView.swift; sourceTree = "<group>"; };
 		F487A9E2AF90CE1028B4480F /* PoseOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseOverlayView.swift; sourceTree = "<group>"; };
@@ -85,6 +98,7 @@
 			isa = PBXGroup;
 			children = (
 				0F1274681F5A555B4EBBDB04 /* PosturePulse.app */,
+				E5C001CA23CCCA7ED0B9705C /* PosturePulseTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -94,6 +108,7 @@
 			children = (
 				1C767BE514141C4FB08BBCB5 /* AppResources */,
 				A180F702AD3B328FE1501041 /* Sources */,
+				89790E4CB345EBD7882E3DA1 /* Tests */,
 				0D0181E84897DE8ABBCC866A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -174,6 +189,14 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		89790E4CB345EBD7882E3DA1 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				6F0BA1BDE7420999FC2AA4E9 /* PoseLandmarkFrameDecodingTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
 		943766D000E61FC518EBC92C /* DTOs */ = {
 			isa = PBXGroup;
 			children = (
@@ -229,6 +252,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		5E18EBBECCBA0B533BD5655D /* PosturePulseTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F124C17F7751417036E7E000 /* Build configuration list for PBXNativeTarget "PosturePulseTests" */;
+			buildPhases = (
+				2E5B28899134793930BB3E52 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D99E267C0A2D481CEC370C31 /* PBXTargetDependency */,
+			);
+			name = PosturePulseTests;
+			packageProductDependencies = (
+			);
+			productName = PosturePulseTests;
+			productReference = E5C001CA23CCCA7ED0B9705C /* PosturePulseTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		B8B9457E439113ACA61946A8 /* PosturePulse */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 671B2211AEFE263270E78DF2 /* Build configuration list for PBXNativeTarget "PosturePulse" */;
@@ -276,6 +317,7 @@
 			projectRoot = "";
 			targets = (
 				B8B9457E439113ACA61946A8 /* PosturePulse */,
+				5E18EBBECCBA0B533BD5655D /* PosturePulseTests */,
 			);
 		};
 /* End PBXProject section */
@@ -292,6 +334,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2E5B28899134793930BB3E52 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				83DFDC552AC68B5C4B5148D7 /* PoseLandmarkFrameDecodingTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8DA231859B4233332D19B5B4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -333,7 +383,32 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		D99E267C0A2D481CEC370C31 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B8B9457E439113ACA61946A8 /* PosturePulse */;
+			targetProxy = F56A02DCB3497CB9016BB8F1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		07D43AFC33225CED924C5095 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.amgi.posturepulse.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PosturePulse.app/PosturePulse";
+			};
+			name = Debug;
+		};
 		306E920FDD46AC246367F656 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -347,6 +422,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.amgi.posturepulse;
+				PRODUCT_MODULE_NAME = PostureAnalysisClient;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -475,6 +551,23 @@
 			};
 			name = Debug;
 		};
+		CAEDCC7E16A35EB6D52BC86B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.amgi.posturepulse.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PosturePulse.app/PosturePulse";
+			};
+			name = Release;
+		};
 		ED55DA3C487B4174CA4EEE94 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -488,6 +581,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.amgi.posturepulse;
+				PRODUCT_MODULE_NAME = PostureAnalysisClient;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -510,6 +604,15 @@
 			buildConfigurations = (
 				306E920FDD46AC246367F656 /* Debug */,
 				ED55DA3C487B4174CA4EEE94 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F124C17F7751417036E7E000 /* Build configuration list for PBXNativeTarget "PosturePulseTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				07D43AFC33225CED924C5095 /* Debug */,
+				CAEDCC7E16A35EB6D52BC86B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

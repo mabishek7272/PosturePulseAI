@@ -21,8 +21,10 @@ Spec: `docs/superpowers/specs/2026-10-01-posture-report-design.md` §9.
 - After any `npm ci`, run `npx prisma generate` in `services/backend-api` or two suites fail with TS7006.
 - Baseline before this plan: backend 15 suites / 77 tests pass; iOS builds and 2 XCTests pass.
 - iOS commands (run from `apps/ios-client`):
-  - Build: `xcodebuild -scheme PostureAnalysisClient -destination 'generic/platform=iOS Simulator' -derivedDataPath $SCRATCH/ios-dd build 2>&1 | grep -E "error:|BUILD (SUCCEEDED|FAILED)"`
-  - Test: `xcodebuild -scheme PostureAnalysisClient -destination 'id=B8FB4DF9-2D69-4E46-AE1B-2B0ABC2311E2' -derivedDataPath $SCRATCH/ios-dd test 2>&1 | grep -E "error:|Test Case .*(passed|failed)|TEST (SUCCEEDED|FAILED)"`
+  - After adding/removing Swift files or packages: `xcodegen generate` (the app project `PosturePulse.xcodeproj` is generated from `project.yml`; with it present, `xcodebuild` no longer picks up `Package.swift`).
+  - Build: `xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=B8FB4DF9-2D69-4E46-AE1B-2B0ABC2311E2' -derivedDataPath $SCRATCH/app-dd build 2>&1 | grep -E "error:|BUILD (SUCCEEDED|FAILED)"`
+  - Test: `xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=B8FB4DF9-2D69-4E46-AE1B-2B0ABC2311E2' -derivedDataPath $SCRATCH/app-dd test 2>&1 | grep -E "error:|Test Case .*(passed|failed)|TEST (SUCCEEDED|FAILED)"`
+  - Task 8 adds `socket.io-client-swift`: add it to `project.yml` too (`packages: SocketIO: {url: https://github.com/socketio/socket.io-client-swift, from: 16.1.1}` and `dependencies: - package: SocketIO` on the PosturePulse target), then `xcodegen generate`.
 - Backend tests: `cd services/backend-api && npx jest <path>`.
 
 ---
