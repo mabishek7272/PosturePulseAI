@@ -11,8 +11,15 @@ let package = Package(
     products: [
         .library(name: "PostureAnalysisClient", targets: ["PostureAnalysisClient"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.1.1"),
+    ],
     targets: [
-        .target(name: "PostureAnalysisClient", path: "Sources"),
+        .target(
+            name: "PostureAnalysisClient",
+            dependencies: [.product(name: "SocketIO", package: "socket.io-client-swift")],
+            path: "Sources"
+        ),
         .testTarget(name: "PostureAnalysisClientTests", dependencies: ["PostureAnalysisClient"], path: "Tests"),
     ]
 )

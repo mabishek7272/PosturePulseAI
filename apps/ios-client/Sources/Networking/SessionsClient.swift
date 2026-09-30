@@ -29,42 +29,60 @@ final class SessionsClient {
         let state: SafetyState
     }
 
-    func create(_ input: CreateSessionInput) async throws -> SessionRecord {
+    struct CreateSessionResponse: Decodable {
+        let session: SessionRecord
+        let sessionToken: String
+        var credentials: SessionCredentials { SessionCredentials(sessionId: session.id, token: sessionToken) }
+    }
+
+    /// Throws `.consentRejected` on 403 - the stored consent record is missing,
+    /// revoked, or lacks a required scope, so the caller must ask again.
+    func create(_ input: CreateSessionInput) async throws -> CreateSessionResponse {
         var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("sessions"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         request.httpBody = try JSONEncoder().encode(input)
 
-        let (data, _) = try await session.data(for: request)
-        return try JSONDecoder().decode(SessionRecord.self, from: data)
+        let (data, response) = try await session.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+        if status == 403 { throw SessionsClientError.consentRejected }
+        guard (200..<300).contains(status) else { throw SessionsClientError.serverError(status) }
+        return try JSONDecoder().decode(CreateSessionResponse.self, from: data)
     }
 
     /// Setup -> Observing, once the calibration flow confirms the camera view
     /// and consent are in place (services/backend-api/src/sessions/sessions.controller.ts).
-    func calibrate(sessionId: String) async throws -> SafetyState {
-        var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("sessions/\(sessionId)/calibrate"))
+    func calibrate(credentials: SessionCredentials) async throws -> SafetyState {
+        var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("sessions/\(credentials.sessionId)/calibrate"))
         request.httpMethod = "POST"
-        let (data, _) = try await session.data(for: request)
+        request.authorize(with: credentials.token)
+        let (data, response) = try await session.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+        guard (200..<300).contains(status) else { throw SessionsClientError.serverError(status) }
         struct Result: Decodable { let state: SafetyState }
         return try JSONDecoder().decode(Result.self, from: data).state
     }
 
     /// Feeds subject-specific scale calibration (docs/adr/008) - call before submitScaleCalibrationFrame.
-    func setHeight(sessionId: String, subjectHeightMeters: Double) async throws {
-        var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("sessions/\(sessionId)/height"))
+    func setHeight(credentials: SessionCredentials, subjectHeightMeters: Double) async throws {
+        var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("sessions/\(credentials.sessionId)/height"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.authorize(with: credentials.token)
         request.httpBody = try JSONEncoder().encode(["subjectHeightMeters": subjectHeightMeters])
-        _ = try await session.data(for: request)
+        let (_, response) = try await session.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+        guard (200..<300).contains(status) else { throw SessionsClientError.serverError(status) }
     }
 
     /// Runs subject-specific scale calibration against a single frame. Throws
     /// on 422 (ankle/nose not fully observed) - the caller should ask the
     /// user to reposition and retry, never treat this as success.
-    func submitScaleCalibrationFrame(sessionId: String, frameId: String, imageData: Data) async throws {
-        var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("sessions/\(sessionId)/scale-calibration"))
+    func submitScaleCalibrationFrame(credentials: SessionCredentials, frameId: String, imageData: Data) async throws {
+        var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("sessions/\(credentials.sessionId)/scale-calibration"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.authorize(with: credentials.token)
         request.httpBody = try JSONEncoder().encode([
             "frameId": frameId,
             "imageBase64": imageData.base64EncodedString(),
@@ -78,4 +96,9 @@ final class SessionsClient {
 
 enum ScaleCalibrationError: Error {
     case notObserved(Int)
+}
+
+enum SessionsClientError: Error {
+    case consentRejected
+    case serverError(Int)
 }

@@ -7,6 +7,10 @@ options:
   deploymentTarget:
     iOS: "16.0"
   developmentLanguage: en
+packages:
+  SocketIO:
+    url: https://github.com/socketio/socket.io-client-swift
+    from: 16.1.1
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -19,6 +23,8 @@ targets:
     sources:
       - path: Sources
       - path: AppResources
+    dependencies:
+      - package: SocketIO
     info:
       path: AppResources/Info.plist
       properties:

@@ -10,12 +10,13 @@ final class CameraPoseStreamingClient {
         self.session = session
     }
 
-    func submit(sessionId: String, pose: CameraPose) async throws {
+    func submit(credentials: SessionCredentials, pose: CameraPose) async throws {
         var request = URLRequest(
-            url: BackendConfig.baseURL.appendingPathComponent("sessions/\(sessionId)/camera-poses")
+            url: BackendConfig.baseURL.appendingPathComponent("sessions/\(credentials.sessionId)/camera-poses")
         )
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.authorize(with: credentials.token)
         request.httpBody = try JSONEncoder().encode(pose)
 
         let (_, response) = try await session.data(for: request)

@@ -4,7 +4,7 @@ import SwiftUI
 /// (docs/adr/008-scale-calibration-scope.md - the only TRD-approved method
 /// implemented server-side this phase). Not verified in this sandbox.
 struct HeightEntryView: View {
-    let sessionId: String
+    let credentials: SessionCredentials
     let onHeightSet: () -> Void
 
     @State private var heightCentimeters: String = ""
@@ -55,7 +55,7 @@ struct HeightEntryView: View {
         Task {
             defer { isSubmitting = false }
             do {
-                try await client.setHeight(sessionId: sessionId, subjectHeightMeters: centimeters / 100.0)
+                try await client.setHeight(credentials: credentials, subjectHeightMeters: centimeters / 100.0)
                 onHeightSet()
             } catch {
                 errorMessage = "Could not save height: \(error.localizedDescription)"

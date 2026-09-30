@@ -6,7 +6,7 @@ import SwiftUI
 /// here - see docs/coordinate-frames.md "Explicitly deferred" for the AR
 /// anchor / calibration work this will eventually gate on.
 struct CalibrationFlowView: View {
-    let sessionId: String
+    let credentials: SessionCredentials
     let onCalibrated: () -> Void
 
     @State private var isCalibrating = false
@@ -88,7 +88,7 @@ struct CalibrationFlowView: View {
         Task {
             defer { isCalibrating = false }
             do {
-                _ = try await client.calibrate(sessionId: sessionId)
+                _ = try await client.calibrate(credentials: credentials)
                 onCalibrated()
             } catch {
                 errorMessage = "Could not start the session. Check your connection and try again."

@@ -7,7 +7,8 @@ import SwiftUI
 /// runs in ml-service, reached via backend-api - see root README.md).
 @MainActor
 final class SessionViewModel: ObservableObject {
-    let sessionId: String
+    let credentials: SessionCredentials
+    var sessionId: String { credentials.sessionId }
 
     @Published private(set) var safetyState: SafetyState = .setup
     @Published private(set) var latestFrame: PoseLandmarkFrame?
@@ -25,8 +26,8 @@ final class SessionViewModel: ObservableObject {
     private var socket: SessionWebSocketClient?
     private var frameCounter = 0
 
-    init(sessionId: String) {
-        self.sessionId = sessionId
+    init(credentials: SessionCredentials) {
+        self.credentials = credentials
     }
 
     func start() throws {
@@ -35,7 +36,7 @@ final class SessionViewModel: ObservableObject {
         capture.start()
         startArSessionIfSupported()
 
-        let socket = SessionWebSocketClient(sessionId: sessionId)
+        let socket = SessionWebSocketClient(credentials: credentials)
         socket.onStateChange = { [weak self] state in
             Task { @MainActor in self?.safetyState = state }
         }
@@ -83,7 +84,7 @@ final class SessionViewModel: ObservableObject {
             guard let self else { return }
             Task {
                 do {
-                    try await self.poseStreamer.submit(sessionId: self.sessionId, pose: pose)
+                    try await self.poseStreamer.submit(credentials: self.credentials, pose: pose)
                 } catch {
                     // Same rationale as handleCapturedFrame below - a dropped
                     // camera-pose sample is not itself a safety event.
@@ -101,7 +102,7 @@ final class SessionViewModel: ObservableObject {
         Task {
             do {
                 _ = try await uploader.submitFrame(
-                    sessionId: sessionId,
+                    credentials: credentials,
                     frameId: frameId,
                     capturedAt: Date(),
                     imageData: jpegData

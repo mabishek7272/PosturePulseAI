@@ -25,16 +25,17 @@ final class FrameStreamingClient {
     }
 
     func submitFrame(
-        sessionId: String,
+        credentials: SessionCredentials,
         frameId: String,
         capturedAt: Date,
         imageData: Data
     ) async throws -> SubmitFrameResult {
         var request = URLRequest(
-            url: BackendConfig.baseURL.appendingPathComponent("sessions/\(sessionId)/frames")
+            url: BackendConfig.baseURL.appendingPathComponent("sessions/\(credentials.sessionId)/frames")
         )
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.authorize(with: credentials.token)
 
         let body: [String: String] = [
             "frameId": frameId,

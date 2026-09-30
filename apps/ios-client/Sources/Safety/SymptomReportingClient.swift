@@ -13,6 +13,8 @@ final class SymptomReportingClient {
 
     struct SymptomReportInput {
         let sessionId: String
+        /// Sent when available; the report is accepted without it (docs/adr/012).
+        let token: String?
         let symptoms: [String]
         let severity: String // "mild" | "moderate" | "severe"
         let freeText: String?
@@ -31,6 +33,7 @@ final class SymptomReportingClient {
         var request = URLRequest(url: BackendConfig.baseURL.appendingPathComponent("symptom-reports"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.authorize(with: input.token)
         request.httpBody = try JSONEncoder().encode(
             SymptomReportBody(
                 sessionId: input.sessionId,

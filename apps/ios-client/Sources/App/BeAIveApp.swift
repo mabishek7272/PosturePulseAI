@@ -73,7 +73,7 @@ private enum DesignPreview: String {
                 stop: { StopControlPreview() }
             )
         case .setup:
-            CalibrationFlowView(sessionId: "preview") {}
+            CalibrationFlowView(credentials: SessionCredentials(sessionId: "preview", token: "preview")) {}
         }
     }
 }

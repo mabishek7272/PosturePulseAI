@@ -6,7 +6,7 @@ import SwiftUI
 /// a round trip. This is the client-side half of the safety state machine's
 /// precedence rule (services/backend-api/src/safety/safety-state-machine.ts).
 struct SymptomStopButton: View {
-    let sessionId: String
+    let credentials: SessionCredentials
     /// Called synchronously, before the network request - halt local capture/
     /// display/audio cues here. Must not perform network I/O itself.
     let onLocalStop: () -> Void
@@ -40,7 +40,13 @@ struct SymptomStopButton: View {
             defer { isReporting = false }
             do {
                 _ = try await client.report(
-                    .init(sessionId: sessionId, symptoms: symptoms, severity: severity, freeText: nil)
+                    .init(
+                        sessionId: credentials.sessionId,
+                        token: credentials.token,
+                        symptoms: symptoms,
+                        severity: severity,
+                        freeText: nil
+                    )
                 )
             } catch {
                 // The local stop already happened - a failed network report
