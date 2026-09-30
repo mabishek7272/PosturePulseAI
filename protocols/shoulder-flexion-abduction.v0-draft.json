@@ -1,0 +1,47 @@
+{
+  "protocolId": "shoulder-flexion-abduction",
+  "version": "v0-draft",
+  "name": "Shoulder flexion / abduction (draft)",
+  "status": "draft",
+  "clinicallyValidated": false,
+  "reviewedBy": null,
+  "targetPopulation": "Adult rehabilitation patients with shoulder mobility limitation, able to perform active-assisted or active range of motion while seated or standing. PLACEHOLDER - not a clinical inclusion/exclusion criterion; see docs/study-charter-skeleton.md.",
+  "deploymentContext": ["clinic_supervised", "home_rehab"],
+  "exercises": [
+    {
+      "exerciseId": "sfa-01",
+      "name": "Shoulder flexion, arm raise forward",
+      "phase": "ascend",
+      "repRange": { "min": 5, "max": 10 },
+      "toleranceDegrees": 15,
+      "restSeconds": 20,
+      "targetJointAngles": [
+        { "jointName": "leftShoulder", "targetDegrees": 150 },
+        { "jointName": "rightShoulder", "targetDegrees": 150 }
+      ]
+    },
+    {
+      "exerciseId": "sfa-02",
+      "name": "Shoulder abduction, arm raise sideways",
+      "phase": "ascend",
+      "repRange": { "min": 5, "max": 10 },
+      "toleranceDegrees": 15,
+      "restSeconds": 20,
+      "targetJointAngles": [
+        { "jointName": "leftShoulder", "targetDegrees": 150 },
+        { "jointName": "rightShoulder", "targetDegrees": 150 }
+      ]
+    }
+  ],
+  "contraindications": [
+    "Acute rotator cuff tear or recent shoulder surgery without clinician clearance",
+    "Unreduced shoulder dislocation",
+    "Severe uncontrolled pain at rest"
+  ],
+  "symptomStopRules": [
+    "Stop immediately on sharp shoulder pain or a sensation of instability/giving way",
+    "Stop on new numbness or tingling in the arm or hand and report to clinician",
+    "Stop immediately on dizziness or breathlessness"
+  ],
+  "createdAt": "2026-09-28T00:00:00Z"
+}

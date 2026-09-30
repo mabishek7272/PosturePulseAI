@@ -1,0 +1,73 @@
+name: beaive
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: beaive
+      POSTGRES_PASSWORD: beaive_dev_password
+      POSTGRES_DB: beaive
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beaive -d beaive"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Present and health-checked per ADR-003 (docs/adr/003-frame-transport.md) as
+  # the documented future swap point for backend-api<->ml-service frame
+  # transport, if/when real-time throughput requires an async queue. Not
+  # exercised by any application code path in this phase.
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ml-service:
+    build:
+      context: ..
+      dockerfile: services/ml-service/Dockerfile
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/internal/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend-api:
+    build:
+      context: ..
+      dockerfile: services/backend-api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://beaive:beaive_dev_password@postgres:5432/beaive
+      ML_SERVICE_URL: http://ml-service:8000
+      PORT: "3000"
+      # Dev-only default - never reuse this outside a disposable local stack
+      # (docs/adr/010-clinician-authentication.md). Override via a real .env.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-do-not-use-in-any-shared-environment}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  pgdata:

@@ -1,0 +1,43 @@
+[project]
+name = "beaive-ml-service"
+version = "0.0.0"
+description = "Pose estimation, kinematics, and quality gating - the AI/system side of beAIve, run server-side per product decision."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.32,<1.0",
+  "mediapipe>=1.0,<2.0",
+  "numpy>=1.26,<3.0",
+  "pydantic>=2.0,<3.0",
+  # beaive-schemas (generated Pydantic bindings for packages/schemas) is installed
+  # separately in editable mode - see root README.md "Local development", step 3.
+  # Not listed here as a normal dependency because it has no PyPI release; a
+  # direct `file:` path reference is brittle across checkout locations.
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9.0",
+  "httpx>=0.27,<1.0",
+  "jsonschema>=4.20,<5.0",
+]
+# Object detection (app/detection) - torchvision Faster R-CNN, BSD-3
+# (docs/adr/007-detector-license.md), not Ultralytics YOLO (AGPL-3.0).
+detection = [
+  "torch>=2.0,<3.0",
+  "torchvision>=0.15,<1.0",
+]
+# ST-GCN/TCN scaffolding (app/movement) - shares the torch dependency with
+# detection; kept as a separate extra so a deployment that only needs one
+# doesn't have to declare interest in the other.
+movement = [
+  "torch>=2.0,<3.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]

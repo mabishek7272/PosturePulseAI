@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/pose-landmark-frame.schema.json",
+  "title": "PoseLandmarkFrame",
+  "description": "Per-frame estimated body landmarks with confidence and explicit observation state. An occluded joint MUST be marked 'occluded' or 'imputed' - never presented as 'observed' (TRD 2.2/2.7).",
+  "type": "object",
+  "version": "v0",
+  "required": ["frameId", "sessionId", "personTrackId", "capturedAt", "frame", "landmarks", "provenance"],
+  "properties": {
+    "frameId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "personTrackId": {
+      "type": "string",
+      "description": "Stable identity across frames within a session; a change here must be treated as a possible identity swap, not silently accepted."
+    },
+    "capturedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "frame": { "$ref": "common.schema.json#/$defs/coordinateFrame" },
+    "landmarks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["jointName", "position", "confidence", "observationState"],
+        "properties": {
+          "jointName": { "type": "string" },
+          "position": {
+            "oneOf": [
+              { "$ref": "common.schema.json#/$defs/vector3" },
+              { "type": "null" }
+            ],
+            "description": "null only permitted when observationState is 'occluded' and no temporal estimate is available."
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "covariance": {
+            "oneOf": [
+              { "$ref": "common.schema.json#/$defs/matrix3x3" },
+              { "type": "null" }
+            ]
+          },
+          "observationState": {
+            "type": "string",
+            "enum": ["observed", "imputed", "occluded"],
+            "description": "'imputed' = temporally smoothed/predicted, not a fresh observation. Downstream consumers must not treat imputed/occluded as ground truth."
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "observationState": { "const": "occluded" } } },
+            "then": { "properties": { "position": { "const": null } } }
+          }
+        ]
+      }
+    },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  }
+}

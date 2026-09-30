@@ -1,0 +1,47 @@
+{
+  "protocolId": "bodyweight-squat",
+  "version": "v0-draft",
+  "name": "Bodyweight squat (draft)",
+  "status": "draft",
+  "clinicallyValidated": false,
+  "reviewedBy": null,
+  "targetPopulation": "Adult rehabilitation patients cleared for standing weight-bearing exercise, able to squat to a clinician-approved partial range without assistive support. PLACEHOLDER - not a clinical inclusion/exclusion criterion; see docs/study-charter-skeleton.md.",
+  "deploymentContext": ["clinic_supervised", "home_rehab"],
+  "exercises": [
+    {
+      "exerciseId": "sq-01",
+      "name": "Partial bodyweight squat",
+      "phase": "descend",
+      "repRange": { "min": 3, "max": 8 },
+      "toleranceDegrees": 10,
+      "restSeconds": 30,
+      "targetJointAngles": [
+        { "jointName": "leftKnee", "targetDegrees": 110 },
+        { "jointName": "rightKnee", "targetDegrees": 110 }
+      ]
+    },
+    {
+      "exerciseId": "sq-02",
+      "name": "Partial bodyweight squat",
+      "phase": "ascend",
+      "repRange": { "min": 3, "max": 8 },
+      "toleranceDegrees": 10,
+      "restSeconds": 30,
+      "targetJointAngles": [
+        { "jointName": "leftKnee", "targetDegrees": 170 },
+        { "jointName": "rightKnee", "targetDegrees": 170 }
+      ]
+    }
+  ],
+  "contraindications": [
+    "Acute knee or hip injury",
+    "Unhealed lower-limb fracture or recent lower-limb surgery without clinician clearance",
+    "Significant balance impairment without a stable support surface available"
+  ],
+  "symptomStopRules": [
+    "Stop immediately on sharp knee, hip, or back pain",
+    "Stop immediately on dizziness, loss of balance, or breathlessness disproportionate to exertion",
+    "Stop and report to clinician on any new joint instability"
+  ],
+  "createdAt": "2026-09-28T00:00:00Z"
+}

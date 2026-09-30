@@ -1,0 +1,19 @@
+{
+  "name": "@beaive/schemas",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Single source of truth for beAIve canonical records (JSON Schema) plus generated TypeScript and Python bindings.",
+  "main": "generated/ts/index.js",
+  "types": "generated/ts/index.d.ts",
+  "scripts": {
+    "generate": "node codegen/generate-ts.mjs && python3 codegen/generate-python.py",
+    "generate:check": "node codegen/check.mjs",
+    "test": "node --test codegen/*.test.mjs"
+  },
+  "devDependencies": {
+    "@apidevtools/json-schema-ref-parser": "^11.7.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "json-schema-to-typescript": "^15.0.3"
+  }
+}

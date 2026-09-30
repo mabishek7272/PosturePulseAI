@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/adverse-event-record.schema.json",
+  "title": "AdverseEventRecord",
+  "description": "Clinician-authored, regulatory-grade adverse event documentation for a supervised clinical pilot (docs/phase4/safety-monitoring-plan.md; ADR-011). Distinct from symptom-report.schema.json: SymptomReport is the real-time, subject-entered signal that immediately pauses a session regardless of ML confidence (TRD 2.5) - it exists whether or not a study is running. AdverseEventRecord is the clinician's structured, after-the-fact clinical-trial documentation of an event (causality, seriousness, outcome, reporting timeline), which may or may not trace back to a SymptomReport, and only exists in a study context. Never auto-generated - always authored by a clinician.",
+  "type": "object",
+  "version": "v0",
+  "required": [
+    "adverseEventRecordId",
+    "subjectPseudoId",
+    "reportedByClinicianId",
+    "onsetAt",
+    "reportedAt",
+    "description",
+    "severity",
+    "serious",
+    "causality",
+    "outcome",
+    "actionTaken"
+  ],
+  "properties": {
+    "adverseEventRecordId": { "type": "string" },
+    "sessionId": {
+      "oneOf": [{ "type": "string" }, { "type": "null" }],
+      "default": null,
+      "description": "The session during which the event occurred or was noticed, if any - some AEs are reported at a later clinical follow-up not tied to a specific session."
+    },
+    "subjectPseudoId": {
+      "type": "string",
+      "description": "Same pseudonymous identifier convention as session.schema.json/consent-record.schema.json - never a direct identifier."
+    },
+    "reportedByClinicianId": {
+      "type": "string",
+      "description": "The clinician documenting this event - distinct from the subject who experienced it."
+    },
+    "relatedSymptomReportId": {
+      "oneOf": [{ "type": "string" }, { "type": "null" }],
+      "default": null,
+      "description": "The real-time symptom-report.schema.json record that triggered this, if the event was first surfaced that way. Null when the clinician identified the event independently (e.g. at a follow-up visit)."
+    },
+    "onsetAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "reportedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "description": {
+      "type": "string",
+      "description": "Free-text clinical description of the event - never auto-generated from ML output."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["mild", "moderate", "severe"]
+    },
+    "serious": {
+      "type": "boolean",
+      "description": "ICH-standard seriousness flag (results in death, is life-threatening, requires hospitalization, causes persistent/significant disability, or is another important medical event) - distinct from severity. A 'serious' event drives the reportedToEthicsBoardAt timeline, not just severity."
+    },
+    "causality": {
+      "type": "string",
+      "enum": ["unrelated", "unlikely", "possible", "probable", "definite"],
+      "description": "Clinician's assessment of the event's relationship to the study protocol/intervention - never inferred from system output."
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["resolved", "resolving", "not_resolved", "resolved_with_sequelae", "fatal", "unknown"]
+    },
+    "actionTaken": {
+      "type": "string",
+      "enum": ["none", "session_paused", "session_stopped", "subject_withdrawn", "medical_treatment_provided", "other"]
+    },
+    "followUpRequired": { "type": "boolean", "default": false },
+    "reportedToEthicsBoardAt": {
+      "oneOf": [{ "$ref": "common.schema.json#/$defs/isoTimestamp" }, { "type": "null" }],
+      "default": null,
+      "description": "When this event was actually reported to the study's IRB/ethics board, if it met that threshold. Null does not mean not required - see docs/phase4/safety-monitoring-plan.md for the reporting-timeline obligation this field only records compliance with, and never enforces by itself."
+    }
+  }
+}

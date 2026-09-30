@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/scale-calibration-record.schema.json",
+  "title": "ScaleCalibrationRecord",
+  "description": "Records which of the TRD 2.1 four approved scale-validation methods (if any) was applied, and the resulting scale factor. calibrated-joint-frame.calibrationRef points here; scaleValidated=true is only permitted when a record here exists for the session. Only 'subject_specific' is actually implemented this phase - the other three enum values exist so the schema doesn't need another change when they're built later (docs/adr/008-scale-calibration-scope.md).",
+  "type": "object",
+  "version": "v0",
+  "required": ["scaleCalibrationId", "sessionId", "method", "validatedAt", "referenceSourceFrameId", "scaleFactorMetersPerUnit", "uncertaintyMetersPerUnit", "provenance"],
+  "properties": {
+    "scaleCalibrationId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "method": {
+      "type": "string",
+      "enum": ["subject_specific", "known_size_reference", "calibrated_depth", "stereo_multiview"]
+    },
+    "validatedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "subjectHeightMeters": {
+      "type": ["number", "null"],
+      "default": null,
+      "description": "Populated only when method=subject_specific."
+    },
+    "referenceSourceFrameId": {
+      "type": "string",
+      "description": "The PoseLandmarkFrame used to derive the scale factor."
+    },
+    "scaleFactorMetersPerUnit": { "type": "number", "minimum": 0 },
+    "uncertaintyMetersPerUnit": { "type": "number", "minimum": 0 },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  }
+}

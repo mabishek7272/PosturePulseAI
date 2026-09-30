@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  schemas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: npm install
+      - run: pip install datamodel-code-generator
+      - run: npm run schemas:check
+      - run: node --test packages/schemas/codegen/*.test.mjs
+
+  backend-api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: beaive
+          POSTGRES_PASSWORD: beaive_dev_password
+          POSTGRES_DB: beaive
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U beaive -d beaive"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://beaive:beaive_dev_password@localhost:5432/beaive
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npx prisma migrate deploy --schema services/backend-api/prisma/schema.prisma
+      - run: npm run backend:test
+
+  ml-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install system GL/EGL deps required by MediaPipe Tasks
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libgles2 libgl1-mesa-dri libglx-mesa0 libgbm1
+      - run: pip install -e packages/schemas/generated/python
+      - run: pip install -e services/ml-service
+      - run: pip install -e "services/ml-service[dev]"
+      - run: bash services/ml-service/scripts/fetch-pose-model.sh
+      - run: pytest services/ml-service/tests
+
+  claims-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/lint-claims.sh

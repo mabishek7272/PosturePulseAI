@@ -1,0 +1,11 @@
+# Copy to infra/docker-compose.override.yml (gitignored by convention - add a
+# local .gitignore entry if you create one) for machine-specific tweaks, e.g.
+# mounting source for a live-reload dev loop instead of rebuilding the image:
+#
+#   services:
+#     backend-api:
+#       volumes:
+#         - ../services/backend-api/src:/srv/services/backend-api/src:ro
+#     ml-service:
+#       volumes:
+#         - ../services/ml-service/app:/srv/services/ml-service/app:ro

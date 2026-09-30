@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/common.schema.json",
+  "title": "Common",
+  "description": "Shared definitions reused across canonical beAIve records. Not emitted as a standalone record type.",
+  "$defs": {
+    "coordinateFrame": {
+      "type": "string",
+      "enum": ["I", "C", "W", "B", "O"],
+      "description": "TRD 2.1 coordinate frames: I=image pixels, C=camera, W=local AR world, B=body-centered skeleton, O=workstation object frame. Never equate B with a surveyed world location without a validated scale/reprojection check."
+    },
+    "isoTimestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "vector3": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "[x, y, z] in the frame named by the enclosing record's `frame` field."
+    },
+    "quaternion": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "[x, y, z, w]"
+    },
+    "matrix3x3": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": "number" },
+        "minItems": 3,
+        "maxItems": 3
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).",
+      "required": ["schemaVersion", "modelVersion", "calibrationVersion", "producedAt"],
+      "properties": {
+        "schemaVersion": { "type": "string", "description": "Version of this record's own JSON Schema, e.g. \"pose-landmark-frame/v0\"." },
+        "modelVersion": { "type": "string", "description": "Identifier+version of the model/adapter that produced this record, e.g. \"mediapipe-pose/0.10.9\"." },
+        "adapterVersion": { "type": "string" },
+        "calibrationVersion": { "type": "string", "description": "Identifier of the camera calibration record in effect when this record was produced." },
+        "producedAt": { "$ref": "#/$defs/isoTimestamp" }
+      }
+    }
+  }
+}

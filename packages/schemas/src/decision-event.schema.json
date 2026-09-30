@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/decision-event.schema.json",
+  "title": "DecisionEvent",
+  "description": "Deterministic safety-gate output: evidence + rule + action + version + expiry (TRD 2.2/2.5). Safety rules outrank AI/ML scores; this record is produced AFTER the ML stage, never generated ad hoc by a model prompt.",
+  "type": "object",
+  "version": "v0",
+  "required": ["decisionEventId", "sessionId", "evaluatedAt", "evidence", "rule", "action", "version", "expiry"],
+  "properties": {
+    "decisionEventId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "evaluatedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "refId"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "pose-landmark-frame", "calibrated-joint-frame", "quality-gate-flag", "symptom-report", "camera-pose",
+              "movement-phase-event", "exposure-event", "object-detection-frame", "scale-calibration-record", "sensor-reading"
+            ]
+          },
+          "refId": { "type": "string" },
+          "summary": { "type": "string" }
+        }
+      },
+      "description": "References to the specific records that justified this decision - never an unreferenced/unauditable decision."
+    },
+    "rule": {
+      "type": "object",
+      "required": ["ruleId", "ruleVersion", "description"],
+      "properties": {
+        "ruleId": { "type": "string" },
+        "ruleVersion": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "action": {
+      "type": "string",
+      "enum": ["cue", "stop", "pause", "measurement_unavailable", "no_action", "escalate_review"]
+    },
+    "cuePayload": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["cueId", "text"],
+          "properties": {
+            "cueId": { "type": "string" },
+            "text": { "type": "string" },
+            "modality": { "type": "array", "items": { "type": "string", "enum": ["visual", "audio", "haptic"] } }
+          }
+        },
+        { "type": "null" }
+      ],
+      "default": null,
+      "description": "Populated only when action=cue."
+    },
+    "version": { "type": "string", "description": "Decision-engine/policy version that produced this event." },
+    "expiry": {
+      "$ref": "common.schema.json#/$defs/isoTimestamp",
+      "description": "Time after which this event is stale and must not be displayed or acted on."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "action": { "const": "cue" } } },
+      "then": { "properties": { "cuePayload": { "not": { "const": null } } } }
+    }
+  ]
+}

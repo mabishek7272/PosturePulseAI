@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/consent-record.schema.json",
+  "title": "ConsentRecord",
+  "description": "Consent scope for a pseudonymous subject (PRD 1.6, TRD 2.4). Default scope is derived-event retention only; raw video is opt-in.",
+  "type": "object",
+  "version": "v0",
+  "required": ["consentRecordId", "subjectPseudoId", "scopes", "grantedAt"],
+  "properties": {
+    "consentRecordId": { "type": "string" },
+    "subjectPseudoId": { "type": "string", "description": "Pseudonymous subject identifier - never a direct identifier (name, email, national ID)." },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["derived_events", "raw_video", "research_data_export", "wearable_integration"]
+      }
+    },
+    "grantedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "revokedAt": {
+      "oneOf": [{ "$ref": "common.schema.json#/$defs/isoTimestamp" }, { "type": "null" }],
+      "default": null
+    },
+    "withdrawalRequestedAt": {
+      "oneOf": [{ "$ref": "common.schema.json#/$defs/isoTimestamp" }, { "type": "null" }],
+      "default": null
+    }
+  }
+}

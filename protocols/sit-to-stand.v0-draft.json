@@ -1,0 +1,47 @@
+{
+  "protocolId": "sit-to-stand",
+  "version": "v0-draft",
+  "name": "Sit-to-stand (draft)",
+  "status": "draft",
+  "clinicallyValidated": false,
+  "reviewedBy": null,
+  "targetPopulation": "Adult rehabilitation patients with low fall risk, able to sit and stand with at most contact-guard supervision. PLACEHOLDER - not a clinical inclusion/exclusion criterion; see docs/study-charter-skeleton.md.",
+  "deploymentContext": ["clinic_supervised", "home_rehab"],
+  "exercises": [
+    {
+      "exerciseId": "sts-01",
+      "name": "Sit-to-stand, arms free",
+      "phase": "descend",
+      "repRange": { "min": 3, "max": 8 },
+      "toleranceDegrees": 12,
+      "restSeconds": 30,
+      "targetJointAngles": [
+        { "jointName": "leftKnee", "targetDegrees": 100 },
+        { "jointName": "rightKnee", "targetDegrees": 100 }
+      ]
+    },
+    {
+      "exerciseId": "sts-02",
+      "name": "Sit-to-stand, arms free",
+      "phase": "ascend",
+      "repRange": { "min": 3, "max": 8 },
+      "toleranceDegrees": 12,
+      "restSeconds": 30,
+      "targetJointAngles": [
+        { "jointName": "leftKnee", "targetDegrees": 170 },
+        { "jointName": "rightKnee", "targetDegrees": 170 }
+      ]
+    }
+  ],
+  "contraindications": [
+    "Acute hip or knee fracture",
+    "Uncontrolled orthostatic hypotension",
+    "Unable to sit/stand independently or with at most contact-guard assistance"
+  ],
+  "symptomStopRules": [
+    "Stop immediately on new or worsening dizziness",
+    "Stop immediately on chest pain or breathlessness disproportionate to exertion",
+    "Stop on sharp or new joint pain and report to clinician before resuming"
+  ],
+  "createdAt": "2026-09-28T00:00:00Z"
+}

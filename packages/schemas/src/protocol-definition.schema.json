@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/protocol-definition.schema.json",
+  "title": "ProtocolDefinition",
+  "description": "A clinician-authored exercise protocol as DATA, not code. Every protocol in this repository starts as status=draft/clinicallyValidated=false until a clinical lead signs off (PRD 1.1/4.6).",
+  "type": "object",
+  "version": "v0",
+  "required": [
+    "protocolId", "version", "name", "status", "clinicallyValidated", "reviewedBy",
+    "targetPopulation", "deploymentContext", "exercises", "contraindications",
+    "symptomStopRules", "createdAt"
+  ],
+  "properties": {
+    "protocolId": { "type": "string" },
+    "version": { "type": "string" },
+    "name": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "clinically-reviewed"]
+    },
+    "clinicallyValidated": { "type": "boolean" },
+    "reviewedBy": { "type": ["string", "null"] },
+    "targetPopulation": { "type": "string" },
+    "deploymentContext": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["clinic_supervised", "home_rehab"] },
+      "minItems": 1
+    },
+    "exercises": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["exerciseId", "name", "phase", "repRange", "toleranceDegrees", "restSeconds"],
+        "properties": {
+          "exerciseId": { "type": "string" },
+          "name": { "type": "string" },
+          "phase": { "type": "string", "description": "Free-text movement-phase label used by ml-service phase detection, e.g. 'descend', 'hold', 'ascend'." },
+          "repRange": {
+            "type": "object",
+            "required": ["min", "max"],
+            "properties": {
+              "min": { "type": "integer", "minimum": 0 },
+              "max": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "toleranceDegrees": { "type": "number", "minimum": 0, "description": "Allowed deviation before a cue becomes eligible; clinician-set, not a universal threshold." },
+          "restSeconds": { "type": "number", "minimum": 0 },
+          "targetJointAngles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["jointName", "targetDegrees"],
+              "properties": {
+                "jointName": { "type": "string" },
+                "targetDegrees": { "type": "number" }
+              }
+            },
+            "description": "Clinician-authored expected angle per joint for this exercise phase. toleranceDegrees is the allowed deviation FROM this target. Optional: an exercise without this field cannot drive a deviation-based cue - the policy engine falls back to no_action for it, never fabricating a target (see docs/adr/005-deterministic-policy-engine.md)."
+          }
+        }
+      }
+    },
+    "contraindications": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "symptomStopRules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Clinician-authored plain-language stop/escalate instructions surfaced on a SymptomReport."
+    },
+    "createdAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "draft" } } },
+      "then": { "properties": { "clinicallyValidated": { "const": false }, "reviewedBy": { "const": null } } }
+    }
+  ]
+}

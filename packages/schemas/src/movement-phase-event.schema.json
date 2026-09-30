@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/movement-phase-event.schema.json",
+  "title": "MovementPhaseEvent",
+  "description": "ST-GCN/TCN phase/rep-segmentation output (TRD 2.2). validated is hard-constrained to false in this phase - no held-out evaluation exists (that is Phase 4 territory). Descriptive/exposure use only; NEVER cited as evidence for a safety-relevant DecisionEvent.action (cue/escalate_review) - see docs/adr/005-deterministic-policy-engine.md. Model weights producing this record are randomly initialized/untrained; predictedPhase/phaseConfidence carry no statistical meaning yet.",
+  "type": "object",
+  "version": "v0",
+  "required": ["movementPhaseEventId", "sessionId", "exerciseId", "windowStartAt", "windowEndAt", "modelArchitecture", "validated", "predictedPhase", "phaseConfidence", "repCountDelta", "evidence", "provenance"],
+  "properties": {
+    "movementPhaseEventId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "exerciseId": { "type": "string" },
+    "windowStartAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "windowEndAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "modelArchitecture": { "type": "string", "enum": ["tcn", "st-gcn"] },
+    "validated": {
+      "type": "boolean",
+      "const": false,
+      "description": "Hard-coded false in this phase - true is not schema-valid until a real held-out clinical evaluation exists."
+    },
+    "predictedPhase": { "type": ["string", "null"] },
+    "phaseConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "repCountDelta": { "type": "integer", "minimum": 0 },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "refId"],
+        "properties": {
+          "type": { "type": "string", "enum": ["calibrated-joint-frame"] },
+          "refId": { "type": "string" }
+        }
+      }
+    },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  }
+}

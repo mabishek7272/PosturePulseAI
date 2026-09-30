@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/quality-gate-flag.schema.json",
+  "title": "QualityGateFlag",
+  "description": "First-class 'unsupported' state. When required landmarks, scale, identity, or anchor are insufficient, numeric guidance MUST be suppressed via this record - never silently omitted (PRD 1.6, TRD 2.7).",
+  "type": "object",
+  "version": "v0",
+  "required": ["flagId", "sessionId", "frameId", "evaluatedAt", "state", "reasons", "affectedOutputs"],
+  "properties": {
+    "flagId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "frameId": { "type": "string" },
+    "evaluatedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "state": {
+      "type": "string",
+      "enum": ["supported", "unsupported"]
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "insufficient_landmarks",
+          "insufficient_scale",
+          "identity_uncertain",
+          "anchor_drift",
+          "low_confidence",
+          "occlusion"
+        ]
+      },
+      "description": "Must be non-empty when state=unsupported; must be empty when state=supported."
+    },
+    "affectedOutputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of downstream outputs suppressed by this flag, e.g. 'kneeFlexionAngle', 'decisionEvent.cue'. Empty when state=supported."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "state": { "const": "unsupported" } } },
+      "then": { "properties": { "reasons": { "minItems": 1 } }, "required": ["reasons"] }
+    },
+    {
+      "if": { "properties": { "state": { "const": "supported" } } },
+      "then": { "properties": { "reasons": { "maxItems": 0 }, "affectedOutputs": { "maxItems": 0 } } }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/calibrated-joint-frame.schema.json",
+  "title": "CalibratedJointFrame",
+  "description": "Joint angles derived from a PoseLandmarkFrame via the TRD 2.1 formula theta = acos(((a-b).(c-b))/(||a-b|| ||c-b||)), with covariance propagation. Only produced when scale/reprojection has been checked; otherwise angles are still normalized but scaleValidated=false and no metric distance claims may be attached downstream.",
+  "type": "object",
+  "version": "v0",
+  "required": ["jointFrameId", "sessionId", "sourceFrameId", "capturedAt", "frame", "scaleValidated", "calibrationRef", "angles", "provenance"],
+  "properties": {
+    "jointFrameId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "sourceFrameId": { "type": "string", "description": "ID of the PoseLandmarkFrame this was derived from." },
+    "capturedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "frame": { "$ref": "common.schema.json#/$defs/coordinateFrame" },
+    "scaleValidated": {
+      "type": "boolean",
+      "description": "True only if scale was checked against calibrated depth, a known-size reference, stereo/multi-view, or an approved subject-specific calibration (TRD 2.1)."
+    },
+    "calibrationRef": { "type": "string", "description": "ID of the calibration/scale-check record used." },
+    "angles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["jointName", "thetaRadians", "uncertaintyRadians", "sourceLandmarks"],
+        "properties": {
+          "jointName": { "type": "string" },
+          "thetaRadians": { "type": "number" },
+          "uncertaintyRadians": { "type": "number", "minimum": 0 },
+          "sourceLandmarks": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 3,
+            "maxItems": 3,
+            "description": "[a, b, c] landmark names used in the theta = acos(...) formula, vertex at b."
+          }
+        }
+      }
+    },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  }
+}

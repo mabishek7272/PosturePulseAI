@@ -1,0 +1,29 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# iOS / Xcode
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Postgres data volume mounts (dev only)
+infra/pgdata/
+infra/docker-compose.override.yml
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+services/ml-service/.models/

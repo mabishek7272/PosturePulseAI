@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/sensor-reading.schema.json",
+  "title": "SensorReading",
+  "description": "Optional, clearly-non-gating wearable/sensor input (PRD 4.6 default: symptom entry is mandatory regardless; sensor integration is optional research context only). MUST NOT be referenced by any safety-FSM transition or DecisionEvent.action other than as descriptive evidence.",
+  "type": "object",
+  "version": "v0",
+  "required": ["sensorReadingId", "sessionId", "sensorType", "value", "unit", "recordedAt", "consentScopeRef"],
+  "properties": {
+    "sensorReadingId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "sensorType": { "type": "string", "enum": ["heart_rate"] },
+    "value": { "type": "number" },
+    "unit": { "type": "string", "enum": ["bpm"] },
+    "recordedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "sourceDeviceId": { "type": ["string", "null"], "default": null },
+    "consentScopeRef": {
+      "type": "string",
+      "description": "Must correspond to a ConsentRecord with 'wearable_integration' in scopes; enforced at the backend-api ingestion endpoint, not by this schema alone."
+    }
+  }
+}

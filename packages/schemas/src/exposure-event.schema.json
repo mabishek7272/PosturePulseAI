@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/exposure-event.schema.json",
+  "title": "ExposureEvent",
+  "description": "Valid time spent in a defined posture bucket (TRD 2.1) - NOT an inferred tissue-load/dose estimate. validSeconds only counts frames where the corresponding QualityGateFlag.state=='supported'; unsupported time is excluded, never fabricated as bucket time. postureBucket is assigned by a v0 heuristic threshold classifier, not a validated ergonomic exposure model (docs/claims-and-scope.md).",
+  "type": "object",
+  "version": "v0",
+  "required": ["exposureEventId", "sessionId", "postureBucket", "windowStartAt", "windowEndAt", "validSeconds", "totalWindowSeconds", "evidence", "provenance"],
+  "properties": {
+    "exposureEventId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "postureBucket": {
+      "type": "string",
+      "enum": ["neutral", "forward_flexion_mild", "forward_flexion_moderate", "forward_flexion_severe", "lateral_lean", "extension", "unclassified"]
+    },
+    "windowStartAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "windowEndAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "validSeconds": { "type": "number", "minimum": 0 },
+    "totalWindowSeconds": { "type": "number", "minimum": 0 },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "refId"],
+        "properties": {
+          "type": { "type": "string", "enum": ["calibrated-joint-frame", "quality-gate-flag"] },
+          "refId": { "type": "string" }
+        }
+      }
+    },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  }
+}

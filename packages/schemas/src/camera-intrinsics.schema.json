@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/camera-intrinsics.schema.json",
+  "title": "CameraIntrinsics",
+  "description": "Camera intrinsics K, distortion, resolution, and orientation stored per session/segment (TRD 2.1).",
+  "type": "object",
+  "version": "v0",
+  "required": ["intrinsicsId", "fx", "fy", "cx", "cy", "distortion", "distortionModel", "resolution", "mirrorFlag", "orientationDegrees", "capturedAt"],
+  "properties": {
+    "intrinsicsId": { "type": "string" },
+    "fx": { "type": "number" },
+    "fy": { "type": "number" },
+    "cx": { "type": "number" },
+    "cy": { "type": "number" },
+    "distortion": {
+      "type": "array",
+      "items": { "type": "number" },
+      "description": "Distortion coefficients; order/meaning depends on distortionModel."
+    },
+    "distortionModel": {
+      "type": "string",
+      "enum": ["brown-conrady", "fisheye", "none"]
+    },
+    "resolution": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "mirrorFlag": { "type": "boolean" },
+    "orientationDegrees": { "type": "integer", "enum": [0, 90, 180, 270] },
+    "capturedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" }
+  }
+}

@@ -1,0 +1,137 @@
+// beAIve backend-api data model — Phase 0 / start-of-Phase-1 scaffolding.
+// Event is append-only by service-layer convention (EventsService exposes no
+// update/delete). DB-level REVOKE UPDATE/DELETE hardening is a named follow-up,
+// not enforced here (see docs/adr and the implementation plan's deferred list).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id                String   @id @default(uuid())
+  subjectPseudoId   String
+  protocolId        String
+  protocolVersion   String
+  deploymentContext String
+  consentRecordId   String
+  retentionPolicy   Json
+  calibrationRef    String?
+  // Feeds subject-specific scale calibration (the only TRD-approved method
+  // implemented this phase - docs/adr/008-scale-calibration-scope.md). Set via
+  // POST /sessions/:id/height before calling POST /sessions/:id/scale-calibration.
+  subjectHeightMeters Float?
+  state             String
+  // Full XState persisted snapshot (actor.getPersistedSnapshot()), so the safety
+  // FSM can be correctly rehydrated after a process restart via the officially
+  // supported createActor(machine, { snapshot }) path - `state` alone is kept as
+  // a denormalized, human-readable/queryable mirror of snapshot.value.
+  safetySnapshot    Json?
+  createdAt         DateTime @default(now())
+
+  events Event[]
+
+  @@index([subjectPseudoId])
+}
+
+model Event {
+  id        String   @id @default(uuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  type      String
+  schemaId  String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+// Session-independent by design (docs/consent-and-retention.md): a subject
+// consents once and multiple sessions can reference the same consent record
+// via Session.consentRecordId. Not stored as an Event (Event.sessionId is
+// required, but consent logically precedes session creation).
+model ConsentRecord {
+  id                     String    @id @default(uuid())
+  subjectPseudoId        String
+  scopes                 Json
+  grantedAt              DateTime  @default(now())
+  revokedAt              DateTime?
+  withdrawalRequestedAt  DateTime?
+
+  @@index([subjectPseudoId])
+}
+
+model ProtocolVersion {
+  id          String   @id @default(uuid())
+  protocolKey String
+  version     String
+  definition  Json
+  status      String
+  createdAt   DateTime @default(now())
+
+  @@unique([protocolKey, version])
+}
+
+// Real clinician identity/auth (docs/adr/010-clinician-authentication.md),
+// replacing the Phase 0 RolesGuard's `x-role` header placeholder. No
+// self-service signup this phase - accounts are created via
+// scripts/seed-clinician.ts, run by whoever operates the deployment.
+model Clinician {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("clinician")
+  createdAt    DateTime @default(now())
+}
+
+// Who looked at which subject's data, and when (docs/adr/010's named
+// follow-up). Append-only by service-layer convention, same as Event -
+// AuditLogService exposes no update/delete. Deliberately its own table
+// rather than an Event row: this is a record of *access*, not a domain
+// record validated against packages/schemas, and it has no sessionId
+// requirement (e.g. GET /sessions itself touches no single session).
+model AuditLogEntry {
+  id                String   @id @default(uuid())
+  clinicianId       String
+  clinicianUsername String
+  action            String
+  sessionId         String?
+  occurredAt        DateTime @default(now())
+
+  @@index([sessionId, occurredAt])
+  @@index([clinicianId, occurredAt])
+}
+
+// Regulatory-grade clinical-trial adverse event documentation
+// (packages/schemas/src/adverse-event-record.schema.json; docs/phase4/,
+// ADR-011). Deliberately its own table, not an Event row: sessionId is
+// nullable here (an AE noticed at a follow-up visit may trace to no
+// specific session), which the Event table's required FK can't represent -
+// same rationale as ConsentRecord above. Append-only by service-layer
+// convention - AdverseEventsService exposes no update/delete; a correction
+// is a new record referencing the old one, same as Event.
+model AdverseEvent {
+  id                      String    @id @default(uuid())
+  sessionId               String?
+  subjectPseudoId         String
+  reportedByClinicianId   String
+  relatedSymptomReportId  String?
+  onsetAt                 DateTime
+  reportedAt              DateTime  @default(now())
+  description             String
+  severity                String
+  serious                 Boolean
+  causality               String
+  outcome                 String
+  actionTaken             String
+  followUpRequired        Boolean   @default(false)
+  reportedToEthicsBoardAt DateTime?
+
+  @@index([subjectPseudoId, reportedAt])
+  @@index([sessionId])
+  @@index([serious, reportedAt])
+}

@@ -1,0 +1,14 @@
+.safety-state-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.safety-state-badge--attention {
+  background: #fee2e2;
+  color: #991b1b;
+}

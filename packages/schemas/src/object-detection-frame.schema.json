@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/object-detection-frame.schema.json",
+  "title": "ObjectDetectionFrame",
+  "description": "Generic person/object detections (TRD 2.2). This is a generic COCO-class detector, NOT a desk/chair/monitor-specific ergonomic classifier - that needs a task-specific labeled model and is explicitly deferred (docs/adr/006-object-detection-scope.md). Bounding boxes are 2D image-pixel coordinates only; no 3D/workstation-object-frame localization is performed in this phase.",
+  "type": "object",
+  "version": "v0",
+  "required": ["detectionFrameId", "sessionId", "capturedAt", "frame", "detections", "provenance"],
+  "properties": {
+    "detectionFrameId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "capturedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "frame": {
+      "$ref": "common.schema.json#/$defs/coordinateFrame",
+      "description": "Always 'I' (image pixels) in this phase - see description above."
+    },
+    "detections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "boundingBox", "confidence"],
+        "properties": {
+          "label": {
+            "type": "string",
+            "enum": ["person", "chair", "couch", "dining_table", "tv", "laptop", "keyboard", "mouse", "cell_phone", "book", "bottle", "cup"]
+          },
+          "boundingBox": {
+            "type": "object",
+            "required": ["xMin", "yMin", "xMax", "yMax"],
+            "properties": {
+              "xMin": { "type": "number" },
+              "yMin": { "type": "number" },
+              "xMax": { "type": "number" },
+              "yMax": { "type": "number" }
+            }
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  }
+}

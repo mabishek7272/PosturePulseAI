@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/session.schema.json",
+  "title": "Session",
+  "description": "A session record: pseudonymous subject, site/protocol/version, consent scope, retention policy, calibration ref, and current safety-FSM state (PRD 1.6, TRD 2.4/2.5).",
+  "type": "object",
+  "version": "v0",
+  "required": [
+    "sessionId", "subjectPseudoId", "protocolId", "protocolVersion", "deploymentContext",
+    "consentRecordId", "retentionPolicy", "state", "createdAt"
+  ],
+  "properties": {
+    "sessionId": { "type": "string" },
+    "subjectPseudoId": { "type": "string" },
+    "protocolId": { "type": "string" },
+    "protocolVersion": { "type": "string" },
+    "deploymentContext": {
+      "type": "string",
+      "enum": ["clinic_supervised", "home_rehab"]
+    },
+    "consentRecordId": { "type": "string", "description": "Reference to a ConsentRecord." },
+    "retentionPolicy": {
+      "type": "object",
+      "required": ["rawVideo", "derivedEvents"],
+      "properties": {
+        "rawVideo": {
+          "type": "object",
+          "required": ["optIn", "retentionDays"],
+          "properties": {
+            "optIn": { "type": "boolean" },
+            "retentionDays": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] }
+          }
+        },
+        "derivedEvents": {
+          "type": "object",
+          "required": ["retentionDays"],
+          "properties": {
+            "retentionDays": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "calibrationRef": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "References the session's current ScaleCalibrationRecord.scaleCalibrationId, if any. null means this session has never been scale-calibrated - ml-service must then report CalibratedJointFrame.scaleValidated=false (docs/coordinate-frames.md, docs/adr/008-scale-calibration-scope.md)."
+    },
+    "state": {
+      "type": "string",
+      "enum": ["Setup", "Observing", "CueEligible", "Pause", "Unavailable", "ClinicianReview"]
+    },
+    "createdAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" }
+  }
+}

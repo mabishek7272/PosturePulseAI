@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/symptom-report.schema.json",
+  "title": "SymptomReport",
+  "description": "User-entered symptom report. Always accepted regardless of concurrent ML confidence; triggers an immediate safety-FSM transition to Pause or ClinicianReview escalation, following clinician-authored instructions (TRD 2.5).",
+  "type": "object",
+  "version": "v0",
+  "required": ["symptomReportId", "sessionId", "reportedAt", "symptoms", "severity", "triggeredAction"],
+  "properties": {
+    "symptomReportId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "reportedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "symptoms": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["pain", "dizziness", "weakness", "breathlessness", "other"]
+      }
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["mild", "moderate", "severe"]
+    },
+    "freeText": { "type": ["string", "null"], "default": null },
+    "triggeredAction": {
+      "type": "string",
+      "enum": ["pause", "escalate_review"],
+      "default": "pause"
+    }
+  }
+}
