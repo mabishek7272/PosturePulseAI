@@ -38,11 +38,16 @@ export class ConsentService {
     return this.prisma.consentRecord.findUniqueOrThrow({ where: { id } });
   }
 
+  /** The record's subject and scopes if it exists and is not revoked, else null. */
+  async findActive(consentRecordId: string): Promise<{ subjectPseudoId: string; scopes: string[] } | null> {
+    const record = await this.prisma.consentRecord.findUnique({ where: { id: consentRecordId } });
+    if (!record || record.revokedAt) return null;
+    return { subjectPseudoId: record.subjectPseudoId, scopes: record.scopes as unknown as string[] };
+  }
+
   /** True only when a non-revoked consent record exists for `consentRecordId` with `scope` in its scopes. */
   async hasActiveScope(consentRecordId: string, scope: string): Promise<boolean> {
-    const record = await this.prisma.consentRecord.findUnique({ where: { id: consentRecordId } });
-    if (!record || record.revokedAt) return false;
-    const scopes = record.scopes as unknown as string[];
-    return scopes.includes(scope);
+    const record = await this.findActive(consentRecordId);
+    return record ? record.scopes.includes(scope) : false;
   }
 }

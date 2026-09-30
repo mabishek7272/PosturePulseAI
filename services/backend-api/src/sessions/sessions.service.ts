@@ -1,5 +1,7 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 import { v4 as uuid } from "uuid";
+import { SubjectAuthService } from "../auth/subject-auth.service";
+import { ConsentService } from "../consent/consent.service";
 import { EventsService } from "../events/events.service";
 import { PrismaService } from "../common/prisma.service";
 import { SafetyService } from "../safety/safety.service";
@@ -19,10 +21,13 @@ export class SessionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly safety: SafetyService,
-    private readonly events: EventsService
+    private readonly events: EventsService,
+    private readonly consent: ConsentService,
+    private readonly subjectAuth: SubjectAuthService
   ) {}
 
   async create(input: CreateSessionInput) {
+    await this.assertConsentCovers(input);
     const id = uuid();
     await this.prisma.session.create({
       data: {
@@ -39,7 +44,23 @@ export class SessionsService {
     });
     // Seeds the actor + persisted snapshot for this session id.
     await this.safety.startSession(id);
-    return this.get(id);
+    const session = await this.get(id);
+    const sessionToken = await this.subjectAuth.issueSessionToken(id, input.subjectPseudoId);
+    return { session, sessionToken };
+  }
+
+  private async assertConsentCovers(input: CreateSessionInput) {
+    const consent = await this.consent.findActive(input.consentRecordId);
+    if (!consent || consent.subjectPseudoId !== input.subjectPseudoId) {
+      throw new ForbiddenException("No active consent record for this subject.");
+    }
+    if (!consent.scopes.includes("derived_events")) {
+      throw new ForbiddenException("Consent record lacks the 'derived_events' scope required to run a session.");
+    }
+    const rawVideo = (input.retentionPolicy as { rawVideo?: { optIn?: boolean } } | null)?.rawVideo;
+    if (rawVideo?.optIn === true && !consent.scopes.includes("raw_video")) {
+      throw new ForbiddenException("Raw video retention requires the 'raw_video' consent scope.");
+    }
   }
 
   async get(id: string) {
