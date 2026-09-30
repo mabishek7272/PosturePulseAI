@@ -1,4 +1,6 @@
-import { Body, Controller, ForbiddenException, Post } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Post, UseGuards } from "@nestjs/common";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { SessionOwnershipGuard } from "../auth/session-ownership.guard";
 import { v4 as uuid } from "uuid";
 import { ConsentService } from "../consent/consent.service";
 import { EventsService } from "../events/events.service";
@@ -29,6 +31,7 @@ export class SensorsController {
     private readonly gateway: SessionGateway
   ) {}
 
+  @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post()
   async submit(@Body() body: SubmitSensorReadingBody) {
     const hasConsent = await this.consent.hasActiveScope(body.consentScopeRef, "wearable_integration");

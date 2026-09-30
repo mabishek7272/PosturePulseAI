@@ -1,4 +1,6 @@
-import { Body, Controller, Param, Post } from "@nestjs/common";
+import { Body, Controller, Param, Post, UseGuards } from "@nestjs/common";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { SessionOwnershipGuard } from "../auth/session-ownership.guard";
 import { PrismaService } from "../common/prisma.service";
 import { MlClientService } from "./ml-client.service";
 import { MlResultConsumer } from "./ml-result.consumer";
@@ -18,6 +20,7 @@ export class FramesController {
     private readonly prisma: PrismaService
   ) {}
 
+  @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post()
   async submit(@Param("sessionId") sessionId: string, @Body() body: SubmitFrameBody) {
     // backend-api owns Session/ScaleCalibrationRecord data - ml-service never

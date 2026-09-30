@@ -1,4 +1,6 @@
-import { Body, Controller, Param, Post } from "@nestjs/common";
+import { Body, Controller, Param, Post, UseGuards } from "@nestjs/common";
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { SessionOwnershipGuard } from "../auth/session-ownership.guard";
 import { EventsService } from "../events/events.service";
 import { SessionGateway } from "../ws/session.gateway";
 import { MlClientService } from "./ml-client.service";
@@ -22,6 +24,7 @@ export class DetectObjectsController {
     private readonly gateway: SessionGateway
   ) {}
 
+  @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post()
   async submit(@Param("sessionId") sessionId: string, @Body() body: DetectObjectsBody) {
     const objectDetectionFrame = await this.mlClient.detectObjects({ sessionId, ...body });

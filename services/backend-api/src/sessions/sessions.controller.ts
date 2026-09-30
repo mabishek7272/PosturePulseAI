@@ -4,6 +4,7 @@ import { AuditAction } from "../audit/audit-action.decorator";
 import { AuditLogInterceptor } from "../audit/audit-log.interceptor";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
+import { SessionOwnershipGuard } from "../auth/session-ownership.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { EventsService } from "../events/events.service";
 import { MlClientService } from "../ml-integration/ml-client.service";
@@ -60,12 +61,14 @@ export class SessionsController {
    * create() because a real client may need to run a calibration flow
    * (apps/ios-client CalibrationFlowView) between the two.
    */
+  @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post(":id/calibrate")
   async calibrate(@Param("id") id: string) {
     const state = await this.safety.send(id, { type: "CALIBRATED" });
     return { id, state };
   }
 
+  @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post(":id/setup-unavailable")
   async setupUnavailable(@Param("id") id: string, @Body() body: { reason: string }) {
     const state = await this.safety.send(id, { type: "SETUP_UNAVAILABLE", reason: body.reason });
@@ -73,6 +76,7 @@ export class SessionsController {
   }
 
   /** Feeds subject-specific scale calibration (docs/adr/008) - set before calling scale-calibration. */
+  @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post(":id/height")
   async setHeight(@Param("id") id: string, @Body() body: { subjectHeightMeters: number }) {
     return this.sessions.setHeight(id, body.subjectHeightMeters);
@@ -85,6 +89,7 @@ export class SessionsController {
    * silently accepting an unvalidated scale if ankle/nose aren't fully
    * observed in the given frame.
    */
+  @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post(":id/scale-calibration")
   async calibrateScaleFromFrame(
     @Param("id") id: string,
@@ -110,6 +115,7 @@ export class SessionsController {
    * AR-specific backend logic yet beyond persisting the record for later
    * hazard-analysis (HZ-04 anchor-drift) review.
    */
+  @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post(":id/camera-poses")
   async submitCameraPose(
     @Param("id") id: string,
