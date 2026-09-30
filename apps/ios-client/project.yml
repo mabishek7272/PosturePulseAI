@@ -1,0 +1,41 @@
+# Runnable iOS app around Sources/. Regenerate the Xcode project after editing:
+#   cd apps/ios-client && xcodegen generate
+# Package.swift stays as the library + unit-test entry point for the same Sources.
+name: PosturePulse
+options:
+  bundleIdPrefix: com.amgi
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: en
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  PosturePulse:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: AppResources
+    info:
+      path: AppResources/Info.plist
+      properties:
+        CFBundleDisplayName: PosturePulse AI
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIUserInterfaceStyle: Light
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSCameraUsageDescription: PosturePulse AI uses the camera during a session to estimate your posture and movement. Camera frames are sent to your clinic's PosturePulse server to compute the estimates; the app does not keep video.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.amgi.posturepulse
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic

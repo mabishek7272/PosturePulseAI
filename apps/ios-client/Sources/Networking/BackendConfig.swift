@@ -1,9 +1,9 @@
 import Foundation
 
-/// Where the backend-api lives. In this phase there is no service discovery -
-/// point this at your dev machine's IP when running on a physical device
-/// (localhost only works in the simulator).
+/// Where the backend-api lives: the shared server behind Caddy/TLS
+/// (infra/docker-compose.server.yml). For a local stack use
+/// http://localhost:3000 (simulator only; allowed by NSAllowsLocalNetworking).
 struct BackendConfig {
-    static let baseURL = URL(string: "http://localhost:3000")!
-    static let webSocketURL = URL(string: "ws://localhost:3000")!
+    static let baseURL = URL(string: "https://posture.beaive.com")!
+    static let webSocketURL = URL(string: "wss://posture.beaive.com")!
 }
