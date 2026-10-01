@@ -3,7 +3,7 @@
 # Package.swift stays as the library + unit-test entry point for the same Sources.
 name: PosturePulse
 options:
-  bundleIdPrefix: com.amgi
+  bundleIdPrefix: com.beaive
   deploymentTarget:
     iOS: "16.0"
   developmentLanguage: en
@@ -16,6 +16,7 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: 3J5T92268T
 targets:
   PosturePulse:
     type: application
@@ -35,17 +36,23 @@ targets:
         UIUserInterfaceStyle: Light
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+        # Full screen on iPad: a camera assessment should not run in Split View.
+        UIRequiresFullScreen: true
+        # HTTPS only - exempt encryption, so TestFlight skips the export-compliance prompt.
+        ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: PosturePulse AI uses the camera during a session to estimate your posture and movement. Camera frames are sent to your clinic's PosturePulse server to compute the estimates; the app does not keep video.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.amgi.posturepulse
+        PRODUCT_BUNDLE_IDENTIFIER: com.beaive.posturepulse
         # Same module name as the Package.swift library so Tests/ can `@testable import` either.
         PRODUCT_MODULE_NAME: PostureAnalysisClient
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
   PosturePulseTests:
     type: bundle.unit-test
@@ -56,7 +63,7 @@ targets:
       - target: PosturePulse
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.amgi.posturepulse.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.beaive.posturepulse.tests
         GENERATE_INFOPLIST_FILE: YES
 schemes:
   PosturePulse:

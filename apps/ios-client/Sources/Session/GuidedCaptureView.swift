@@ -77,6 +77,7 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
             stop()
         }
         .padding(.horizontal, Theme.gutter)
+            .readableColumn()
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .paperBackground()

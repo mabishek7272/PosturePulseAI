@@ -23,6 +23,7 @@ struct AssessmentReportView: View {
                 footnote
             }
             .padding(.horizontal, Theme.gutter)
+            .readableColumn()
             .padding(.bottom, 32)
         }
         .paperBackground()

@@ -16,7 +16,7 @@ open PosturePulse.xcodeproj  # scheme "PosturePulse": the app + its unit tests
 ```
 
 - `project.yml` defines the app target (`PosturePulse`, bundle id
-  `com.amgi.posturepulse`, light appearance only) and `PosturePulseTests`.
+  `com.beaive.posturepulse`, light appearance only) and `PosturePulseTests`.
   The generated `PosturePulse.xcodeproj` is committed; regenerate rather than
   hand-edit it.
 - `Package.swift` is kept for the same `Sources/` as a library. With the
@@ -31,7 +31,7 @@ open PosturePulse.xcodeproj  # scheme "PosturePulse": the app + its unit tests
 
 Launch with `-designPreview report|report-movement|capture|reps|setup` to see
 screens with sample data (e.g. Xcode scheme → Run → Arguments, or
-`xcrun simctl launch <sim> com.amgi.posturepulse -designPreview report`).
+`xcrun simctl launch <sim> com.beaive.posturepulse -designPreview report`).
 
 ### Brand assets
 

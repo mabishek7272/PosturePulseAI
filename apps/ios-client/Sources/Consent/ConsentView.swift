@@ -61,6 +61,7 @@ struct ConsentView: View {
                 .disabled(isSubmitting)
             }
             .padding(.horizontal, Theme.gutter)
+            .readableColumn()
             .padding(.bottom, 28)
         }
         .paperBackground()

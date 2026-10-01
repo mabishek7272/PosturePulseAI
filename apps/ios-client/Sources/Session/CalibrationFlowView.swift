@@ -78,6 +78,7 @@ struct CalibrationFlowView: View {
                 .disabled(isCalibrating)
             }
             .padding(.horizontal, Theme.gutter)
+            .readableColumn()
             .padding(.bottom, 24)
         }
         .paperBackground()

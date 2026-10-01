@@ -118,6 +118,11 @@ struct CardStyle: ViewModifier {
 extension View {
     func card() -> some View { modifier(CardStyle()) }
 
+    /// Caps content at a comfortable reading width on iPad; no effect on iPhone.
+    func readableColumn() -> some View {
+        frame(maxWidth: 640).frame(maxWidth: .infinity)
+    }
+
     /// Paper background for every light screen.
     func paperBackground() -> some View {
         background(Theme.paper.ignoresSafeArea())
