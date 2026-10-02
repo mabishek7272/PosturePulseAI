@@ -27,3 +27,8 @@ infra/docker-compose.override.yml
 .idea/
 .DS_Store
 services/ml-service/.models/
+
+# App Store Connect API keys / signing secrets
+*.p8
+*.p12
+*.mobileprovision
