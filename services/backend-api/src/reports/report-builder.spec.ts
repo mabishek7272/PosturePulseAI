@@ -217,6 +217,29 @@ describe("buildReport", () => {
     expect(() => buildReport(input([r], { catalog }))).toThrow(ReportBuildError);
   });
 
+  it("fails the build when a not-measurable reason from the catalog carries a banned phrase", () => {
+    const bad = `Cannot be measured; a ${"nor"}mal range is unknown.`;
+    const catalog = { ...CATALOG, notMeasurable: [{ ...CATALOG.notMeasurable[0], reason: bad }] };
+    expect(() => buildReport(input([], { catalog }))).toThrow(/banned/);
+  });
+
+  it("fails the build when a metric label from the catalog carries a banned phrase", () => {
+    const r = result("static.head_lateral_tilt", "static.anterior", { estimate: { value: 1, uncertainty: 1, framesUsed: 3 } });
+    const metrics = CATALOG.metrics.map((m) =>
+      m.metricKey === "static.head_lateral_tilt" ? { ...m, label: `Head ${"scor"}e` } : m
+    );
+    expect(() => buildReport(input([r], { catalog: { ...CATALOG, metrics } }))).toThrow(ReportBuildError);
+  });
+
+  it("fails the build when a not-measurable row reason from a result carries a banned phrase", () => {
+    const r = result("static.q_angle", "static.anterior", {
+      tier: "not_measurable",
+      notMeasurable: { reason: `A ${"diagno"}sis is needed first.` },
+    } as never);
+    const metrics = [...CATALOG.metrics, { ...CATALOG.metrics[0], metricKey: "static.q_angle", label: "Q-angle", tier: "not_measurable" as never }];
+    expect(() => buildReport(input([{ ...r, unit: "deg" }], { catalog: { ...CATALOG, metrics } }))).toThrow(ReportBuildError);
+  });
+
   it("is deterministic", () => {
     const results = [
       result("static.head_lateral_tilt", "static.anterior", { estimate: { value: 1, uncertainty: 1, framesUsed: 3 } }),

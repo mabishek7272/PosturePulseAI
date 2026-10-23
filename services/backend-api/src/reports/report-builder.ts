@@ -1,4 +1,5 @@
 import type { AssessmentBattery, MetricCatalog, MetricResult, QualityReason, ReferenceEntry, ReferenceRangeSet, Side, Tier } from "../battery/types";
+import { bannedHits } from "./banned-phrases";
 import { computePosition, type Position, type ReferenceBounds } from "./report-position";
 import { formatReferenceLabel, renderAnalysis } from "./report-templates";
 
@@ -201,12 +202,28 @@ function buildRow(
   return row;
 }
 
+/** Throws ReportBuildError when text that reaches a report row carries a banned phrase. */
+function assertClean(where: string, text: string): void {
+  const hits = bannedHits(text);
+  if (hits.length > 0) {
+    throw new ReportBuildError(`${where} contains banned wording (${hits.join(", ")}); refusing to build the report`);
+  }
+}
+
 export function buildReport(input: BuildReportInput): AssessmentReportBody {
   const references = indexReferences(input.referenceSet, input.catalog);
   const catalog = new Map(input.catalog.metrics.map((m) => [m.metricKey, m]));
   const rows = [...input.results]
     .sort(compareResults(input.battery))
     .map((r) => buildRow(r, catalog, references, input.referenceSet.status));
+
+  for (const row of rows) {
+    assertClean(`Row ${row.metricKey} label`, row.label);
+    assertClean(`Row ${row.metricKey} analysis`, row.analysis.text);
+  }
+  for (const n of input.catalog.notMeasurable) {
+    assertClean(`Not-measurable entry ${n.metricKey}`, `${n.label} ${n.reason} ${n.whatWouldBeNeeded}`);
+  }
 
   return {
     reportId: input.reportId,
