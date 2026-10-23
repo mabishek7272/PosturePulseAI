@@ -110,4 +110,17 @@ describe("StepsService.statusFor", () => {
     const step = (await service.statusFor("s1")).find((s) => s.stepId === "static.posterior")!;
     expect(step).toMatchObject({ usable: true, reasons: [] });
   });
+
+  it("includes the newest clip's id so the client can detect a stale status after a Redo", async () => {
+    const results = keysOf("static.posterior").map((k) => estimate("c1", "static.posterior", k));
+    const { service } = build([{ id: "c1", stepId: "static.posterior", status: "analyzed", createdAt: at(1) }], results);
+    const step = (await service.statusFor("s1")).find((s) => s.stepId === "static.posterior")!;
+    expect(step.clipId).toBe("c1");
+  });
+
+  it("has a null clipId for a step with no clip at all", async () => {
+    const { service } = build([], []);
+    const step = (await service.statusFor("s1")).find((s) => s.stepId === "static.anterior")!;
+    expect(step.clipId).toBeNull();
+  });
 });

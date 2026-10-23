@@ -13,6 +13,9 @@ export interface StepStatusRow {
   usable: boolean;
   /** Distinct quality reasons of the step's unsupported results, in first-seen order. */
   reasons: string[];
+  /** The newest clip's id for this step, or null if there is none - lets the client
+      detect that a status response is about a clip it already replaced via Redo. */
+  clipId: string | null;
 }
 
 /**
@@ -44,9 +47,9 @@ export class StepsService {
 
     return this.battery.battery.steps.map((step) => {
       const clip = newest.get(step.stepId);
-      if (!clip) return { stepId: step.stepId, status: "missing", usable: false, reasons: [] };
-      if (clip.status === "failed") return { stepId: step.stepId, status: "failed", usable: false, reasons: [] };
-      if (clip.status !== "analyzed") return { stepId: step.stepId, status: "processing", usable: false, reasons: [] };
+      if (!clip) return { stepId: step.stepId, status: "missing", usable: false, reasons: [], clipId: null };
+      if (clip.status === "failed") return { stepId: step.stepId, status: "failed", usable: false, reasons: [], clipId: clip.id };
+      if (clip.status !== "analyzed") return { stepId: step.stepId, status: "processing", usable: false, reasons: [], clipId: clip.id };
 
       // Newest result per (metricKey, side) of this clip: a retried analysis appends again.
       const latest = new Map<string, MetricResult>();
@@ -62,7 +65,7 @@ export class StepsService {
       }
       const covered = step.metricKeys.every((key) => results.some((r) => r.metricKey === key));
       const usable = covered && results.every((r) => r.estimate !== undefined);
-      return { stepId: step.stepId, status: "analyzed", usable, reasons };
+      return { stepId: step.stepId, status: "analyzed", usable, reasons, clipId: clip.id };
     });
   }
 }
