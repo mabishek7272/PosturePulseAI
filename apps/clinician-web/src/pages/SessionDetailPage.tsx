@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { getExposureSummary, getSession, listEvents } from "../api/client";
 import { connectToSession } from "../api/socket";
 import type { EventRecord, ExposureSummary, SessionRecord } from "../api/types";
+import { BuildDraftReportButton } from "../components/BuildDraftReportButton";
 import { EventTimeline } from "../components/EventTimeline";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 
@@ -84,6 +85,13 @@ export function SessionDetailPage() {
         <dt>Created</dt>
         <dd>{new Date(session.createdAt).toLocaleString()}</dd>
       </dl>
+
+      <h2>Assessment report</h2>
+      <p className="page-caption">
+        Builds a new draft from this session's latest measurements. Drafts are reviewed and signed off before
+        the patient can see them.
+      </p>
+      <BuildDraftReportButton sessionId={sessionId} />
 
       <h2>Exposure summary</h2>
       <p className="page-caption">
