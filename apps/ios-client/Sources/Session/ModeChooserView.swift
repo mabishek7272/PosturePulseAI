@@ -43,7 +43,10 @@ struct ModeChooserView: View {
                             dragOffset = value.translation.height
                         }
                         .onEnded { value in
-                            guard wipeIncoming == nil else { return }
+                            guard wipeIncoming == nil else {
+                                dragOffset = 0
+                                return
+                            }
                             let threshold = height * 0.18
                             let next: SessionMode? =
                                 value.translation.height < -threshold && selection == .clinic ? .patient :
@@ -85,6 +88,7 @@ struct ModeChooserView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 44)
                     .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
             .frame(width: geo.size.width, height: height)
             .clipped()
@@ -126,6 +130,8 @@ struct ModeChooserView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
         .padding(.trailing, 14)
         .allowsHitTesting(false)
+        .accessibilityHidden(true) // sighted-user-only affordance; each ModePage is independently
+                                   // reachable and actionable via VoiceOver without this gesture.
         .onAppear {
             guard !reduceMotion else { return }
             legendDotAtTop = true
