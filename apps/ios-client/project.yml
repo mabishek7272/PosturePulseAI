@@ -42,7 +42,7 @@ targets:
         UIRequiresFullScreen: true
         # HTTPS only - exempt encryption, so TestFlight skips the export-compliance prompt.
         ITSAppUsesNonExemptEncryption: false
-        NSCameraUsageDescription: PosturePulse AI uses the camera during a session to estimate your posture and movement. Camera frames are sent to your clinic's PosturePulse server to compute the estimates; the app does not keep video.
+        NSCameraUsageDescription: PosturePulse AI records short video clips during an assessment to estimate your posture. Clips are sent to your clinic's PosturePulse server and deleted after analysis, unless you chose to keep session video.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:

@@ -33,9 +33,9 @@ enum ConsentScope: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .derivedEvents:
-            return "Store estimated joint angles, movement and data-quality results from your sessions - never video - so your clinician can review them. Required to run a session."
+            return "Store estimated body angles, positions and data-quality results from your sessions so your clinician can review them. Video clips are sent to your clinic's server for analysis and then deleted. Required to run a session."
         case .rawVideo:
-            return "Store the camera video of your sessions for a limited time. Off unless you choose it."
+            return "Keep the video clips of your sessions on your clinic's server for a limited time instead of deleting them after analysis. Off unless you choose it."
         case .researchDataExport:
             return "Include de-identified session measurements in research studies."
         case .wearableIntegration:
