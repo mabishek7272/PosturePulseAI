@@ -27,6 +27,7 @@ RUN bash scripts/fetch-pose-model.sh
 # Shared clip volume (mounted by infra; backend-api writes clips here and this
 # service writes landmark series under landmarks/).
 ENV CLIP_DIR=/data/clips
+RUN mkdir -p /data/clips/landmarks
 
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
