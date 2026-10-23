@@ -1,0 +1,181 @@
+/* Report review styling. Deliberately colour-neutral: positions, tiers and
+   badges all use the same greys/borders whatever they say (spec slice D). */
+
+.report-step {
+  margin-bottom: 24px;
+}
+
+.report-step__title {
+  font-size: 1rem;
+  margin: 16px 0 8px;
+}
+
+.report-step__id {
+  font-weight: 400;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.report-table-scroll {
+  overflow-x: auto;
+}
+
+.report-table td {
+  vertical-align: top;
+}
+
+.report-row--excluded td {
+  opacity: 0.6;
+}
+
+.report-row--excluded .report-value {
+  text-decoration: line-through;
+}
+
+.report-side {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.report-chip,
+.report-draft-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.report-draft-badge {
+  border-style: dashed;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.report-value {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-citation {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 0.75rem;
+  max-width: 260px;
+}
+
+.report-position {
+  font-weight: 600;
+}
+
+.report-reasons {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 0.85rem;
+}
+
+.report-excluded {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.report-analysis {
+  font-size: 0.85rem;
+  max-width: 280px;
+}
+
+.report-button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.report-button--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.report-button--quiet {
+  border-color: transparent;
+}
+
+.report-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.report-exclude {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  min-width: 180px;
+}
+
+.report-exclude input,
+.report-form input,
+.report-form textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.report-exclude__actions,
+.report-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 640px;
+  margin-bottom: 24px;
+}
+
+.report-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.report-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.report-dialog {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.report-dialog h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
