@@ -56,6 +56,11 @@ interface PostOptions {
    * not log the clinician out, so that route opts out of clearing the token.
    */
   unauthorizedMessage?: string;
+  /**
+   * Called before unauthorizedMessage is thrown, to tell a rejected password from an
+   * expired session: it should make a call that throws if the token is no longer valid.
+   */
+  verifySession?: () => Promise<unknown>;
 }
 
 /** Authenticated JSON POST, used by the report-review and patient-register mutations. */
@@ -70,7 +75,17 @@ async function postJson<T>(path: string, body: unknown, options: PostOptions = {
   });
 
   if (response.status === 401) {
-    if (options.unauthorizedMessage) throw new Error(options.unauthorizedMessage);
+    if (options.unauthorizedMessage) {
+      if (options.verifySession) {
+        try {
+          await options.verifySession();
+        } catch (err) {
+          if (err instanceof UnauthorizedError) throw err; // session expired; token already cleared
+          // Any other failure: cannot tell, so fall through to the password message.
+        }
+      }
+      throw new Error(options.unauthorizedMessage);
+    }
     clearToken();
     throw new UnauthorizedError();
   }
@@ -169,7 +184,11 @@ export function signOffReport(reportId: string, password: string): Promise<Asses
   return postJson<AssessmentReportRecord>(
     `/reports/${encodeURIComponent(reportId)}/sign-off`,
     { password },
-    { unauthorizedMessage: "Sign-off not accepted: check your password and try again." }
+    {
+      unauthorizedMessage: "Sign-off not accepted: check your password and try again.",
+      // A 401 can mean a wrong password or an expired token; an authenticated GET tells them apart.
+      verifySession: () => getReport(reportId),
+    }
   );
 }
 

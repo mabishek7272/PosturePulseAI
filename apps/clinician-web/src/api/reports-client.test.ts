@@ -94,9 +94,41 @@ describe("api client - M1 report review", () => {
     expect(fetch).toHaveBeenCalledWith("http://localhost:3000/reports/r1/sign-off", postInit({ password: "secret" }));
   });
 
-  it("signOffReport keeps the login on 401 (a rejected password must not log the clinician out)", async () => {
+  it("signOffReport keeps the login on 401 when the session is still valid (wrong password)", async () => {
     setToken("the.jwt.token");
-    mockFetchOnce({ message: "bad password" }, false, 401);
+    const response = (ok: boolean, status: number, body: unknown) => ({
+      ok,
+      status,
+      statusText: ok ? "OK" : "Error",
+      json: () => Promise.resolve(body),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(response(false, 401, { message: "bad password" }))
+        .mockResolvedValueOnce(response(true, 200, { id: "r1" }))
+    );
+    await expect(signOffReport("r1", "wrong")).rejects.toThrow(/not accepted/i);
+    expect(getToken()).toBe("the.jwt.token");
+  });
+
+  it("signOffReport tells an expired session apart from a wrong password", async () => {
+    setToken("stale.token");
+    mockFetchOnce({ message: "Unauthorized" }, false, 401); // sign-off and the session check both 401
+    await expect(signOffReport("r1", "pw")).rejects.toThrow(/log in again/i);
+    expect(getToken()).toBeNull();
+  });
+
+  it("signOffReport falls back to the password message when the session check itself fails", async () => {
+    setToken("the.jwt.token");
+    const response = (ok: boolean, status: number) => ({
+      ok,
+      status,
+      statusText: "Error",
+      json: () => Promise.resolve({}),
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(response(false, 401)).mockResolvedValueOnce(response(false, 500)));
     await expect(signOffReport("r1", "wrong")).rejects.toThrow(/not accepted/i);
     expect(getToken()).toBe("the.jwt.token");
   });

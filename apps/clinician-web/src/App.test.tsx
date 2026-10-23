@@ -25,6 +25,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("App routes when signed out", () => {
+  it.each(["/reports", "/reports/rep-1", "/patients"])("redirects %s to the login page", async (path) => {
+    clearToken();
+    renderAt(path);
+    expect(await screen.findByRole("button", { name: /log ?in|sign ?in/i })).toBeInTheDocument();
+    expect(client.listReports).not.toHaveBeenCalled();
+    expect(client.searchPatients).not.toHaveBeenCalled();
+  });
+});
+
 describe("App routes and navigation", () => {
   it("links to the report queue and the patient register from the header", () => {
     renderAt("/");

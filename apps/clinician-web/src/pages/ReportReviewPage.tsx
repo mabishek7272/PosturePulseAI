@@ -9,7 +9,7 @@ import {
   saveClinicianAssessment,
   signOffReport,
 } from "../api/client";
-import type { AssessmentReportRecord, ReportStatus, RowExclusion, SessionRecord } from "../api/types";
+import type { AssessmentReportRecord, ReportStatus, RowExclusion, SafetyState, SessionRecord } from "../api/types";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 import { ReportRowsTable } from "../report/ReportRowsTable";
 import { SignOffDialog } from "../report/SignOffDialog";
@@ -20,6 +20,9 @@ const STATUS_LABEL: Record<ReportStatus, string> = {
   released: "Released",
   rejected: "Rejected",
 };
+
+// Same set the safety badge highlights; shown here as a plain warning, not a block.
+const SAFETY_ATTENTION: ReadonlySet<SafetyState> = new Set(["Pause", "ClinicianReview", "Unavailable"]);
 
 /**
  * Review of one assessment report (ADR-015, spec slice D). Rows describe
@@ -33,7 +36,9 @@ export function ReportReviewPage() {
   const [session, setSession] = useState<SessionRecord | null>(null);
   const [stepTitles, setStepTitles] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  // Page-level notice only (draft changed, re-check failed). Failures of an
+  // action are shown once, next to the control that raised them.
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!reportId) return;
@@ -89,15 +94,36 @@ export function ReportReviewPage() {
   const editable = record.status === "draft";
   const hasDraftReference = body.rows.some((row) => row.reference?.status === "draft");
 
+  /** Runs a mutation, then reloads. A failure is rethrown for the calling control to display. */
   async function runAction(action: () => Promise<unknown>) {
-    setActionError(null);
-    try {
-      await action();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err));
-      throw err;
-    }
+    setNotice(null);
+    await action();
     await load();
+  }
+
+  /**
+   * Re-fetches the draft when sign-off is requested. Sign-off releases whatever the backend
+   * holds, so if another clinician changed it since this page loaded, show the new version
+   * instead of releasing something this clinician has not seen.
+   */
+  async function confirmUnchanged(): Promise<boolean> {
+    setNotice(null);
+    try {
+      const fresh = await getReport(reportId!);
+      if (
+        fresh.status !== record!.status ||
+        fresh.reportVersion !== record!.reportVersion ||
+        JSON.stringify(fresh.body) !== JSON.stringify(record!.body)
+      ) {
+        setRecord(fresh);
+        setNotice("This report changed since you opened it. Review the updated version, then sign off.");
+        return false;
+      }
+      return true;
+    } catch (err) {
+      setNotice(`Could not re-check the report before sign-off: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    }
   }
 
   async function handleExclude(exclusion: RowExclusion) {
@@ -188,6 +214,12 @@ export function ReportReviewPage() {
         <DraftActions
           key={record.id + (body.clinicianAssessment?.text ?? "")}
           savedText={body.clinicianAssessment?.text ?? ""}
+          safetyWarning={
+            session && SAFETY_ATTENTION.has(session.state)
+              ? `This session's safety state is ${session.state}. Check the session before signing off.`
+              : null
+          }
+          onBeforeSignOff={confirmUnchanged}
           onSave={(text) => runAction(() => saveClinicianAssessment(reportId, text))}
           onSignOff={(password) => runAction(() => signOffReport(reportId, password))}
           onReject={(reason) => runAction(() => rejectReport(reportId, reason))}
@@ -195,18 +227,26 @@ export function ReportReviewPage() {
       ) : (
         <p>{body.clinicianAssessment?.text ?? "No assessment was recorded."}</p>
       )}
-      {actionError && <p className="error-text">{actionError}</p>}
+      {notice && (
+        <p className="error-text" role="alert">
+          {notice}
+        </p>
+      )}
     </div>
   );
 }
 
 function DraftActions({
   savedText,
+  safetyWarning,
+  onBeforeSignOff,
   onSave,
   onSignOff,
   onReject,
 }: {
   savedText: string;
+  safetyWarning: string | null;
+  onBeforeSignOff: () => Promise<boolean>;
   onSave: (text: string) => Promise<void>;
   onSignOff: (password: string) => Promise<void>;
   onReject: (reason: string) => Promise<void>;
@@ -217,16 +257,20 @@ function DraftActions({
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [rejectError, setRejectError] = useState<string | null>(null);
   const assessmentId = useId();
   const rejectId = useId();
   const dirty = text !== savedText;
 
   async function save() {
     setSaving(true);
+    setSaveError(null);
     try {
       await onSave(text);
-    } catch {
-      // runAction has already shown the error.
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Could not save the assessment.");
     } finally {
       setSaving(false);
     }
@@ -236,12 +280,23 @@ function DraftActions({
     const reason = rejectReason.trim();
     if (!reason || rejecting) return;
     setRejecting(true);
+    setRejectError(null);
     try {
       await onReject(reason);
-    } catch {
-      // runAction has already shown the error.
+    } catch (err) {
+      setRejectError(err instanceof Error ? err.message : "Could not reject the report.");
     } finally {
       setRejecting(false);
+    }
+  }
+
+  async function openSignOff() {
+    if (checking) return;
+    setChecking(true);
+    try {
+      if (await onBeforeSignOff()) setSignOffOpen(true);
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -256,15 +311,17 @@ function DraftActions({
           </button>
           {dirty && <span className="page-caption">Unsaved changes. Save before signing off.</span>}
         </div>
+        {saveError && <p className="error-text">{saveError}</p>}
       </div>
 
       <h2>Review decision</h2>
+      {safetyWarning && <p className="error-text">{safetyWarning}</p>}
       <div className="report-actions">
         <button
           type="button"
           className="report-button report-button--primary"
-          disabled={dirty}
-          onClick={() => setSignOffOpen(true)}
+          disabled={dirty || checking}
+          onClick={openSignOff}
         >
           Sign off...
         </button>
@@ -297,6 +354,7 @@ function DraftActions({
               Cancel
             </button>
           </div>
+          {rejectError && <p className="error-text">{rejectError}</p>}
         </div>
       )}
 
