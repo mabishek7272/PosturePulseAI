@@ -30,10 +30,31 @@ expired consent record.
 ## Subject identity
 
 `subjectPseudoId` on `Session` and `ConsentRecord` is **pseudonymous** — it must
-never be a direct identifier (name, national ID, email). Mapping from a real-world
-identity to a pseudonymous ID is an application-level concern outside this
-repository's schemas; do not add a `name` or similarly identifying field to any
-canonical record.
+never be a direct identifier (name, national ID, email). Do not add a `name` or
+similarly identifying field to any canonical record (sessions, consent records,
+events, metric results, reports).
+
+Real-world identity lives in exactly one place: the clinician-only **patient
+register** (`docs/adr/017-patient-register.md`). Its name, date of birth and
+contact fields are stored only as AES-256-GCM ciphertext under `PATIENT_DATA_KEY`
+(required; the register refuses to start without it). The register links a
+patient to a `subjectPseudoId` through `PatientSubjectLink`; that link is the
+only bridge between an identity and a measurement. Register access is limited to
+signed-in clinicians and is audited by action name, never by content. Patient
+mode (a person using the app on their own) does not use the register. Withdrawal
+and deletion requests for a patient must cover both the register rows and the
+sessions reached through the link.
+
+## Clips
+
+Assessment clips (`docs/adr/013-clip-based-analysis.md`) are uploaded to the
+server only for analysis. The file is deleted when analysis finishes (or fails
+for the last time) unless the session's consent includes the `raw_video` scope;
+if the consent cannot be read the file is deleted. What remains is derived data:
+metric results in the event log and the landmark series, kept under the
+derived-events retention. The sidecar stored with each clip holds timing, gravity
+direction and device model, and no identifiers. A patient's device may read the
+released report of its own session for 180 days with a `report_reader` token.
 
 ## Worker-population access control (deferred, noted here)
 
