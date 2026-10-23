@@ -876,6 +876,132 @@ git commit -m "ios: replace the rotated-TabView pager with a direct drag gesture
 
 ---
 
+### Task 5c: Fix the pager's layout sizing (dots mispositioned, page possibly unreachable)
+
+**Found from an on-device screenshot after Task 5b:** the page-indicator dot appeared pinned near the bottom
+of the screen instead of vertically centered, and Patient mode wasn't reliably reachable by swiping. The root
+cause: `pager`'s `ZStack` has no explicit frame of its own, so SwiftUI sizes it to fit its *tallest* child —
+the draggable `VStack` of two `ModePage`s, which is `2 * height` tall (that's the whole point of the drag
+mechanism: both pages exist stacked, only one is ever visible). Every other view composited into that same
+`ZStack` — including `dots` — gets laid out relative to that oversized `2 * height` frame, not the single-page
+viewport, which is why `dots` ends up centered on the midpoint of the *two-page* stack (exactly the boundary
+between Clinic and Patient) rather than the center of whichever page is currently showing. `.clipped()` at the
+end only clips *rendering*, not this layout-time sizing/positioning computation.
+
+**Fix:** give the `ZStack` its own explicit `width`/`height` (exactly one page's dimensions, from
+`GeometryReader`) *before* `.clipped()`, so every sibling inside it — `dots` included — lays out against the
+correct single-page frame, while the oversized draggable `VStack` continues to work exactly as before (it's
+allowed to overflow its parent's declared frame; `.clipped()` still crops what's actually drawn).
+
+**Files:**
+- Modify: `apps/ios-client/Sources/Session/ModeChooserView.swift`
+
+- [ ] **Step 1: Add an explicit frame to the `pager`'s `ZStack`**
+
+In `apps/ios-client/Sources/Session/ModeChooserView.swift`, change the `pager` computed property from:
+
+```swift
+    private var pager: some View {
+        GeometryReader { geo in
+            let height = geo.size.height
+            ZStack {
+                VStack(spacing: 0) {
+                    ModePage(mode: .clinic, onChoose: { onChoose(.clinic) })
+                        .frame(height: height)
+                        .accessibilityHidden(selection != .clinic)
+                    ModePage(mode: .patient, onChoose: { onChoose(.patient) })
+                        .frame(height: height)
+                        .accessibilityHidden(selection != .patient)
+                }
+                .offset(y: (selection == .clinic ? 0 : -height) + dragOffset)
+                .gesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            dragOffset = value.translation.height
+                        }
+                        .onEnded { value in
+                            let threshold = height * 0.18
+                            if value.translation.height < -threshold, selection == .clinic {
+                                selection = .patient
+                            } else if value.translation.height > threshold, selection == .patient {
+                                selection = .clinic
+                            }
+                            withAnimation(.easeOut(duration: 0.3)) { dragOffset = 0 }
+                        }
+                )
+                .animation(.easeOut(duration: 0.3), value: selection)
+
+                dots
+            }
+            .clipped()
+        }
+    }
+```
+
+to:
+
+```swift
+    private var pager: some View {
+        GeometryReader { geo in
+            let height = geo.size.height
+            ZStack {
+                VStack(spacing: 0) {
+                    ModePage(mode: .clinic, onChoose: { onChoose(.clinic) })
+                        .frame(height: height)
+                        .accessibilityHidden(selection != .clinic)
+                    ModePage(mode: .patient, onChoose: { onChoose(.patient) })
+                        .frame(height: height)
+                        .accessibilityHidden(selection != .patient)
+                }
+                .offset(y: (selection == .clinic ? 0 : -height) + dragOffset)
+                .gesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            dragOffset = value.translation.height
+                        }
+                        .onEnded { value in
+                            let threshold = height * 0.18
+                            if value.translation.height < -threshold, selection == .clinic {
+                                selection = .patient
+                            } else if value.translation.height > threshold, selection == .patient {
+                                selection = .clinic
+                            }
+                            withAnimation(.easeOut(duration: 0.3)) { dragOffset = 0 }
+                        }
+                )
+                .animation(.easeOut(duration: 0.3), value: selection)
+
+                dots
+            }
+            .frame(width: geo.size.width, height: height)
+            .clipped()
+        }
+    }
+```
+
+(The only change: `.frame(width: geo.size.width, height: height)` is inserted between the `ZStack`'s closing
+brace and `.clipped()`. Nothing else in the file changes.)
+
+- [ ] **Step 2: Build to confirm it compiles**
+
+```bash
+cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' build
+```
+Expected: `** BUILD SUCCEEDED **`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/ios-client/Sources/Session/ModeChooserView.swift
+git commit -m "ios: constrain the pager ZStack to one page's frame (fixes dot position, page reachability)"
+```
+
+- [ ] **Step 4: Build to the connected device and have the owner re-verify** (same commands as Task 7/5b): the
+  dot indicator should now sit roughly vertically centered on the trailing edge, and swiping up/down should
+  reliably reach both Clinic and Patient pages.
+
+---
+
 ### Task 6: Add `splash` and `mode-chooser` design-preview cases
 
 **Files:**
