@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { AnalysisModule } from "./analysis/analysis.module";
 import { AdverseEventsModule } from "./adverse-events/adverse-events.module";
 import { AuditLogModule } from "./audit/audit-log.module";
 import { AuthModule } from "./auth/auth.module";
@@ -28,6 +29,7 @@ import { WsModule } from "./ws/ws.module";
     AuthModule,
     BatteryModule,
     ClipsModule,
+    AnalysisModule,
     ProtocolsModule,
     SessionsModule,
     EventsModule,
