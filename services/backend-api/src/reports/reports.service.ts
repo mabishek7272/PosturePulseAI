@@ -2,7 +2,10 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
+  Logger,
+  OnApplicationBootstrap,
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
@@ -14,9 +17,15 @@ import { getValidator } from "../common/schema-registry";
 import { EventsService } from "../events/events.service";
 import { MlClientService } from "../ml-integration/ml-client.service";
 import { reportContentSha256 } from "./canonical-json";
-import { AssessmentReportBody, ReportBuildError, buildReport, selectResultsForReport } from "./report-builder";
+import { AssessmentReportBody, REPORT_BUILDER_VERSION, ReportBuildError, buildReport, indexReferences, selectResultsForReport } from "./report-builder";
 
 export const MAX_ASSESSMENT_CHARS = 10000;
+/** Cap on the clinician's free-text reason for excluding a row or rejecting a report. */
+export const MAX_REASON_CHARS = 1000;
+/** Sign-off password attempts allowed per clinician within SIGN_OFF_LOCK_MS before further attempts are refused. */
+export const MAX_FAILED_SIGN_OFFS = 5;
+export const SIGN_OFF_LOCK_MS = 15 * 60 * 1000;
+export const REJECTION_SCHEMA_ID = "report-rejection/v0";
 const LIST_LIMIT = 200;
 
 export interface ReportSummary {
@@ -53,13 +62,42 @@ interface ReportRecord {
  * writes interpretation text except the clinician's own.
  */
 @Injectable()
-export class ReportsService {
+export class ReportsService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(ReportsService.name);
+  /** clinicianId -> times of recent wrong sign-off passwords (in memory: the backend runs as one instance, ADR-015). */
+  private readonly failedSignOffs = new Map<string, number[]>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly battery: BatteryService,
     private readonly ml: MlClientService
   ) {}
+
+  /** Not awaited: startup must not wait for ml-service. */
+  onApplicationBootstrap(): void {
+    void this.verifyReferences().then((result) => {
+      if (!result.checked) {
+        this.logger.warn(`Reference set not checked against the metric catalog at startup: ${result.error}. It is checked on every report build.`);
+      }
+    });
+  }
+
+  /**
+   * Checks the reference set against ml-service's metric catalog (unknown
+   * metric, unit mismatch, literature reference for a proxy). The tier comes
+   * from the catalog, so this cannot run before ml-service answers; it never
+   * throws, and buildReport repeats the same check on every build.
+   */
+  async verifyReferences(): Promise<{ checked: true } | { checked: false; error: string }> {
+    try {
+      const catalog = await this.ml.getMetricCatalog();
+      indexReferences(this.battery.referenceSet, catalog);
+      return { checked: true };
+    } catch (error) {
+      return { checked: false, error: (error as Error).message };
+    }
+  }
 
   async build(sessionId: string, _clinicianId: string): Promise<AssessmentReportBody> {
     const session = await this.prisma.session.findUnique({ where: { id: sessionId } });
@@ -145,12 +183,17 @@ export class ReportsService {
       where: { sessionId, status: "released" },
       orderBy: { reportVersion: "desc" },
     });
-    return row ? (row.body as unknown as AssessmentReportBody) : null;
+    if (!row) return null;
+    // The patient sees the signed report without the rows the clinician withdrew. The stored body (and
+    // signOff.contentSha256, computed over it) is unchanged; the clinician's GET /reports/:id serves it whole.
+    const body = row.body as unknown as AssessmentReportBody;
+    return { ...body, rows: body.rows.filter((r) => !r.excluded) };
   }
 
   async excludeRow(reportId: string, clinicianId: string, selector: RowSelector): Promise<AssessmentReportBody> {
     const reason = typeof selector.reason === "string" ? selector.reason.trim() : "";
     if (!reason) throw new BadRequestException("A reason is required to exclude a row.");
+    if (reason.length > MAX_REASON_CHARS) throw new BadRequestException(`reason is longer than ${MAX_REASON_CHARS} characters.`);
     if (typeof selector.metricKey !== "string" || !selector.metricKey) throw new BadRequestException("metricKey is required.");
     const side = selector.side ?? null;
     const stepId = selector.stepId ?? null;
@@ -180,12 +223,17 @@ export class ReportsService {
     if (typeof password !== "string" || password.length === 0) throw new BadRequestException("password is required.");
     const row = await this.load(reportId);
     this.assertDraft(row.status);
+    this.assertNotLocked(clinicianId);
 
     const clinician = await this.prisma.clinician.findUnique({ where: { id: clinicianId } });
     // Compare even when the account is gone so both failures cost the same.
     const hash = clinician?.passwordHash ?? "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
     const matches = await bcrypt.compare(password, hash);
-    if (!clinician || !matches) throw new ForbiddenException("The password did not match.");
+    if (!clinician || !matches) {
+      this.recordFailedSignOff(clinicianId);
+      throw new ForbiddenException("The password did not match.");
+    }
+    this.failedSignOffs.delete(clinicianId);
 
     const signedAt = new Date();
     const body = structuredClone(row.body) as AssessmentReportBody;
@@ -205,6 +253,7 @@ export class ReportsService {
   async reject(reportId: string, clinicianId: string, reason: string): Promise<AssessmentReportBody> {
     const trimmed = typeof reason === "string" ? reason.trim() : "";
     if (!trimmed) throw new BadRequestException("A reason is required to reject a report.");
+    if (trimmed.length > MAX_REASON_CHARS) throw new BadRequestException(`reason is longer than ${MAX_REASON_CHARS} characters.`);
     const row = await this.load(reportId);
     this.assertDraft(row.status);
 
@@ -215,9 +264,43 @@ export class ReportsService {
       data: { status: "rejected", body: body as unknown as object },
     });
     if (updated.count === 0) throw new ConflictException("The report is no longer a draft.");
-    // Bookkeeping event (not a measurement): why the draft was withdrawn.
-    await this.events.append(row.sessionId, "report_rejected", "assessment-report/v0", { reportId, clinicianId, reason: trimmed });
+    // Bookkeeping event (not a measurement, not an assessment-report): why the draft was withdrawn. The reason is
+    // clinician free text, so the research export leaves this event type out. The report is already rejected at
+    // this point, so a failure to log must not turn the answer into a 500.
+    try {
+      await this.events.append(row.sessionId, "report_rejected", REJECTION_SCHEMA_ID, {
+        reportId,
+        clinicianId,
+        reason: trimmed,
+        provenance: {
+          schemaVersion: REJECTION_SCHEMA_ID,
+          modelVersion: REPORT_BUILDER_VERSION,
+          calibrationVersion: "none/v0",
+          producedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Report ${reportId} was rejected but the report_rejected event could not be written: ${(error as Error).message}`);
+    }
     return body;
+  }
+
+  private recentFailures(clinicianId: string): number[] {
+    const cutoff = Date.now() - SIGN_OFF_LOCK_MS;
+    const recent = (this.failedSignOffs.get(clinicianId) ?? []).filter((t) => t > cutoff);
+    if (recent.length > 0) this.failedSignOffs.set(clinicianId, recent);
+    else this.failedSignOffs.delete(clinicianId);
+    return recent;
+  }
+
+  private assertNotLocked(clinicianId: string): void {
+    if (this.recentFailures(clinicianId).length >= MAX_FAILED_SIGN_OFFS) {
+      throw new HttpException("Too many wrong passwords for sign-off; try again in 15 minutes.", 429);
+    }
+  }
+
+  private recordFailedSignOff(clinicianId: string): void {
+    this.failedSignOffs.set(clinicianId, [...this.recentFailures(clinicianId), Date.now()]);
   }
 
   private async mutateDraft(reportId: string, change: (body: AssessmentReportBody) => void): Promise<AssessmentReportBody> {

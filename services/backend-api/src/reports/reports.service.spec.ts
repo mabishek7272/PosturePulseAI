@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   NotFoundException,
   ServiceUnavailableException,
   UnprocessableEntityException,
@@ -11,7 +12,7 @@ import { BatteryService } from "../battery/battery.service";
 import type { MetricCatalog } from "../battery/types";
 import { getValidator } from "../common/schema-registry";
 import { reportContentSha256 } from "./canonical-json";
-import { ReportsService } from "./reports.service";
+import { MAX_FAILED_SIGN_OFFS, MAX_REASON_CHARS, ReportsService } from "./reports.service";
 
 const battery = new BatteryService();
 const POSTERIOR = battery.step("static.posterior")!;
@@ -255,6 +256,11 @@ describe("ReportsService.excludeRow", () => {
     await expect(service.excludeRow("rep-1", "clin1", { ...target, reason: "   " })).rejects.toThrow(BadRequestException);
   });
 
+  it("refuses an exclusion reason longer than the cap", async () => {
+    const { service } = setup({ reports: [draftRow()] });
+    await expect(service.excludeRow("rep-1", "clin1", { ...target, reason: "x".repeat(MAX_REASON_CHARS + 1) })).rejects.toThrow(BadRequestException);
+  });
+
   it("is 404 when no row matches", async () => {
     const { service } = setup({ reports: [draftRow()] });
     await expect(service.excludeRow("rep-1", "clin1", { ...target, stepId: "static.anterior", reason: "x" })).rejects.toThrow(NotFoundException);
@@ -339,16 +345,36 @@ describe("ReportsService.signOff", () => {
 });
 
 describe("ReportsService.reject", () => {
-  it("marks the draft rejected and logs the reason as an event on the session", async () => {
+  it("marks the draft rejected and logs the reason as a bookkeeping event with its own schema id and provenance", async () => {
     const { service, store, events } = setup({ reports: [draftRow()] });
     const body = await service.reject("rep-1", "clin1", "Clip was taken in the wrong room");
     expect(body.status).toBe("rejected");
     expect(store[0].status).toBe("rejected");
-    expect(events.append).toHaveBeenCalledWith("s1", "report_rejected", "assessment-report/v0", {
+    expect(events.append).toHaveBeenCalledTimes(1);
+    const [sessionId, type, schemaId, payload] = events.append.mock.calls[0];
+    expect(sessionId).toBe("s1");
+    expect(type).toBe("report_rejected");
+    expect(schemaId).toBe("report-rejection/v0");
+    expect(payload).toMatchObject({
       reportId: "rep-1",
       clinicianId: "clin1",
       reason: "Clip was taken in the wrong room",
+      provenance: { schemaVersion: "report-rejection/v0", modelVersion: expect.any(String), calibrationVersion: "none/v0" },
     });
+    expect(Number.isNaN(Date.parse(payload.provenance.producedAt))).toBe(false);
+  });
+
+  it("refuses a reason longer than the cap and leaves the draft untouched", async () => {
+    const { service, store } = setup({ reports: [draftRow()] });
+    await expect(service.reject("rep-1", "clin1", "x".repeat(MAX_REASON_CHARS + 1))).rejects.toThrow(BadRequestException);
+    expect(store[0].status).toBe("draft");
+  });
+
+  it("still answers success when the bookkeeping event cannot be written after the report is rejected", async () => {
+    const { service, store, events } = setup({ reports: [draftRow()] });
+    events.append.mockRejectedValue(new Error("db down"));
+    await expect(service.reject("rep-1", "clin1", "wrong room")).resolves.toMatchObject({ status: "rejected" });
+    expect(store[0].status).toBe("rejected");
   });
 
   it("requires a reason and a draft", async () => {
@@ -358,7 +384,86 @@ describe("ReportsService.reject", () => {
   });
 });
 
+describe("ReportsService.signOff attempt limit", () => {
+  it("locks sign-off for the clinician after repeated wrong passwords, even for the right password", async () => {
+    const { service, store } = setup({ reports: [draftRow()] });
+    for (let i = 0; i < MAX_FAILED_SIGN_OFFS; i++) {
+      await expect(service.signOff("rep-1", "clin1", "wrong")).rejects.toThrow(ForbiddenException);
+    }
+    const error = await service.signOff("rep-1", "clin1", "correct horse").catch((e) => e);
+    expect(error).toBeInstanceOf(HttpException);
+    expect(error.getStatus()).toBe(429);
+    expect(store[0].status).toBe("draft");
+  });
+
+  it("does not lock out a different clinician, and a success clears the count", async () => {
+    const { service, prisma } = setup({ reports: [draftRow(), draftRow({ id: "rep-2", reportVersion: 2 })] });
+    for (let i = 0; i < MAX_FAILED_SIGN_OFFS - 1; i++) {
+      await expect(service.signOff("rep-1", "clin1", "wrong")).rejects.toThrow(ForbiddenException);
+    }
+    await expect(service.signOff("rep-1", "clin1", "correct horse")).resolves.toMatchObject({ status: "released" });
+    for (let i = 0; i < MAX_FAILED_SIGN_OFFS - 1; i++) {
+      await expect(service.signOff("rep-2", "clin1", "wrong")).rejects.toThrow(ForbiddenException);
+    }
+    prisma.clinician.findUnique.mockResolvedValue({ id: "clin2", passwordHash: bcrypt.hashSync("other", 4) });
+    await expect(service.signOff("rep-2", "clin2", "other")).resolves.toMatchObject({ status: "released" });
+  });
+
+  it("forgets failures after the lockout window", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    try {
+      const { service } = setup({ reports: [draftRow()] });
+      for (let i = 0; i < MAX_FAILED_SIGN_OFFS; i++) {
+        await expect(service.signOff("rep-1", "clin1", "wrong")).rejects.toThrow(ForbiddenException);
+      }
+      jest.setSystemTime(Date.now() + 16 * 60 * 1000);
+      await expect(service.signOff("rep-1", "clin1", "correct horse")).resolves.toMatchObject({ status: "released" });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe("ReportsService.verifyReferences", () => {
+  it("passes for the shipped reference set and the test catalog", async () => {
+    const { service } = setup();
+    await expect(service.verifyReferences()).resolves.toEqual({ checked: true });
+  });
+
+  it("reports a bad reference set (a literature reference for a proxy) without throwing", async () => {
+    const entry = battery.referenceSet.entries.find((e) => TIER[e.metricKey] === "proxy")!;
+    const badBattery = {
+      battery: battery.battery,
+      referenceSet: { ...battery.referenceSet, entries: [{ ...entry, kind: "literature" }] },
+    };
+    const { ml, prisma, events } = setup();
+    const bad = new ReportsService(prisma as never, events as never, badBattery as never, ml as never);
+    const result = await bad.verifyReferences();
+    expect(result.checked).toBe(false);
+    expect((result as { error: string }).error).toMatch(/proxy/);
+  });
+
+  it("does not throw when ml-service is not reachable at startup", async () => {
+    const { service } = setup({ catalogError: new ServiceUnavailableException("down") });
+    await expect(service.verifyReferences()).resolves.toEqual({ checked: false, error: expect.stringContaining("down") });
+  });
+});
+
 describe("ReportsService.latestReleased", () => {
+  it("leaves out rows the clinician excluded, so withdrawn measurements never reach the patient", async () => {
+    const base = draftRow().body;
+    const keep = { ...base.rows[0], metricKey: "static.shoulder_line_tilt" };
+    const drop = { ...base.rows[0], excluded: { reason: "Subject moved", clinicianId: "clin1" } };
+    const { service, store } = setup({
+      reports: [draftRow({ id: "a", status: "released", body: { ...base, reportId: "a", status: "released", rows: [keep, drop] } })],
+    });
+    const out = await service.latestReleased("s1");
+    expect(out!.rows.map((r) => r.metricKey)).toEqual(["static.shoulder_line_tilt"]);
+    // the stored, signed body is untouched
+    expect(store[0].body.rows).toHaveLength(2);
+    expect(out!.signOff).toEqual(base.signOff);
+  });
+
   it("returns the highest released version for the session", async () => {
     const { service } = setup({
       reports: [

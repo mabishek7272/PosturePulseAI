@@ -35,6 +35,23 @@ function buildService(hasConsent: boolean) {
 }
 
 describe("ResearchExportService", () => {
+  it("leaves out clinician bookkeeping events that carry free text (report_rejected)", async () => {
+    const { service, events } = buildService(true);
+    events.listForSession.mockResolvedValue([
+      ...EVENTS,
+      {
+        id: "e2",
+        sessionId: "s1",
+        type: "report_rejected",
+        schemaId: "report-rejection/v0",
+        payload: { reportId: "r", clinicianId: "c", reason: "free text" },
+        createdAt: new Date("2026-01-01T00:00:09Z"),
+      },
+    ]);
+    const bundle = await service.exportSession("s1");
+    expect(bundle.events.map((e) => e.type)).toEqual(["quality-gate-flag"]);
+  });
+
   it("throws Forbidden when the subject has not consented to research_data_export", async () => {
     const { service, consent } = buildService(false);
     await expect(service.exportSession("s1")).rejects.toThrow(ForbiddenException);
