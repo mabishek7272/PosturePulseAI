@@ -1002,6 +1002,218 @@ git commit -m "ios: constrain the pager ZStack to one page's frame (fixes dot po
 
 ---
 
+### Task 5d: Diagonal wipe transition + a gesture-direction legend
+
+**Approved via visual-companion mockup:** a diagonal "curtain" reveals the incoming page on a completed swipe
+(replacing the plain vertical slide), and a persistent legend on the trailing edge states the swipe directions
+explicitly (▲ PATIENT above a track with a traveling dot, ▼ CLINIC below) — this **replaces** the simple
+`dots` page-indicator from Task 5/5c, which didn't communicate direction.
+
+**Deliberately conservative scope, given Task 5b/5c's history:** the already-verified drag-gesture direction
+logic (swipe up → Patient, swipe down → Clinic) and the Task 5c frame-constraint fix are NOT touched. The
+diagonal wipe is a **fixed-duration animated overlay that plays once a swipe crosses the threshold** (not a
+shape continuously re-computed from live finger position during the drag) - this keeps the already-working
+gesture math completely intact and bounds the new complexity to one `Shape` plus one animation trigger.
+
+**Files:**
+- Modify: `apps/ios-client/Sources/Session/ModeChooserView.swift`
+
+No unit test - same reasoning as the rest of this view (SwiftUI view body/animation, no existing test
+convention for this, verified by build + on-device check per Step 3 below).
+
+- [ ] **Step 1: Replace `dots` with `gestureLegend`, and `pager`'s `onEnded`/body with the wipe-aware version**
+
+In `apps/ios-client/Sources/Session/ModeChooserView.swift`:
+
+1. Add a new private `Shape` near the bottom of the file (outside `ModeChooserView`, alongside `ModePage`/`DotGrid`/`FloatingOrb`):
+
+```swift
+/// A diagonal-edged region used for the mode-chooser's swipe transition: the
+/// edge slopes from `y` on the left to a point `slant` higher on the right.
+/// At progress 0 the edge sits below the frame (nothing revealed); at
+/// progress 1 it sits above the frame (fully revealed). `Animatable` so
+/// SwiftUI can interpolate it smoothly inside a `withAnimation` block.
+private struct DiagonalWipe: Shape {
+    var progress: CGFloat
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let slant = rect.height * 0.22
+        let span = rect.height + slant
+        let leftY = rect.height + slant - progress * span
+        let rightY = leftY - slant
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: leftY))
+        path.addLine(to: CGPoint(x: rect.width, y: rightY))
+        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        path.addLine(to: CGPoint(x: 0, y: rect.height))
+        path.closeSubpath()
+        return path
+    }
+}
+```
+
+2. Add two new `@State` properties to `ModeChooserView`, alongside the existing `selection`/`dragOffset`:
+
+```swift
+    @State private var wipeIncoming: SessionMode?
+    @State private var wipeProgress: CGFloat = 0
+    @State private var legendDotAtTop = false
+```
+
+3. Replace the `pager` computed property's `.gesture(DragGesture(minimumDistance: 10) ... )` block's `.onEnded` closure. The CURRENT `onEnded` (from Task 5b) is:
+
+```swift
+                        .onEnded { value in
+                            let threshold = height * 0.18
+                            if value.translation.height < -threshold, selection == .clinic {
+                                selection = .patient
+                            } else if value.translation.height > threshold, selection == .patient {
+                                selection = .clinic
+                            }
+                            withAnimation(.easeOut(duration: 0.3)) { dragOffset = 0 }
+                        }
+```
+
+Replace it with:
+
+```swift
+                        .onEnded { value in
+                            guard wipeIncoming == nil else { return }
+                            let threshold = height * 0.18
+                            let next: SessionMode? =
+                                value.translation.height < -threshold && selection == .clinic ? .patient :
+                                value.translation.height > threshold && selection == .patient ? .clinic : nil
+                            guard let next else {
+                                withAnimation(.easeOut(duration: 0.3)) { dragOffset = 0 }
+                                return
+                            }
+                            dragOffset = 0
+                            if reduceMotion {
+                                selection = next
+                            } else {
+                                wipeIncoming = next
+                                wipeProgress = 0
+                                withAnimation(.easeInOut(duration: 0.45)) { wipeProgress = 1 }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                                    selection = next
+                                    wipeIncoming = nil
+                                    wipeProgress = 0
+                                }
+                            }
+                        }
+```
+
+4. In the same `ZStack` (the one already `.frame(width: geo.size.width, height: height)`-constrained by the
+   Task 5c fix), add the wipe overlay and a "swipe to switch" top hint, and replace `dots` with the new
+   `gestureLegend`. The `ZStack`'s current contents (after Task 5c) are:
+
+```swift
+                ZStack {
+                    TabView... // NOTE: this is stale - by this point in the plan the ZStack actually contains
+                               // the draggable VStack (Task 5b) and `dots` (original), not a TabView. Read the
+                               // CURRENT file to get the exact current contents before editing - don't paste
+                               // over working code based on this stale description.
+                }
+                .frame(width: geo.size.width, height: height)
+                .clipped()
+```
+
+Concretely: inside that `ZStack`, after the draggable `VStack`'s `.gesture(...)` /`.animation(...)` chain,
+replace the `dots` line with:
+
+```swift
+                if let wipeIncoming {
+                    ModePage(mode: wipeIncoming, onChoose: { onChoose(wipeIncoming) })
+                        .frame(height: height)
+                        .clipShape(DiagonalWipe(progress: wipeProgress))
+                        .allowsHitTesting(false)
+                }
+
+                gestureLegend
+
+                Text("SWIPE TO SWITCH")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.5)
+                    .foregroundColor(NeonTheme.textDim)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 44)
+                    .allowsHitTesting(false)
+```
+
+5. Delete the existing `dots` computed property entirely (it's superseded by `gestureLegend`, which
+   communicates direction, not just position) and replace it with:
+
+```swift
+    private var gestureLegend: some View {
+        VStack(spacing: 3) {
+            Text("▲")
+                .font(.system(size: 11))
+                .foregroundColor(NeonTheme.textPrimary.opacity(0.55))
+            Text("PATIENT")
+                .font(.system(size: 8.5, weight: .semibold))
+                .tracking(0.5)
+                .foregroundColor(NeonTheme.violetDim)
+                .fixedSize()
+            ZStack(alignment: .top) {
+                Capsule()
+                    .fill(NeonTheme.violet.opacity(0.25))
+                    .frame(width: 2, height: 70)
+                Circle()
+                    .fill(NeonTheme.mint)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: NeonTheme.mint.opacity(0.7), radius: 4)
+                    .offset(y: reduceMotion ? 35 : (legendDotAtTop ? 0 : 64))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: legendDotAtTop)
+            }
+            Text("CLINIC")
+                .font(.system(size: 8.5, weight: .semibold))
+                .tracking(0.5)
+                .foregroundColor(NeonTheme.violetDim)
+                .fixedSize()
+            Text("▼")
+                .font(.system(size: 11))
+                .foregroundColor(NeonTheme.textPrimary.opacity(0.55))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+        .padding(.trailing, 14)
+        .allowsHitTesting(false)
+        .onAppear {
+            guard !reduceMotion else { return }
+            legendDotAtTop = true
+        }
+    }
+```
+
+(`reduceMotion` is the existing `@Environment(\.accessibilityReduceMotion)` property already on this struct
+from Task 5 - don't add a second one. `NeonTheme.mint` already exists from Task 1.)
+
+- [ ] **Step 2: Build to confirm it compiles**
+
+```bash
+cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' build
+```
+Expected: `** BUILD SUCCEEDED **`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/ios-client/Sources/Session/ModeChooserView.swift
+git commit -m "ios: diagonal wipe transition + a swipe-direction legend on the mode chooser"
+```
+
+- [ ] **Step 4: Build to the connected device and have the owner re-verify**: swiping up/down should play a
+  diagonal curtain revealing the incoming page (not an instant jump, not the plain slide from Task 5b/5c), the
+  legend on the trailing edge should read ▲ PATIENT / ▼ CLINIC with a glowing dot gently traveling between
+  them, and "SWIPE TO SWITCH" should be visible near the top. Toggle Reduce Motion in Settings and confirm:
+  mode changes apply instantly (no wipe animation) and the legend's dot stops traveling (settles at a fixed
+  mid-point).
+
+---
+
 ### Task 6: Add `splash` and `mode-chooser` design-preview cases
 
 **Files:**
