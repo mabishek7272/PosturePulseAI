@@ -52,6 +52,8 @@ final class BatteryRunner: ObservableObject {
     @Published private(set) var guidance: GuidanceStatus?
     @Published private(set) var prompt: String?
     @Published private(set) var holdProgress: Double = 0
+    /// Latest on-device guidance pose, for the framing overlay only.
+    @Published private(set) var pose: BodyPose2D?
 
     var onFinished: (() -> Void)?
     var onStopped: (() -> Void)?
@@ -60,7 +62,7 @@ final class BatteryRunner: ObservableObject {
     private(set) var work: Task<Void, Never>?
     private(set) var cleanup: Task<Void, Never>?
 
-    private let recorder: ClipRecording
+    let recorder: ClipRecording
     private let queue: ClipUploadQueueing
     private let statusClient: StepStatusFetching
     private let speaker: InstructionSpeaking?
@@ -104,6 +106,8 @@ final class BatteryRunner: ObservableObject {
         self.makeClipId = makeClipId
     }
 
+    var imageSize: CGSize { recorder.imageSize }
+
     var currentStep: AssessmentBattery.Step? { steps.indices.contains(stepIndex) ? steps[stepIndex] : nil }
 
     func start() {
@@ -128,6 +132,7 @@ final class BatteryRunner: ObservableObject {
         engine = GuidanceEngine(view: step.view, levelToleranceDegrees: step.levelToleranceDegrees, imageSize: recorder.imageSize)
         guidance = nil
         prompt = nil
+        pose = nil
         holdProgress = 0
         lastSpoken = nil
         phase = .guiding
@@ -138,6 +143,7 @@ final class BatteryRunner: ObservableObject {
         guard phase == .guiding, !halted, let engine, let step = currentStep else { return }
         let status = engine.update(sample)
         guidance = status
+        pose = sample.pose
         let issue = status.issues.first
         prompt = issue?.prompt(for: step.view)
         // Patient mode speaks a changed prompt (at most every 3 s) and repeats an unchanged one every 6 s.
@@ -250,6 +256,11 @@ final class BatteryRunner: ObservableObject {
         case .redo: speaker?.speak("This step needs to be done again.")
         default: break
         }
+    }
+
+    /// Sends any clip an earlier run could not deliver.
+    func drainPendingUploads() async {
+        _ = await queue.drain()
     }
 
     func redo() {

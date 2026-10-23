@@ -3,6 +3,8 @@ import SwiftUI
 /// First screen of every session: Clinic mode or Patient mode.
 struct ModeChooserView: View {
     let onChoose: (SessionMode) -> Void
+    /// Set when this phone holds access to at least one assessment's results.
+    var onViewResults: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -49,6 +51,15 @@ struct ModeChooserView: View {
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
                     .accessibilityHint("Starts a session in \(mode.title)")
+                }
+
+                if let onViewResults {
+                    Button(action: onViewResults) {
+                        Label("Your results", systemImage: "doc.text.magnifyingglass")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .accessibilityHint("Shows assessments your clinician has released")
                 }
 
                 Text("Results are camera-based estimates that a clinician reviews.")

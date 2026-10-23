@@ -337,5 +337,14 @@ final class BatteryRunnerTests: XCTestCase {
         recorder.onGuidanceSample?(GuidanceSample(time: 0, pose: nil, cameraGravity: [0, 1, 0]))
         XCTAssertEqual(r.prompt, "Step into the frame")
         XCTAssertEqual(r.guidance?.isLevel, true)
+        XCTAssertNil(r.pose)
+    }
+
+    func testPublishesTheLatestGuidancePoseForTheOverlay() {
+        let r = runner()
+        r.start()
+        recorder.onGuidanceSample?(GuidanceSample(time: 0, pose: facingPose(), cameraGravity: [0, 1, 0]))
+        XCTAssertEqual(r.pose, facingPose())
+        XCTAssertEqual(r.imageSize, CGSize(width: 1080, height: 1920))
     }
 }

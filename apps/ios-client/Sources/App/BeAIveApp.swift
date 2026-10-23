@@ -26,9 +26,9 @@ struct BeAIveApp: App {
 
 #if DEBUG
 /// Debug-only design previews with sample data: launch with
-/// `-designPreview report|report-movement|capture|reps|setup`.
+/// `-designPreview report|report-movement|capture|reps|setup|patients|results`.
 private enum DesignPreview: String {
-    case report, capture, reps, setup
+    case report, capture, reps, setup, patients, results
     case reportMovement = "report-movement"
 
     static func fromLaunchArguments() -> DesignPreview? {
@@ -44,34 +44,42 @@ private enum DesignPreview: String {
             AssessmentReportView(report: .sample.withoutFirstSection)
         case .capture:
             GuidedCaptureView(
+                steps: ["Front view", "Left side", "Right side", "Back view"],
                 state: .init(
                     stepIndex: 0,
-                    instruction: "Face the camera",
-                    detail: "Stand tall, arms relaxed by your sides. Hold still for 5 seconds.",
+                    instruction: "Front view",
+                    detail: "Face the camera. Stand tall and relaxed, feet hip-width apart, arms by your sides. Hold still.",
                     tiltDegrees: 1.2,
+                    isLevel: true,
                     holdProgress: 0.62,
                     repCount: nil,
                     repTarget: nil,
-                    qualityPrompt: "Step back — feet not visible"
+                    qualityPrompt: "Recording - hold still"
                 ),
                 stage: { SilhouetteStage() },
                 stop: { StopControlPreview() }
             )
         case .reps:
             GuidedCaptureView(
+                steps: ["Front", "Side", "Squat", "Sit–stand", "Shoulder"],
                 state: .init(
                     stepIndex: 2,
                     instruction: "Squat, then stand tall",
                     detail: "Turn side-on. Lower as far as is comfortable, at your own pace.",
                     tiltDegrees: -5,
+                    isLevel: false,
                     holdProgress: nil,
                     repCount: 3,
                     repTarget: 5,
-                    qualityPrompt: nil
+                    qualityPrompt: "Level the phone"
                 ),
                 stage: { SilhouetteStage() },
                 stop: { StopControlPreview() }
             )
+        case .patients:
+            PatientPickerView(clinicianToken: "preview", onPicked: { _ in }, onBack: {})
+        case .results:
+            ResultsView(onBack: {})
         case .setup:
             CalibrationFlowView(credentials: SessionCredentials(sessionId: "preview", token: "preview")) {}
         }
