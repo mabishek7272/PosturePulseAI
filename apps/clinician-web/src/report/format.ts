@@ -19,16 +19,35 @@ export function unitSuffix(unit: string): string {
   return unit in UNIT_SUFFIX ? UNIT_SUFFIX[unit] : ` ${unit}`;
 }
 
-function signed(value: number): string {
-  const fixed = value.toFixed(1);
-  if (Number(fixed) === 0) return (0).toFixed(1);
-  return value > 0 ? `+${fixed}` : fixed;
+/** Units whose values can be negative; only these get an explicit "+" so the sign reads as a direction. */
+const SIGNED_UNITS: ReadonlySet<string> = new Set(["deg", "percent_stature", "cm"]);
+
+/** One decimal normally; more when the uncertainty is small, so it never reads as exact. */
+function decimalsFor(uncertainty: number): number {
+  if (uncertainty === 0 || uncertainty >= 0.05) return 1;
+  return uncertainty >= 0.005 ? 2 : 3;
 }
 
-/** "{value}{unit} ± {uncertainty}{unit}" - a value is never shown without its uncertainty. */
+function formatValue(value: number, decimals: number, showPlus: boolean): string {
+  const fixed = value.toFixed(decimals);
+  if (Number(fixed) === 0) return (0).toFixed(decimals);
+  return showPlus && value > 0 ? `+${fixed}` : fixed;
+}
+
+function formatUncertainty(uncertainty: number, decimals: number): string {
+  const fixed = uncertainty.toFixed(decimals);
+  return uncertainty > 0 && Number(fixed) === 0 ? "<0.001" : fixed;
+}
+
+/**
+ * "{value}{unit} ± {uncertainty}{unit}" - a value is never shown without its uncertainty.
+ * A "+" is shown only for units that can be negative; what the sign means comes from the
+ * row's own signConvention when the report carries one (see ReportRowsTable).
+ */
 export function formatMeasurement(value: number, uncertainty: number, unit: string): string {
   const suffix = unitSuffix(unit);
-  return `${signed(value)}${suffix} ± ${uncertainty.toFixed(1)}${suffix}`;
+  const decimals = decimalsFor(uncertainty);
+  return `${formatValue(value, decimals, SIGNED_UNITS.has(unit))}${suffix} ± ${formatUncertainty(uncertainty, decimals)}${suffix}`;
 }
 
 const POSITION_LABEL: Record<ReportPosition, string> = {

@@ -189,6 +189,11 @@ export interface ReportRow {
   unit: string;
   side: ReportSide;
   estimate?: { value: number; uncertainty: number } | null;
+  /**
+   * What a positive value means (metric-result.schema.json carries it; the v0 row
+   * schema does not). Shown when the backend includes it on the row.
+   */
+  signConvention?: string | null;
   unsupportedReasons?: QualityReason[];
   reference?: {
     kind: "geometric" | "literature";

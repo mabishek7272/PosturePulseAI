@@ -23,8 +23,22 @@ describe("formatMeasurement", () => {
     expect(formatMeasurement(1.2, 0.4, "percent_stature")).toBe("+1.2 % stature ± 0.4 % stature");
   });
 
-  it("falls back to the raw unit when it is not known", () => {
-    expect(formatMeasurement(3, 1, "furlong")).toBe("+3.0 furlong ± 1.0 furlong");
+  it("falls back to the raw unit when it is not known, without inventing a sign", () => {
+    expect(formatMeasurement(3, 1, "furlong")).toBe("3.0 furlong ± 1.0 furlong");
+  });
+
+  it("does not put a plus sign on units that cannot be negative", () => {
+    expect(formatMeasurement(3, 1, "s")).toBe("3.0 s ± 1.0 s");
+    expect(formatMeasurement(12, 1, "count")).toBe("12.0 ± 1.0");
+    expect(formatMeasurement(40, 2, "percent")).toBe("40.0% ± 2.0%");
+    expect(formatMeasurement(16, 2, "per_min")).toBe("16.0 /min ± 2.0 /min");
+  });
+
+  it("uses more decimals so a small uncertainty does not read as exact", () => {
+    expect(formatMeasurement(2.345, 0.04, "deg")).toBe("+2.35° ± 0.04°");
+    expect(formatMeasurement(2.3456, 0.004, "deg")).toBe("+2.346° ± 0.004°");
+    expect(formatMeasurement(1, 0.0004, "deg")).toBe("+1.000° ± <0.001°");
+    expect(formatMeasurement(1, 0, "deg")).toBe("+1.0° ± 0.0°");
   });
 });
 

@@ -35,6 +35,15 @@ describe("ReportRowsTable", () => {
     expect(within(row).getByText("+2.6° ± 0.7°; above the 0° reference by about 1.9°.")).toBeInTheDocument();
   });
 
+  it("shows the row's sign convention when the report carries one, and invents none otherwise", () => {
+    const rows = sampleRows.map((row) =>
+      row.metricKey === "static.shoulder_line_tilt" ? { ...row, signConvention: "positive = right side lower" } : row
+    );
+    renderTable({ rows });
+    expect(within(rowFor("Shoulder line tilt")).getByText("Sign: positive = right side lower")).toBeInTheDocument();
+    expect(within(rowFor("Head lateral tilt")).queryByText(/^Sign:/)).not.toBeInTheDocument();
+  });
+
   it("marks draft references with a Draft badge", () => {
     renderTable();
     expect(within(rowFor("Head lateral tilt")).getByText("Draft reference")).toBeInTheDocument();

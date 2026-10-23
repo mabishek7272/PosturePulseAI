@@ -124,6 +124,7 @@ function ReportRowView({
       </td>
       <td className="report-value">
         {row.estimate ? formatMeasurement(row.estimate.value, row.estimate.uncertainty, row.unit) : "Not measured"}
+        {row.estimate && row.signConvention && <small className="report-citation">Sign: {row.signConvention}</small>}
       </td>
       <td>
         {row.reference ? (
