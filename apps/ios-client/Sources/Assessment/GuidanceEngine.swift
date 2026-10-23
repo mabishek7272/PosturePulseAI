@@ -7,7 +7,8 @@ import Foundation
 /// never shown as a measurement and never uploaded.
 struct BodyPose2D: Equatable {
     enum Joint: CaseIterable {
-        case nose, leftEar, rightEar, leftShoulder, rightShoulder, leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle
+        case nose, leftEar, rightEar, leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist,
+             leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle
     }
 
     enum Side { case left, right }

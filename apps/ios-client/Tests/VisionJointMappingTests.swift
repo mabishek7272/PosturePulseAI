@@ -21,4 +21,10 @@ final class VisionJointMappingTests: XCTestCase {
     func testEveryGuidanceJointHasAVisionName() {
         XCTAssertEqual(Set(VisionJointMapping.visionNames.keys), Set(BodyPose2D.Joint.allCases))
     }
+
+    func testElbowAndWristJointsAreMappedForTheSkeletonOverlay() {
+        let expected: Set<BodyPose2D.Joint> = [.leftElbow, .rightElbow, .leftWrist, .rightWrist]
+        XCTAssertTrue(expected.isSubset(of: Set(VisionJointMapping.visionNames.keys)))
+        XCTAssertTrue(expected.isSubset(of: Set(BodyPose2D.Joint.allCases)))
+    }
 }
