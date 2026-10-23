@@ -1,31 +1,61 @@
 import SwiftUI
 
-/// Consent -> pick a draft protocol -> calibrate -> live session. The subject
-/// id is the device's pseudonymous UUID and the consent record is the one the
-/// subject granted in ConsentView (docs/adr/012).
+/// Mode -> (clinic: clinician sign-in) -> consent -> protocol -> calibrate ->
+/// live session. Patient mode uses this device's pseudonymous id and its saved
+/// consent. Clinic mode runs on a shared device, so every visit gets a fresh
+/// pseudonymous id and its own consent (docs/adr/012).
 struct RootView: View {
     private enum Step {
+        case chooseMode
+        case clinicianSignIn
         case consent
         case selectProtocol
         case calibrate(SessionCredentials)
         case live(SessionCredentials)
     }
 
-    @State private var step: Step
+    @State private var step: Step = .chooseMode
     @State private var errorMessage: String?
+    @State private var mode: SessionMode = .patient
+    @State private var clinicianToken: String?
+    @State private var visitSubjectId = UUID().uuidString.lowercased()
+    @State private var visitConsentRecordId: String?
     private let identity: SubjectIdentityStore
     private let sessionsClient = SessionsClient()
 
     init(identity: SubjectIdentityStore = SubjectIdentityStore()) {
         self.identity = identity
-        _step = State(initialValue: identity.consentRecordId == nil ? .consent : .selectProtocol)
+    }
+
+    private var subjectPseudoId: String {
+        mode == .clinic ? visitSubjectId : identity.subjectPseudoId()
+    }
+
+    private var consentRecordId: String? {
+        mode == .clinic ? visitConsentRecordId : identity.consentRecordId
     }
 
     var body: some View {
         switch step {
+        case .chooseMode:
+            ModeChooserView { chosen in
+                mode = chosen
+                visitSubjectId = UUID().uuidString.lowercased()
+                visitConsentRecordId = nil
+                step = chosen.requiresClinicianSignIn ? .clinicianSignIn : afterSignIn
+            }
+        case .clinicianSignIn:
+            ClinicianSignInView(onSignedIn: { token in
+                clinicianToken = token
+                step = afterSignIn
+            }, onBack: { step = .chooseMode })
         case .consent:
-            ConsentView(subjectPseudoId: identity.subjectPseudoId()) { consentRecordId in
-                identity.saveConsentRecordId(consentRecordId)
+            ConsentView(subjectPseudoId: subjectPseudoId) { consentRecordId in
+                if mode == .clinic {
+                    visitConsentRecordId = consentRecordId
+                } else {
+                    identity.saveConsentRecordId(consentRecordId)
+                }
                 step = .selectProtocol
             }
         case .selectProtocol:
@@ -52,8 +82,12 @@ struct RootView: View {
         }
     }
 
+    private var afterSignIn: Step {
+        consentRecordId == nil ? .consent : .selectProtocol
+    }
+
     private func createSession(for proto: ProtocolSummary) {
-        guard let consentRecordId = identity.consentRecordId else {
+        guard let consentRecordId else {
             step = .consent
             return
         }
@@ -62,10 +96,10 @@ struct RootView: View {
             do {
                 let response = try await sessionsClient.create(
                     .init(
-                        subjectPseudoId: identity.subjectPseudoId(),
+                        subjectPseudoId: subjectPseudoId,
                         protocolId: proto.protocolKey,
                         protocolVersion: proto.version,
-                        deploymentContext: "clinic_supervised",
+                        deploymentContext: mode == .clinic ? "clinic_supervised" : "home_rehab",
                         consentRecordId: consentRecordId,
                         retentionPolicy: .init(
                             rawVideo: .init(optIn: false, retentionDays: nil),
@@ -75,7 +109,7 @@ struct RootView: View {
                 )
                 step = .calibrate(response.credentials)
             } catch SessionsClientError.consentRejected {
-                identity.clearConsentRecordId()
+                if mode == .clinic { visitConsentRecordId = nil } else { identity.clearConsentRecordId() }
                 step = .consent
             } catch {
                 errorMessage = "Could not start a session. Check your connection and try again."

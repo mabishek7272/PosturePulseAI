@@ -14,15 +14,10 @@ final class SessionViewModel: ObservableObject {
     @Published private(set) var latestFrame: PoseLandmarkFrame?
     @Published private(set) var latestQualityGateFlag: QualityGateFlag?
     @Published private(set) var latestDecisionEvent: DecisionEvent?
-    /// Non-nil whenever spatial (AR-anchored) measurement is unavailable -
-    /// drives TwoDFallbackBanner. nil means AR tracking is normal.
-    @Published private(set) var twoDFallbackReason: TwoDFallbackBanner.Reason?
 
     private let capture = CameraCaptureController()
     private let encoder = FrameEncoder()
     private let uploader = FrameStreamingClient()
-    private let arSession = ARSessionController()
-    private let poseStreamer = CameraPoseStreamingClient()
     private var socket: SessionWebSocketClient?
     private var frameCounter = 0
 
@@ -34,7 +29,6 @@ final class SessionViewModel: ObservableObject {
         try capture.configure()
         capture.delegate = self
         capture.start()
-        startArSessionIfSupported()
 
         let socket = SessionWebSocketClient(credentials: credentials)
         socket.onStateChange = { [weak self] state in
@@ -61,37 +55,8 @@ final class SessionViewModel: ObservableObject {
 
     func stop() {
         capture.stop()
-        arSession.stop()
         socket?.disconnect()
         socket = nil
-    }
-
-    /// 2D fallback (TRD 2.3) is a first-class named mode, not an implicit
-    /// default: a device with no AR support never attempts to stream camera
-    /// poses, and never claims a worldAnchorId it can't back with real
-    /// tracking. See TwoDFallbackBanner.
-    private func startArSessionIfSupported() {
-        guard ARSessionController.isWorldTrackingSupported else {
-            twoDFallbackReason = .unsupportedDevice
-            return
-        }
-        arSession.onTrackingDegraded = { [weak self] degraded in
-            Task { @MainActor in
-                self?.twoDFallbackReason = degraded ? .trackingDegraded : nil
-            }
-        }
-        arSession.onCameraPose = { [weak self] pose in
-            guard let self else { return }
-            Task {
-                do {
-                    try await self.poseStreamer.submit(credentials: self.credentials, pose: pose)
-                } catch {
-                    // Same rationale as handleCapturedFrame below - a dropped
-                    // camera-pose sample is not itself a safety event.
-                }
-            }
-        }
-        arSession.start()
     }
 
     fileprivate func handleCapturedFrame(_ sampleBuffer: CMSampleBuffer) {
