@@ -165,15 +165,15 @@ slices; recommended resolution given. Decide, then implement test-first, regener
 
 | # | Gap | Recommended fix |
 |---|---|---|
-| 1 | `assessment-report` rows have no **`stepId`** → iOS/web cannot separate left/right rows sharing a metric key | Add optional `stepId` (string) to the report row schema; backend report builder fills it from `metric-result.stepId`. |
-| 2 | Row `reference` has only a text label; iOS parses "0-5 deg" strings to draw the band | Add numeric `min`/`max` (+ `kind`, `status`) to the row's `reference`; builder fills them; iOS/web stop parsing text. |
-| 3 | No **`signConvention`** on report rows (exists on `metric-result`), so a "-1.3°" has no stated meaning in the UI | Add optional `signConvention` to the row; builder copies it; web already renders it. |
-| 4 | `GET /sessions/:id/steps` has no **`clipId`**; after a Redo, polling can show the previous clip's status | Include `clipId` per step; iOS already ignores a status with another clipId. |
-| 5 | Landmark series stored at `landmarks/<clipId>.json.gz`; re-analysis overwrites bytes earlier results cite | Make the path sha-qualified: `landmarks/<clipId>/<sha256>.json.gz`; evidence stores the sha (already does). |
-| 6 | Sign-off cannot detect a concurrent edit | `POST /reports/:id/sign-off` accepts `contentSha256`/`reportVersion`; **409** on mismatch. |
+| 1 | `assessment-report` rows have no **`stepId`** → iOS/web cannot separate left/right rows sharing a metric key | Add optional `stepId` (string) to the report row schema; backend report builder fills it from `metric-result.stepId`. — **done**, see commit history on `v2-brand` |
+| 2 | Row `reference` has only a text label; iOS parses "0-5 deg" strings to draw the band | Add numeric `min`/`max` (+ `kind`, `status`) to the row's `reference`; builder fills them; iOS/web stop parsing text. — **done**, see commit history on `v2-brand` |
+| 3 | No **`signConvention`** on report rows (exists on `metric-result`), so a "-1.3°" has no stated meaning in the UI | Add optional `signConvention` to the row; builder copies it; web already renders it. — **done**, see commit history on `v2-brand` |
+| 4 | `GET /sessions/:id/steps` has no **`clipId`**; after a Redo, polling can show the previous clip's status | Include `clipId` per step; iOS already ignores a status with another clipId. — **done**, see commit history on `v2-brand` |
+| 5 | Landmark series stored at `landmarks/<clipId>.json.gz`; re-analysis overwrites bytes earlier results cite | Make the path sha-qualified: `landmarks/<clipId>/<sha256>.json.gz`; evidence stores the sha (already does). — **done**, see commit history on `v2-brand` |
+| 6 | Sign-off cannot detect a concurrent edit | `POST /reports/:id/sign-off` accepts `contentSha256`/`reportVersion`; **409** on mismatch. — **done**, see commit history on `v2-brand` |
 | 7 | Sign-off wrong password and invalid token are indistinguishable | Wrong password → **403** with a code; expired/invalid token → **401**. Remove the client's extra GET. |
 | 8 | Sign-off lockout counter is per process | Fine on one instance. Move to the DB before running >1 backend instance. |
-| 9 | `report-rejection/v0` is an event id with no registered schema | Optional: add a schema in `packages/schemas/src` in the same pass. |
+| 9 | `report-rejection/v0` is an event id with no registered schema | Optional: add a schema in `packages/schemas/src` in the same pass. — **done**, see commit history on `v2-brand` |
 | 10 | Response shapes iOS assumes (confirm backend matches): multipart `sidecar` JSON text field *before* the `clip` file part (filename `clip.mov`, `video/quicktime`); upload → `{clipId,status}`; `GET /steps` array or `{steps:[…]}`; `GET /released-report` body or `{…,body}` with **404 = pending review**; `POST /patients` and `GET /patients?q=` → `{id,name,dateOfBirth(YYYY-MM-DD),contact?}` | Write one contract test per item on the backend side using the iOS decoders' fixtures. |
 | 11 | Released body still contains rows a clinician **excluded** (kept so the signed hash verifies); the patient route omits them but `GET /sessions/:id/released-report` may not | Confirm the patient-facing route never returns excluded rows' numbers; iOS already hides + counts them. |
 
