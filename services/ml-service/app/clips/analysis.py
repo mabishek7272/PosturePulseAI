@@ -69,6 +69,27 @@ def _unsupported(definition, side, reasons: list[str]) -> MetricOutcome:
     )
 
 
+def validate_metric_keys(metric_keys: list[str]) -> list[str]:
+    """De-duplicated keys in request order; raises UnknownMetricError for any not in the registry."""
+    keys = list(dict.fromkeys(metric_keys))
+    unknown = [k for k in keys if k not in STATIC_METRICS]
+    if unknown:
+        raise UnknownMetricError(f"unknown metric keys: {unknown}")
+    return keys
+
+
+def unsupported_outcome(metric_keys: list[str], view: str, reasons: list[str]) -> list[MetricOutcome]:
+    """Every requested metric unsupported with `reasons` (e.g. the clip could not
+    be decoded). Metrics that do not belong to the view still say `wrong_view`."""
+    keys = validate_metric_keys(metric_keys)
+    out = []
+    for key in keys:
+        definition = STATIC_METRICS[key]
+        why = reasons if view in definition.views else ["wrong_view"]
+        out.extend(_unsupported(definition, side, why) for side in result_sides(definition, view))
+    return out
+
+
 def _forward_sign(observations, quality: ClipQuality, side: str) -> int:
     """+1 if the nose is at larger image x than the near-side ear, else -1 (0 if undecidable)."""
     ear = SIDE_LANDMARKS[side]["ear"]
@@ -86,10 +107,7 @@ def analyze_observations(
     min_fps: float,
     level_tolerance_degrees: float,
 ) -> AnalysisOutcome:
-    keys = list(dict.fromkeys(metric_keys))
-    unknown = [k for k in keys if k not in STATIC_METRICS]
-    if unknown:
-        raise UnknownMetricError(f"unknown metric keys: {unknown}")
+    keys = validate_metric_keys(metric_keys)
 
     quality = assess_clip(
         observations, view=view, width=width, height=height,
