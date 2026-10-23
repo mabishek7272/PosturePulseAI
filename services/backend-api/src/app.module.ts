@@ -4,6 +4,7 @@ import { AdverseEventsModule } from "./adverse-events/adverse-events.module";
 import { AuditLogModule } from "./audit/audit-log.module";
 import { AuthModule } from "./auth/auth.module";
 import { BatteryModule } from "./battery/battery.module";
+import { ClipsModule } from "./clips/clips.module";
 import { ConsentModule } from "./consent/consent.module";
 import { EventsModule } from "./events/events.module";
 import { ExposureModule } from "./exposure/exposure.module";
@@ -26,6 +27,7 @@ import { WsModule } from "./ws/ws.module";
     HealthModule,
     AuthModule,
     BatteryModule,
+    ClipsModule,
     ProtocolsModule,
     SessionsModule,
     EventsModule,
