@@ -15,6 +15,7 @@ import { MovementModule } from "./movement/movement.module";
 import { PolicyModule } from "./policy/policy.module";
 import { PilotMetricsModule } from "./pilot-metrics/pilot-metrics.module";
 import { ProtocolsModule } from "./protocols/protocols.module";
+import { ReportsModule } from "./reports/reports.module";
 import { ResearchExportModule } from "./research-export/research-export.module";
 import { SafetyModule } from "./safety/safety.module";
 import { SensorsModule } from "./sensors/sensors.module";
@@ -30,6 +31,7 @@ import { WsModule } from "./ws/ws.module";
     BatteryModule,
     ClipsModule,
     AnalysisModule,
+    ReportsModule,
     ProtocolsModule,
     SessionsModule,
     EventsModule,
