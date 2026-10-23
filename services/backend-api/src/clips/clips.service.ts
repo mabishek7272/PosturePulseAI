@@ -99,39 +99,65 @@ export class ClipsService {
       const sha256 = await sha256OfFile(file.path);
 
       // A retried upload (the device may not have seen our 2xx) is answered from the stored row.
-      const existing = await this.prisma.clip.findUnique({ where: { id: sidecar.clipId } });
-      if (existing) {
-        if (existing.sessionId === sessionId && existing.stepId === stepId && existing.sha256 === sha256) {
-          return { clipId: existing.id, status: existing.status };
-        }
-        throw new ConflictException("This clipId is already in use.");
-      }
+      const replay = await this.replayOrConflict(sessionId, stepId, sidecar.clipId, sha256);
+      if (replay) return replay;
 
       await mkdir(this.clipDir, { recursive: true });
       const finalPath = path.join(this.clipDir, `${sidecar.clipId}.mov`);
-      await rename(file.path, finalPath);
-      moved = true;
+      // The row is created first and the file moved into place inside the same transaction. Two uploads of the
+      // same new clipId therefore race on the unique key, and the loser never touches the winner's file; the job
+      // only becomes visible to the runner at commit, after the file is in place.
+      let renamed = false;
       try {
-        const clip = await this.prisma.clip.create({
-          data: {
-            id: sidecar.clipId,
-            sessionId,
-            stepId,
-            path: finalPath,
-            sha256,
-            sidecar: JSON.parse(sidecarRaw as string) as object,
-            status: "uploaded",
-            job: { create: {} },
-          },
+        const clip = await this.prisma.$transaction(async (tx) => {
+          const created = await tx.clip.create({
+            data: {
+              id: sidecar.clipId,
+              sessionId,
+              stepId,
+              path: finalPath,
+              sha256,
+              sidecar: JSON.parse(sidecarRaw as string) as object,
+              status: "uploaded",
+              job: { create: {} },
+            },
+          });
+          await rename(file.path, finalPath);
+          renamed = true;
+          return created;
         });
+        moved = true;
         return { clipId: clip.id, status: clip.status };
       } catch (error) {
-        await rm(finalPath, { force: true });
+        if (renamed) {
+          await rm(finalPath, { force: true });
+          moved = true; // the temporary file is gone (renamed away); nothing left to delete at file.path
+        }
+        if ((error as { code?: string }).code === "P2002") {
+          // Lost a race on the same clipId: answer from the winner's row instead of a 500.
+          const replay = await this.replayOrConflict(sessionId, stepId, sidecar.clipId, sha256);
+          if (replay) return replay;
+        }
         throw error;
       }
     } finally {
       if (!moved) await rm(file.path, { force: true });
     }
+  }
+
+  /** The stored clip's answer when the same clip (session, step, bytes) is uploaded again; 409 for any other use of the clipId; null when the clipId is free. */
+  private async replayOrConflict(
+    sessionId: string,
+    stepId: string,
+    clipId: string,
+    sha256: string
+  ): Promise<{ clipId: string; status: string } | null> {
+    const existing = await this.prisma.clip.findUnique({ where: { id: clipId } });
+    if (!existing) return null;
+    if (existing.sessionId === sessionId && existing.stepId === stepId && existing.sha256 === sha256) {
+      return { clipId: existing.id, status: existing.status };
+    }
+    throw new ConflictException("This clipId is already in use.");
   }
 
   private parseSidecar(raw: string | undefined): Sidecar {

@@ -41,7 +41,7 @@ describe("PUT /sessions/:id/clips/:stepId", () => {
   beforeAll(async () => {
     clipDir = path.join(mkdtempSync(path.join(tmpdir(), "clip-route-")), "clips");
     process.env.CLIP_DIR = clipDir;
-    const prisma = {
+    const prisma: Record<string, unknown> = {
       clip: {
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockImplementation((args) => {
@@ -50,6 +50,7 @@ describe("PUT /sessions/:id/clips/:stepId", () => {
         }),
       },
     };
+    prisma.$transaction = (fn: (tx: unknown) => Promise<unknown>) => fn(prisma);
     const safety = { getState: jest.fn().mockImplementation(() => Promise.resolve(state)) };
     const battery = new BatteryService();
     const moduleRef = await Test.createTestingModule({

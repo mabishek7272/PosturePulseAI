@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException, UnsupportedMediaTypeException } from "@nestjs/common";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { BatteryService } from "../battery/battery.service";
@@ -33,12 +33,13 @@ function sidecar(overrides: Record<string, unknown> = {}) {
 function setup(state = "Observing") {
   const root = mkdtempSync(path.join(tmpdir(), "clips-"));
   const clipDir = path.join(root, "clips");
-  const prisma = {
+  const prisma: Record<string, any> = {
     clip: {
       findUnique: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...data })),
     },
   };
+  prisma.$transaction = jest.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(prisma));
   const safety = { getState: jest.fn().mockResolvedValue(state) };
   const service = new ClipsService(prisma as never, safety as never, battery, clipDir);
   const upload = (bytes = "fake-video-bytes", mimetype = "video/quicktime") => {
@@ -161,5 +162,68 @@ describe("ClipsService.accept", () => {
       sha256: "0".repeat(64),
     });
     await expect(service.accept("s1", "static.anterior", upload(), JSON.stringify(sidecar()))).rejects.toThrow(ConflictException);
+  });
+
+  describe("two uploads of the same new clipId at once", () => {
+    const CLIP_ID = "c0ffee00-1111-4222-8333-444455556666";
+    const p2002 = () => Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+
+    function raceSetup(winnerBytes: string, winnerRow: Record<string, unknown> | null) {
+      const ctx = setup();
+      // Both uploads passed the first lookup; the winner has since stored its file and row.
+      mkdirSync(ctx.clipDir, { recursive: true });
+      const winnerPath = path.join(ctx.clipDir, `${CLIP_ID}.mov`);
+      writeFileSync(winnerPath, winnerBytes);
+      ctx.prisma.clip.create.mockRejectedValue(p2002());
+      ctx.prisma.clip.findUnique.mockResolvedValueOnce(null).mockResolvedValue(winnerRow);
+      return { ...ctx, winnerPath };
+    }
+
+    it("answers the stored row when the winner is the same clip, and keeps the winner's file", async () => {
+      const winnerRow = {
+        id: CLIP_ID,
+        sessionId: "s1",
+        stepId: "static.anterior",
+        status: "uploaded",
+        sha256: createHash("sha256").update("same-bytes").digest("hex"),
+      };
+      const { service, upload, winnerPath } = raceSetup("same-bytes", winnerRow);
+      const file = upload("same-bytes");
+      await expect(service.accept("s1", "static.anterior", file, JSON.stringify(sidecar()))).resolves.toEqual({
+        clipId: CLIP_ID,
+        status: "uploaded",
+      });
+      expect(readFileSync(winnerPath, "utf-8")).toBe("same-bytes");
+      expect(existsSync(file.path)).toBe(false);
+    });
+
+    it("answers 409, and leaves the winner's file alone, when the winner is different bytes", async () => {
+      const winnerRow = {
+        id: CLIP_ID,
+        sessionId: "s1",
+        stepId: "static.anterior",
+        status: "uploaded",
+        sha256: createHash("sha256").update("winner-bytes").digest("hex"),
+      };
+      const { service, upload, winnerPath } = raceSetup("winner-bytes", winnerRow);
+      const file = upload("loser-bytes");
+      await expect(service.accept("s1", "static.anterior", file, JSON.stringify(sidecar()))).rejects.toThrow(ConflictException);
+      expect(readFileSync(winnerPath, "utf-8")).toBe("winner-bytes");
+      expect(existsSync(file.path)).toBe(false);
+    });
+
+    it("does not touch the stored file before the row is created", async () => {
+      const winnerRow = { id: CLIP_ID, sessionId: "s2", stepId: "static.anterior", status: "uploaded", sha256: "0".repeat(64) };
+      const { service, upload, winnerPath } = raceSetup("winner-bytes", winnerRow);
+      await expect(service.accept("s1", "static.anterior", upload("loser-bytes"), JSON.stringify(sidecar()))).rejects.toThrow(ConflictException);
+      expect(readFileSync(winnerPath, "utf-8")).toBe("winner-bytes");
+    });
+  });
+
+  it("removes the stored file and rethrows when the row cannot be created for another reason", async () => {
+    const { service, prisma, clipDir, upload } = setup();
+    prisma.clip.create.mockRejectedValue(new Error("db down"));
+    await expect(service.accept("s1", "static.anterior", upload(), JSON.stringify(sidecar()))).rejects.toThrow("db down");
+    expect(existsSync(clipDir) ? readdirSync(clipDir).filter((f) => f.endsWith(".mov")) : []).toEqual([]);
   });
 });
