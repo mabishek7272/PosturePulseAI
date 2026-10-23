@@ -13,9 +13,11 @@
 		2CD4BC530DF3D028E0A3B286 /* DraftBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E843086F9BD8E5BBC78E09FE /* DraftBadge.swift */; };
 		3A39EB8C6F61B3844FB04870 /* CameraGravity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 029B9F5B992284F5209319D6 /* CameraGravity.swift */; };
 		3FFA05C260EFD5FA6B1947C9 /* BatteryClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD0C68B158EA089FF2235819 /* BatteryClient.swift */; };
+		481F4AB0A768E7AE55AA1A46 /* StepStatusClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EA220880BF6CB441B54EAD0 /* StepStatusClient.swift */; };
 		484D1F3CDCE749241A175BEE /* AssessmentReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52A2CB8BA9ECDBF16C84643F /* AssessmentReportView.swift */; };
 		4F3791DE6FCC08D7D3C35780 /* DepthAvailabilityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 858B3DD3F721DC10045690EA /* DepthAvailabilityChecker.swift */; };
 		51930176DC4360EF1A331BE5 /* SubjectIdentityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6564A543F6944C5F78483C6D /* SubjectIdentityStore.swift */; };
+		5383AC5A20B06E15CE784183 /* ClipUploadClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C75E877CBFBFFB6D79B54B2 /* ClipUploadClient.swift */; };
 		57217FBFFDF50171F129D911 /* ClinicianSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D7F604975D843C604D852AD /* ClinicianSignInView.swift */; };
 		5750BCFA706D1E43B5D41737 /* FrameStreamingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B319AEAF06CCDA55B34FAE /* FrameStreamingClient.swift */; };
 		5C34283156E362A6B42B1D09 /* ConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56D9F2C375D0F002FE40F4D1 /* ConsentView.swift */; };
@@ -34,6 +36,7 @@
 		83DFDC552AC68B5C4B5148D7 /* PoseLandmarkFrameDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0BA1BDE7420999FC2AA4E9 /* PoseLandmarkFrameDecodingTests.swift */; };
 		84F6D7F7D85C13806370AE9A /* SessionAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC06C85A7921E87A00117FFF /* SessionAuthTests.swift */; };
 		85912A844193CFE0C408DC64 /* HeightEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A4E7552211A36818A6F730 /* HeightEntryView.swift */; };
+		90986459E3CF41F2D5781F52 /* ClipUploadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62E8EBBE5A5370570AFAF107 /* ClipUploadQueue.swift */; };
 		920E0A5FF85382B212357C63 /* BeAIveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1C8FBD01F7164F77272946 /* BeAIveApp.swift */; };
 		9AB0A91D6CAABC583E7D78C0 /* SessionsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD41F562E7D312D15F5D9144 /* SessionsClient.swift */; };
 		9B132AD804D8EBE02D613C06 /* AssessmentBatteryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95FEAE17B0B5C5FEA421DAC6 /* AssessmentBatteryTests.swift */; };
@@ -46,6 +49,7 @@
 		BC0D5B9C728C673AA48F0F71 /* ProtocolSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF9BC4C8656F5C479198267F /* ProtocolSelectionView.swift */; };
 		BEFECB77CDD338C4370F1C8E /* SafetyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E3660E5B3EE516E66E5ACC0 /* SafetyState.swift */; };
 		BF7BD8CBB4FE47081433DEEB /* SubjectIdentityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE50BE5DBD6A448A101EFF32 /* SubjectIdentityStoreTests.swift */; };
+		CD3A5D2D50A22CA0C70103EF /* ClipUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2487785F9226B93FAE9444EA /* ClipUploadTests.swift */; };
 		D0CF3D121821FE4A92AC9AD5 /* ProtocolSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 849FA9CA68FD4BF120DA20C8 /* ProtocolSummary.swift */; };
 		D3F909AEF38B4EC381338B78 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D134C19270911B3A7BB3E99F /* Theme.swift */; };
 		D6B28DD144A849120B46A785 /* AssessmentBattery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 395BF3977B2EA63672A5E67C /* AssessmentBattery.swift */; };
@@ -80,8 +84,10 @@
 		0DF65A90326FBB9AE5210CFD /* ProtocolsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolsClient.swift; sourceTree = "<group>"; };
 		0F1274681F5A555B4EBBDB04 /* PosturePulse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PosturePulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		18DD03A7CCCDDE97B50D9B66 /* StubURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLProtocol.swift; sourceTree = "<group>"; };
+		1C75E877CBFBFFB6D79B54B2 /* ClipUploadClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipUploadClient.swift; sourceTree = "<group>"; };
 		205935779DA08608299CA4E0 /* SessionWebSocketClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionWebSocketClient.swift; sourceTree = "<group>"; };
 		23FCD23DF5400DE648BB6C2E /* SymptomReportingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomReportingClient.swift; sourceTree = "<group>"; };
+		2487785F9226B93FAE9444EA /* ClipUploadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipUploadTests.swift; sourceTree = "<group>"; };
 		27766606FC5EBEE2DE6558D4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		27DFC1E235A5842CF93D3F66 /* SymptomStopButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomStopButton.swift; sourceTree = "<group>"; };
 		30A4E7552211A36818A6F730 /* HeightEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeightEntryView.swift; sourceTree = "<group>"; };
@@ -93,8 +99,10 @@
 		594CB27235723F9449641B96 /* FrameEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameEncoder.swift; sourceTree = "<group>"; };
 		5A8F8370652955B982625420 /* QualityGateFlag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QualityGateFlag.swift; sourceTree = "<group>"; };
 		5E3660E5B3EE516E66E5ACC0 /* SafetyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafetyState.swift; sourceTree = "<group>"; };
+		5EA220880BF6CB441B54EAD0 /* StepStatusClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepStatusClient.swift; sourceTree = "<group>"; };
 		61B99A4140F01A5BFA626E0A /* GravityConversionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GravityConversionTests.swift; sourceTree = "<group>"; };
 		6280C2E43B051FE0F85A953E /* DecisionEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionEvent.swift; sourceTree = "<group>"; };
+		62E8EBBE5A5370570AFAF107 /* ClipUploadQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipUploadQueue.swift; sourceTree = "<group>"; };
 		631179AE5335BD7C96AF5C64 /* CalibrationFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationFlowView.swift; sourceTree = "<group>"; };
 		6564A543F6944C5F78483C6D /* SubjectIdentityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectIdentityStore.swift; sourceTree = "<group>"; };
 		6F0BA1BDE7420999FC2AA4E9 /* PoseLandmarkFrameDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseLandmarkFrameDecodingTests.swift; sourceTree = "<group>"; };
@@ -265,6 +273,7 @@
 			children = (
 				95FEAE17B0B5C5FEA421DAC6 /* AssessmentBatteryTests.swift */,
 				C2A7C187176389D42BD152CE /* ClipSidecarTests.swift */,
+				2487785F9226B93FAE9444EA /* ClipUploadTests.swift */,
 				61B99A4140F01A5BFA626E0A /* GravityConversionTests.swift */,
 				6F0BA1BDE7420999FC2AA4E9 /* PoseLandmarkFrameDecodingTests.swift */,
 				CC06C85A7921E87A00117FFF /* SessionAuthTests.swift */,
@@ -339,11 +348,14 @@
 			children = (
 				88CA8600B4B24CAC4AFA4C2B /* BackendConfig.swift */,
 				FD0C68B158EA089FF2235819 /* BatteryClient.swift */,
+				1C75E877CBFBFFB6D79B54B2 /* ClipUploadClient.swift */,
+				62E8EBBE5A5370570AFAF107 /* ClipUploadQueue.swift */,
 				09B319AEAF06CCDA55B34FAE /* FrameStreamingClient.swift */,
 				0DF65A90326FBB9AE5210CFD /* ProtocolsClient.swift */,
 				F89282ECA3ED59BE9C64DF82 /* SessionCredentials.swift */,
 				FD41F562E7D312D15F5D9144 /* SessionsClient.swift */,
 				205935779DA08608299CA4E0 /* SessionWebSocketClient.swift */,
+				5EA220880BF6CB441B54EAD0 /* StepStatusClient.swift */,
 				943766D000E61FC518EBC92C /* DTOs */,
 			);
 			path = Networking;
@@ -449,6 +461,7 @@
 			files = (
 				9B132AD804D8EBE02D613C06 /* AssessmentBatteryTests.swift in Sources */,
 				701B9DF48C334C8AD8C48D73 /* ClipSidecarTests.swift in Sources */,
+				CD3A5D2D50A22CA0C70103EF /* ClipUploadTests.swift in Sources */,
 				80DA3172C4FBED0197599D16 /* GravityConversionTests.swift in Sources */,
 				83DFDC552AC68B5C4B5148D7 /* PoseLandmarkFrameDecodingTests.swift in Sources */,
 				84F6D7F7D85C13806370AE9A /* SessionAuthTests.swift in Sources */,
@@ -474,6 +487,8 @@
 				A5A1D8F8485C7BE39C11C886 /* ClinicianAuthClient.swift in Sources */,
 				57217FBFFDF50171F129D911 /* ClinicianSignInView.swift in Sources */,
 				F2EA464EAF712D01C2DBC1B0 /* ClipCapture.swift in Sources */,
+				5383AC5A20B06E15CE784183 /* ClipUploadClient.swift in Sources */,
+				90986459E3CF41F2D5781F52 /* ClipUploadQueue.swift in Sources */,
 				DCF8FA815C25AF938F3DD0C2 /* ConsentClient.swift in Sources */,
 				E2159C446D4789FD66270ED4 /* ConsentScope.swift in Sources */,
 				5C34283156E362A6B42B1D09 /* ConsentView.swift in Sources */,
@@ -499,6 +514,7 @@
 				B24E710B39EFCAA6FFB9E551 /* SessionViewModel.swift in Sources */,
 				E86B172A9832E74B74E0780D /* SessionWebSocketClient.swift in Sources */,
 				9AB0A91D6CAABC583E7D78C0 /* SessionsClient.swift in Sources */,
+				481F4AB0A768E7AE55AA1A46 /* StepStatusClient.swift in Sources */,
 				51930176DC4360EF1A331BE5 /* SubjectIdentityStore.swift in Sources */,
 				76098CE3F6FD0F76B77F5582 /* SymptomReportingClient.swift in Sources */,
 				AC569A1C61A16706827AFCF4 /* SymptomStopButton.swift in Sources */,
