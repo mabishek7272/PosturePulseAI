@@ -204,7 +204,12 @@ export interface ReportRow {
   position: ReportPosition;
   analysis: { text: string; source: "fixed_template"; templateId?: string };
   excluded: { reason: string; clinicianId: string } | null;
+  /** What produced this row's measurement (ADR-018); absent means the default, mediapipe_2d_image_plane. */
+  method?: MeasurementMethod | null;
+  measuredBy?: { modelVersion: string; adapterVersion?: string; metricsVersion?: string } | null;
 }
+
+export type MeasurementMethod = "mediapipe_2d_image_plane" | "clinician_manual" | "clinician_annotated" | "entered" | "markerless_3d";
 
 export interface NotMeasurableItem {
   metricKey: string;

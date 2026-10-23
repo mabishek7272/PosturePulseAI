@@ -2,7 +2,7 @@
 // direct, neutral rendering of what the report body already says: no value is
 // derived, ranked, combined or coloured by where it falls.
 
-import type { MetricTier, ReportPosition, ReportSide } from "../api/types";
+import type { MeasurementMethod, MetricTier, ReportPosition, ReportSide } from "../api/types";
 
 const UNIT_SUFFIX: Record<string, string> = {
   deg: "°",
@@ -79,6 +79,21 @@ export const TIER_HINT: Partial<Record<MetricTier, string>> = {
   estimate: "2D measurement from the video, shown with its uncertainty.",
   proxy: "Stands in for a clinical construct; compared only with a geometric reference.",
 };
+
+/** The pipeline's only implemented method this phase (ADR-018); absent means this, too (see ReportRow.method). */
+export const DEFAULT_MEASUREMENT_METHOD: MeasurementMethod = "mediapipe_2d_image_plane";
+
+const MEASUREMENT_METHOD_LABEL: Record<MeasurementMethod, string> = {
+  mediapipe_2d_image_plane: "Camera estimate (2D)",
+  clinician_manual: "Clinician manual measurement",
+  clinician_annotated: "Clinician-annotated",
+  entered: "Entered value",
+  markerless_3d: "Markerless 3D (not yet implemented)",
+};
+
+export function measurementMethodLabel(method: MeasurementMethod): string {
+  return MEASUREMENT_METHOD_LABEL[method] ?? method;
+}
 
 export function sideLabel(side: ReportSide): string {
   switch (side) {

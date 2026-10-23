@@ -44,6 +44,15 @@ describe("ReportRowsTable", () => {
     expect(within(rowFor("Head lateral tilt")).queryByText(/^Sign:/)).not.toBeInTheDocument();
   });
 
+  it("shows the measurement method only when it isn't the default camera estimate", () => {
+    const rows = sampleRows.map((row) =>
+      row.metricKey === "static.shoulder_line_tilt" ? { ...row, method: "clinician_manual" as const } : row
+    );
+    renderTable({ rows });
+    expect(within(rowFor("Shoulder line tilt")).getByText("Method: Clinician manual measurement")).toBeInTheDocument();
+    expect(within(rowFor("Head lateral tilt")).queryByText(/^Method:/)).not.toBeInTheDocument();
+  });
+
   it("marks draft references with a Draft badge", () => {
     renderTable();
     expect(within(rowFor("Head lateral tilt")).getByText("Draft reference")).toBeInTheDocument();
