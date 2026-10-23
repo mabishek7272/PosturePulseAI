@@ -33,6 +33,17 @@ Launch with `-designPreview report|report-movement|capture|reps|setup` to see
 screens with sample data (e.g. Xcode scheme → Run → Arguments, or
 `xcrun simctl launch <sim> com.beaive.posturepulse -designPreview report`).
 
+### Release to TestFlight (one command)
+
+```bash
+apps/ios-client/scripts/testflight.sh              # archive, upload, wait until processed
+apps/ios-client/scripts/testflight.sh --no-upload  # archive and check signing only
+```
+
+Uses the App Store Connect API key in `~/.appstoreconnect/private_keys/` (never commit it) and a
+timestamp build number, so there is nothing to edit between releases. Needs `xcodegen` and `uv`.
+Internal testers receive the build in the TestFlight app once Apple finishes processing it.
+
 ### Brand assets
 
 `AppResources/Assets.xcassets` holds the icon (mark only), the in-app logo and
