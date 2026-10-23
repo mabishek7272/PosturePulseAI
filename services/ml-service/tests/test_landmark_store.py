@@ -50,3 +50,22 @@ def test_unsafe_clip_ids_are_refused(tmp_path, bad):
             tmp_path, clip_id=bad, session_id="s", step_id="x", view="anterior", width=1, height=1,
             model_version="m", observations=[],
         )
+
+
+def test_temp_file_name_is_unique_and_no_part_file_is_left_behind(tmp_path, monkeypatch):
+    import pathlib
+
+    seen = []
+    real = pathlib.Path.replace
+
+    def spy(self, target):
+        seen.append(self.name)
+        return real(self, target)
+
+    monkeypatch.setattr(pathlib.Path, "replace", spy)
+    kwargs = dict(clip_id="c", session_id="s", step_id="x", view="anterior", width=10, height=10,
+                  model_version="m", observations=make_frames(anterior_pose(), n=2))
+    store_landmark_series(tmp_path, **kwargs)
+    store_landmark_series(tmp_path, **kwargs)
+    assert len(seen) == 2 and seen[0] != seen[1]
+    assert [p.name for p in (tmp_path / "landmarks").iterdir()] == ["c.json.gz"]

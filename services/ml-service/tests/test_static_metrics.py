@@ -348,3 +348,10 @@ def test_lateral_clip_where_the_facing_direction_cannot_be_told_is_unsupported()
 def test_frame_quality_summary_counts_the_hold_frames():
     out = _run(make_frames(anterior_pose()), "anterior", ["static.hip_line_tilt"])
     assert out.frame_quality == {"usable": 30, "total": 30, "reasons": []}
+
+
+@pytest.mark.parametrize("raw,expected", [(0.07, 0.07), (0.29, 0.29), (0.3, 0.3), (0.0701, 0.08), (0.001, 0.01)])
+def test_uncertainty_rounding_up_ignores_float_noise(raw, expected):
+    from app.clips.analysis import round_up_uncertainty
+
+    assert round_up_uncertainty(raw) == expected

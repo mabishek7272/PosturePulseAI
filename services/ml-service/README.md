@@ -47,7 +47,7 @@ Tests that need the real model (`test_mediapipe_adapter.py`,
   Catalog `side`: `null` (one result), `left_and_right` (one result per leg), `near_side` (the side facing the camera).
 - Pipeline: PyAV decode -> MediaPipe PoseLandmarker **full** model in VIDEO mode (sidecar timestamps) -> pixel
   coordinates -> roll correction from sidecar gravity -> frame/step quality (`app/quality/clip_quality.py`) ->
-  metrics (`app/metrics/static_metrics.py`) -> landmark series stored as `CLIP_DIR/landmarks/<clipId>.json.gz`.
+  metrics (`app/metrics/static_metrics.py`) -> landmark series stored as `CLIP_DIR/landmarks/<clipId>.json.gz` (keyed by clip only: re-analysing a clip replaces the file, so callers must not re-analyse across model or metrics version changes without keeping the newly returned sha256).
 - Thresholds and the uncertainty model are DRAFT engineering defaults (documented in code), not derived from data.
 - `scripts/fetch-pose-model.sh` fetches both the lite and the full model; `POSE_LANDMARKER_FULL_MODEL_PATH`
   overrides the full model location.

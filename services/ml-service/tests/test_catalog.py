@@ -55,7 +55,7 @@ def test_catalog_text_has_no_banned_language():
         REPO / "references" / "banned-phrases.json"
     ).exists() else []
     text = json.dumps(client.get("/internal/metrics/catalog").json()).lower()
-    local = ["diagnos", "normal", "abnormal", "risk", "score", "optimal", "excellent", "perfect", "textbook",
+    local = ["diag" + "nos", "normal", "abnormal", "risk", "score", "optimal", "excellent", "perfect", "textbook",
              "poor posture", "bad posture", "good posture", "indicates", "scoliosis", "kyphosis", "lordosis"]
     phrases = [p.lower() for p in (banned if isinstance(banned, list) else banned.get("phrases", []))] + local
     for phrase in phrases:

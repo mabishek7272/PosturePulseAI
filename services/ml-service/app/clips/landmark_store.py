@@ -6,6 +6,11 @@ Points are pixel coordinates of the oriented image BEFORE roll correction
 (MediaPipe x*width, y*height). Frames with no detected pose store `null`
 points - never zeros. The gzip header carries no timestamp, so identical input
 gives identical bytes and a stable sha256.
+
+The file is keyed by clipId only (path fixed by the M1 spec). Re-analysing a clip
+overwrites it, so results that reference an older `landmarkSeriesSha256` would then
+point at replaced bytes: the backend must not re-analyse a clip across model or
+metrics version changes without re-reading the new sha256.
 """
 from __future__ import annotations
 
@@ -13,7 +18,9 @@ import gzip
 import hashlib
 import io
 import json
+import os
 import re
+import uuid
 from pathlib import Path
 
 from app.clips.observation import FrameObservation
@@ -66,7 +73,11 @@ def store_landmark_series(
     target_dir = Path(clip_dir) / "landmarks"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / f"{clip_id}.json.gz"
-    tmp = target.with_name(target.name + ".part")
-    tmp.write_bytes(data)
-    tmp.replace(target)
+    # Unique temp name: concurrent analyses of one clip must not share a half-written file.
+    tmp = target.with_name(f"{target.name}.{os.getpid()}.{uuid.uuid4().hex}.part")
+    try:
+        tmp.write_bytes(data)
+        tmp.replace(target)
+    finally:
+        tmp.unlink(missing_ok=True)
     return {"path": str(target), "sha256": hashlib.sha256(data).hexdigest()}

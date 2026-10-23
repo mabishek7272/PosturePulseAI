@@ -27,6 +27,13 @@ UNCERTAINTY_STEP = 0.01
 VALUE_DECIMALS = 3
 
 
+def round_up_uncertainty(uncertainty: float) -> float:
+    """Round UP to UNCERTAINTY_STEP; the quotient is rounded first so float noise
+    (0.07 / 0.01 = 7.000000000000001) cannot add a spurious step."""
+    steps = math.ceil(round(uncertainty / UNCERTAINTY_STEP, 6))
+    return round(steps * UNCERTAINTY_STEP, 2)
+
+
 class UnknownMetricError(ValueError):
     """A requested metricKey is not in the static-metric registry."""
 
@@ -162,7 +169,7 @@ def _measure(definition, side, ctx: ClipContext, observations, quality: ClipQual
         definition.key, side, definition.module, definition.tier, definition.unit,
         definition.sign_convention,
         value=round(value, VALUE_DECIMALS),
-        uncertainty=round(math.ceil(uncertainty / UNCERTAINTY_STEP) * UNCERTAINTY_STEP, 2),
+        uncertainty=round_up_uncertainty(uncertainty),
         frames_used=len(values),
         frame_indices=used,
     )
