@@ -17,6 +17,13 @@ import { SessionsService } from "../sessions/sessions.service";
  * itself or any field beyond the pseudonymous `subjectPseudoId` that could
  * serve as a join key back to identity.
  */
+/**
+ * Event types that are clinician bookkeeping with free text (a patient
+ * identifier could be typed into it); they are never part of a de-identified
+ * export.
+ */
+export const EXPORT_EXCLUDED_EVENT_TYPES: readonly string[] = ["report_rejected"];
+
 @Injectable()
 export class ResearchExportService {
   constructor(
@@ -42,7 +49,9 @@ export class ResearchExportService {
       protocolVersion: session.protocolVersion,
       deploymentContext: session.deploymentContext,
       sessionCreatedAt: session.createdAt,
-      events: events.map((event) => ({
+      events: events
+        .filter((event) => !EXPORT_EXCLUDED_EVENT_TYPES.includes(event.type))
+        .map((event) => ({
         type: event.type,
         schemaId: event.schemaId,
         payload: event.payload,

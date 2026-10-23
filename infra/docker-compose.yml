@@ -35,6 +35,12 @@ services:
     build:
       context: ..
       dockerfile: services/ml-service/Dockerfile
+    environment:
+      # Uploaded clips and stored landmark series live on the shared clipdata
+      # volume; backend-api writes the clip, ml-service reads it by path (ADR-013).
+      CLIP_DIR: /data/clips
+    volumes:
+      - clipdata:/data/clips
     ports:
       - "8000:8000"
     healthcheck:
@@ -55,6 +61,15 @@ services:
       # Dev-only default - never reuse this outside a disposable local stack
       # (docs/adr/010-clinician-authentication.md). Override via a real .env.
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-do-not-use-in-any-shared-environment}
+      # Clips are uploaded here and analysed by ml-service from the same volume (ADR-013).
+      CLIP_DIR: /data/clips
+      ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-2}
+      # AES-256-GCM key for the patient register (ADR-017): 32 random bytes, base64.
+      # The register refuses to start without it. This default is a publicly known
+      # dev-only value - never reuse it where real patient details are stored.
+      PATIENT_DATA_KEY: ${PATIENT_DATA_KEY:-ZGV2LW9ubHktaW5zZWN1cmUtcGF0aWVudC1rZXkhISE=}
+    volumes:
+      - clipdata:/data/clips
     ports:
       - "3000:3000"
     depends_on:
@@ -71,3 +86,4 @@ services:
 
 volumes:
   pgdata:
+  clipdata:

@@ -7,6 +7,11 @@ import addFormats from "ajv-formats";
 // name (matches DecisionEvent.evidence[].type and QualityGateFlag/Event.schemaId
 // naming convention: "<name>/v0").
 import adverseEventRecord from "../../../../packages/schemas/src/adverse-event-record.schema.json";
+import assessmentBattery from "../../../../packages/schemas/src/assessment-battery.schema.json";
+import assessmentReport from "../../../../packages/schemas/src/assessment-report.schema.json";
+import clipCapture from "../../../../packages/schemas/src/clip-capture.schema.json";
+import metricResult from "../../../../packages/schemas/src/metric-result.schema.json";
+import referenceRangeSet from "../../../../packages/schemas/src/reference-range-set.schema.json";
 import cameraIntrinsics from "../../../../packages/schemas/src/camera-intrinsics.schema.json";
 import cameraPose from "../../../../packages/schemas/src/camera-pose.schema.json";
 import calibratedJointFrame from "../../../../packages/schemas/src/calibrated-joint-frame.schema.json";
@@ -27,9 +32,18 @@ import common from "../../../../packages/schemas/src/common.schema.json";
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 ajv.addSchema(common as unknown as object);
+// metric-result and assessment-report $ref quality-gate-flag's reason enum, so
+// it must be resolvable by $id before either is compiled. ajv caches by object
+// identity, so compiling the same object again in getValidator() reuses it.
+ajv.addSchema(qualityGateFlag as unknown as object);
 
 const SCHEMAS: Record<string, object> = {
   "adverse-event-record": adverseEventRecord,
+  "assessment-battery": assessmentBattery,
+  "assessment-report": assessmentReport,
+  "clip-capture": clipCapture,
+  "metric-result": metricResult,
+  "reference-range-set": referenceRangeSet,
   "camera-intrinsics": cameraIntrinsics,
   "camera-pose": cameraPose,
   "calibrated-joint-frame": calibratedJointFrame,

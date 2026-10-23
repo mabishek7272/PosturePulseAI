@@ -12,6 +12,8 @@ COPY package.json /srv/package.json
 COPY packages/schemas /srv/packages/schemas
 COPY services/backend-api /srv/services/backend-api
 COPY protocols /srv/protocols
+# assessment battery + reference set, loaded and validated at startup (src/battery)
+COPY references /srv/references
 
 RUN npm install --workspaces --include-workspace-root --no-audit --no-fund \
     && npx prisma generate --schema services/backend-api/prisma/schema.prisma

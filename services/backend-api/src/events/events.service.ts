@@ -42,4 +42,11 @@ export class EventsService {
       orderBy: { createdAt: "asc" },
     });
   }
+
+  async listForSessionByType(sessionId: string, type: string) {
+    return this.prisma.event.findMany({
+      where: { sessionId, type },
+      orderBy: { createdAt: "asc" },
+    });
+  }
 }

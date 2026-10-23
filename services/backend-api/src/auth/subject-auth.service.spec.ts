@@ -1,5 +1,5 @@
 import { JwtService } from "@nestjs/jwt";
-import { SubjectAuthService } from "./subject-auth.service";
+import { isSubjectTokenFor, SubjectAuthService } from "./subject-auth.service";
 
 const jwt = new JwtService({ secret: "test-secret" });
 const service = new SubjectAuthService(jwt);
@@ -22,5 +22,17 @@ describe("SubjectAuthService", () => {
   it("verify returns the claims of a valid token", async () => {
     const token = await service.issueSessionToken("s1", "p1");
     expect(await service.verify(token)).toMatchObject({ sessionId: "s1", role: "subject" });
+  });
+
+  it("issues a 180-day report-access token scoped to one session, with the report_reader role", async () => {
+    const token = await service.issueReportAccessToken("s1", "p1");
+    const payload = await jwt.verifyAsync(token);
+    expect(payload).toMatchObject({ sub: "p1", sessionId: "s1", role: "report_reader" });
+    expect(payload.exp - payload.iat).toBe(180 * 24 * 60 * 60);
+  });
+
+  it("a report-access token is not a subject token for the session", async () => {
+    const claims = await service.verify(await service.issueReportAccessToken("s1", "p1"));
+    expect(isSubjectTokenFor(claims, "s1")).toBe(false);
   });
 });
