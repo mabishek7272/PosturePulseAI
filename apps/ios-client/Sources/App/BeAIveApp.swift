@@ -26,7 +26,7 @@ struct BeAIveApp: App {
 
 #if DEBUG
 /// Debug-only design previews with sample data: launch with
-/// `-designPreview report|report-movement|capture|reps|setup|patients|results`.
+/// `-designPreview report|report-movement|capture|reps|setup|patients|results|splash|mode-chooser`.
 private enum DesignPreview: String {
     case report, capture, reps, setup, patients, results
     case reportMovement = "report-movement"
