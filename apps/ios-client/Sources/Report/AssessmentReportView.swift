@@ -1,24 +1,35 @@
 import SwiftUI
 
-/// The patient-facing report: light paper header, then one dark "readout"
-/// panel per section with Metric / Your scan / Ideal and the System Analysis
-/// sentence under each row (spec §3, §7).
+/// The patient-facing report: light paper header, the clinician's assessment,
+/// then one dark "readout" panel per battery step with Metric / Your scan /
+/// Reference, the row's position against the reference and its fixed-wording
+/// sentence, and finally the standing list of what this system cannot measure
+/// (ADR-015). Colour-neutral throughout: position is text and a marker on a
+/// scale, never a good/bad colour.
 struct AssessmentReportView: View {
     let report: AssessmentReport
 
     @State private var appeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private var allRows: [AssessmentReport.Row] { report.sections.flatMap(\.rows) }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
+                if let assessment = report.clinicianAssessment, !assessment.isEmpty {
+                    clinicianAssessment(assessment)
+                }
                 legend
                 ForEach(Array(report.sections.enumerated()), id: \.element.id) { index, section in
                     ReadoutPanel(section: section, referenceIsDraft: report.referenceFileIsDraft)
                         .opacity(appeared ? 1 : 0)
                         .offset(y: appeared ? 0 : 16)
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.5).delay(0.08 * Double(index)), value: appeared)
+                }
+                if !report.notMeasurable.isEmpty {
+                    notMeasurableList
                 }
                 footnote
             }
@@ -33,25 +44,55 @@ struct AssessmentReportView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             Eyebrow("Assessment report", color: Theme.brand)
-            Text("Posture & movement")
+            Text("Standing posture")
                 .font(Typo.hero)
                 .foregroundColor(Theme.ink)
             Text(report.producedAt.formatted(date: .long, time: .shortened))
                 .font(Typo.caption.monospacedDigit())
                 .foregroundColor(Theme.inkSoft)
-            if report.status == .released, let releasedBy = report.releasedBy {
-                Label("Reviewed and released by \(releasedBy)", systemImage: "checkmark.seal")
+            switch report.status {
+            case .released:
+                Label(
+                    report.signedAt.map { "Reviewed and released by your clinician on \($0.formatted(date: .abbreviated, time: .omitted))" }
+                        ?? "Reviewed and released by your clinician",
+                    systemImage: "checkmark.seal"
+                )
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(Theme.brand)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Theme.brandTint))
+            case .draft:
+                Label("Draft - not yet reviewed by a clinician", systemImage: "doc.badge.clock")
                     .font(.footnote.weight(.semibold))
-                    .foregroundColor(Theme.brand)
+                    .foregroundColor(Theme.draft)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .background(Capsule().fill(Theme.brandTint))
+                    .background(Capsule().fill(Theme.draftTint))
+            case .rejected:
+                Label("Not released", systemImage: "doc")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundColor(Theme.inkSoft)
             }
-            Text("Camera-based estimates of visible body angles. Your clinician interprets these results with you.")
+            if report.referenceFileIsDraft {
+                DraftBadge()
+            }
+            Text(AssessmentReport.introCopy)
                 .font(Typo.caption)
                 .foregroundColor(Theme.inkSoft)
         }
         .padding(.top, 12)
+    }
+
+    private func clinicianAssessment(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Eyebrow("Clinician's assessment", color: Theme.brand)
+            Text(text)
+                .font(.body)
+                .foregroundColor(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .card()
     }
 
     private var legend: some View {
@@ -70,12 +111,44 @@ struct AssessmentReportView: View {
         .card()
     }
 
+    private var notMeasurableList: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Eyebrow("Not measured by this system")
+            Text(AssessmentReport.notMeasurableCopy)
+                .font(.footnote)
+                .foregroundColor(Theme.inkSoft)
+            ForEach(report.notMeasurable) { item in
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.label).font(.subheadline.weight(.semibold)).foregroundColor(Theme.ink)
+                    Text(item.reason).font(.footnote).foregroundColor(Theme.inkSoft)
+                    Text("Would need: " + item.whatWouldBeNeeded).font(.footnote).foregroundColor(Theme.inkSoft)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if item.id != report.notMeasurable.last?.id {
+                    Rectangle().fill(Theme.hairline).frame(height: 1)
+                }
+            }
+        }
+        .card()
+    }
+
     private var footnote: some View {
         VStack(alignment: .leading, spacing: 6) {
             if report.referenceFileIsDraft {
-                Text("“Ideal” values come from a draft reference file that has not yet been signed off by a clinical lead.")
+                Text(AssessmentReport.draftReferenceCopy)
             }
-            Text("“Not measured” means the camera view was not good enough to estimate that value; nothing is guessed.")
+            if allRows.contains(where: { $0.tier == .proxy }) {
+                Text(AssessmentReport.proxyCopy)
+            }
+            if allRows.contains(where: { $0.unit == "%" }) {
+                Text(AssessmentReport.percentCopy)
+            }
+            Text(AssessmentReport.notMeasuredCopy)
+            if report.excludedCount > 0 {
+                Text(report.excludedCount == 1
+                     ? "Your clinician left out 1 measurement when reviewing this report."
+                     : "Your clinician left out \(report.excludedCount) measurements when reviewing this report.")
+            }
         }
         .font(.caption)
         .foregroundColor(Theme.inkSoft)
@@ -102,21 +175,23 @@ private struct ReadoutPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Eyebrow(section.subtitle, color: Theme.readoutDim)
+                    if !section.subtitle.isEmpty {
+                        Eyebrow(section.subtitle, color: Theme.readoutDim)
+                    }
                     Text(section.title)
                         .font(Typo.title)
                         .foregroundColor(Theme.readoutText)
                 }
                 Spacer(minLength: 8)
-                if referenceIsDraft && section.rows.contains(where: { $0.reference != nil }) {
-                    Text("DRAFT IDEALS")
+                if referenceIsDraft && section.rows.contains(where: { $0.reference?.isDraft == true }) {
+                    Text("DRAFT REFERENCES")
                         .font(.system(size: 9, weight: .heavy))
                         .tracking(0.8)
                         .foregroundColor(Theme.draft)
                         .padding(.horizontal, 7).padding(.vertical, 4)
                         .background(Capsule().fill(Theme.draftTint))
                         .fixedSize()
-                        .accessibilityLabel("Ideal values are draft references")
+                        .accessibilityLabel("Reference values are drafts")
                 }
             }
             .padding(.bottom, 14)
@@ -127,9 +202,9 @@ private struct ReadoutPanel: View {
                 Eyebrow("Your scan", color: Theme.readoutDim)
                     .fixedSize()
                     .frame(width: 92, alignment: .trailing)
-                Eyebrow("Ideal", color: Theme.readoutDim)
+                Eyebrow("Reference", color: Theme.readoutDim)
                     .fixedSize()
-                    .frame(width: 72, alignment: .trailing)
+                    .frame(width: 80, alignment: .trailing)
             }
             .padding(.bottom, 8)
 
@@ -166,30 +241,38 @@ private struct ReadoutRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text(row.metric)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(Theme.readoutText)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(row.metric)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(Theme.readoutText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    TierChip(tier: row.tier)
+                }
                 Spacer(minLength: 8)
                 valueColumn
                     .frame(width: 92, alignment: .trailing)
-                Text(row.reference.map { $0.label + row.unit } ?? "—")
+                Text(row.reference.map { $0.bounds == nil ? $0.label : $0.label + row.unit } ?? "—")
                     .font(Typo.readout(.subheadline))
                     .foregroundColor(Theme.readoutDim)
-                    .frame(width: 72, alignment: .trailing)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80, alignment: .trailing)
             }
 
-            if let estimate = row.estimate, let reference = row.reference {
+            if let estimate = row.estimate {
                 if let reps = row.reps {
-                    RepStrip(reps: reps, reference: reference, unit: row.unit)
+                    RepStrip(reps: reps, reference: row.reference, unit: row.unit)
                 } else {
-                    ReferenceGauge(estimate: estimate, reference: reference, unit: row.unit)
+                    ReferenceGauge(estimate: estimate, reference: row.reference, unit: row.unit)
                 }
+                Text(row.position.label.uppercased())
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .tracking(0.8)
+                    .foregroundColor(Theme.readoutText.opacity(0.85))
             } else {
                 notMeasured
             }
 
-            if let analysis = row.analysis {
+            if let analysis = row.analysis, row.estimate != nil {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(analysis.text)
                         .font(.callout)
@@ -204,6 +287,13 @@ private struct ReadoutRow: View {
                 .overlay(alignment: .leading) {
                     Rectangle().fill(Theme.readoutAccent.opacity(0.6)).frame(width: 2)
                 }
+            }
+
+            if let source = row.reference?.source {
+                Text("Reference: " + source)
+                    .font(.caption2)
+                    .foregroundColor(Theme.readoutDim)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.vertical, 16)
@@ -236,7 +326,7 @@ private struct ReadoutRow: View {
                 Text("Not measured")
                     .font(.footnote.weight(.semibold))
                     .foregroundColor(Theme.readoutText)
-                if let reason = row.unsupportedReason {
+                ForEach(row.unsupportedReasons, id: \.self) { reason in
                     Text(reason)
                         .font(.footnote)
                         .foregroundColor(Theme.readoutDim)
@@ -249,5 +339,21 @@ private struct ReadoutRow: View {
             RoundedRectangle(cornerRadius: 10)
                 .strokeBorder(Theme.readoutRule, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
         )
+    }
+}
+
+/// Estimate / Proxy marker on each row - outlined, colour-neutral.
+private struct TierChip: View {
+    let tier: AssessmentReport.Tier
+
+    var body: some View {
+        Text(tier.label.uppercased())
+            .font(.system(size: 9, weight: .heavy))
+            .tracking(0.8)
+            .foregroundColor(Theme.readoutDim)
+            .padding(.horizontal, 6).padding(.vertical, 3)
+            .overlay(Capsule().strokeBorder(Theme.readoutRule, lineWidth: 1))
+            .fixedSize()
+            .accessibilityLabel(tier.label)
     }
 }

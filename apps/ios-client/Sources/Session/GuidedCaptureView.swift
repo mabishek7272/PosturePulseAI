@@ -1,16 +1,19 @@
 import SwiftUI
 
 /// Guided capture chrome (spec §5): step track, framing stage, level check,
-/// hold ring / rep counter and quality prompts. The camera feed and the stop
-/// control are injected, so the local-first SymptomStopButton stays the only
-/// stop implementation.
+/// hold ring / rep counter and quality prompts. Steps come from the battery
+/// (data-driven). The camera feed and the stop control are injected, so the
+/// local-first SymptomStopButton stays the only stop implementation. Never
+/// shows a measured number - the level shows a bubble and a word only.
 struct GuidedCaptureView<Stage: View, Stop: View>: View {
     struct CaptureState: Equatable {
         var stepIndex: Int
         var instruction: String
         var detail: String
-        /// Device tilt from the step's required orientation, degrees; nil when unknown.
+        /// Image roll against true vertical, degrees; drives the bubble only. nil when unknown.
         var tiltDegrees: Double?
+        /// Level within the step's tolerance (roll and pitch); nil when unknown.
+        var isLevel: Bool?
         /// 0...1 progress of the current hold; nil for rep-based steps.
         var holdProgress: Double?
         var repCount: Int?
@@ -19,18 +22,16 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
         var qualityPrompt: String?
     }
 
-    static var steps: [String] { ["Front", "Side", "Squat", "Sit–stand", "Shoulder"] }
-    static var levelToleranceDegrees: Double { 3 }
-
+    /// Short step titles for the step track.
+    let steps: [String]
     let state: CaptureState
     @ViewBuilder let stage: () -> Stage
     @ViewBuilder let stop: () -> Stop
 
-    private var isLevel: Bool { (state.tiltDegrees.map { abs($0) <= Self.levelToleranceDegrees }) ?? false }
 
     var body: some View {
         VStack(spacing: 16) {
-            StepTrack(steps: Self.steps, current: state.stepIndex)
+            StepTrack(steps: steps, current: state.stepIndex)
                 .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -51,7 +52,7 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
 
                 VStack {
                     HStack {
-                        LevelIndicator(tilt: state.tiltDegrees, isLevel: isLevel)
+                        LevelIndicator(tilt: state.tiltDegrees, isLevel: state.isLevel)
                         Spacer()
                         progressBadge
                     }
@@ -126,7 +127,7 @@ private struct FramingBrackets: Shape {
 /// Bubble level: the bubble drifts with tilt and snaps to centre when within tolerance.
 private struct LevelIndicator: View {
     let tilt: Double?
-    let isLevel: Bool
+    let isLevel: Bool?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -134,19 +135,19 @@ private struct LevelIndicator: View {
                 Capsule().strokeBorder(Theme.readoutText.opacity(0.6), lineWidth: 1.5).frame(width: 54, height: 16)
                 Rectangle().fill(Theme.readoutText.opacity(0.6)).frame(width: 1, height: 16)
                 Circle()
-                    .fill(isLevel ? Theme.readoutText : Theme.readoutAccent)
+                    .fill(isLevel == true ? Theme.readoutText : Theme.readoutAccent)
                     .frame(width: 10, height: 10)
                     .offset(x: CGFloat(max(min(tilt ?? 0, 10), -10)) * 2)
                     .animation(.spring(response: 0.3), value: tilt)
             }
-            Text(tilt == nil ? "Level?" : isLevel ? "Level" : String(format: "%+.0f°", tilt!))
+            Text(isLevel == nil ? "Level?" : isLevel! ? "Level" : "Tilted")
                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
                 .foregroundColor(Theme.readoutText)
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
         .background(Capsule().fill(Theme.readout.opacity(0.75)))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(tilt == nil ? "Phone level unknown" : isLevel ? "Phone is level" : "Phone tilted \(Int(tilt!.rounded())) degrees")
+        .accessibilityLabel(isLevel == nil ? "Phone level unknown" : isLevel! ? "Phone is level" : "Phone is not level")
     }
 }
 

@@ -2,11 +2,11 @@ import SwiftUI
 
 /// Guides the user through camera setup before a session moves from Setup to
 /// Observing (TRD 2.5 - the FSM requires an explicit "calibrated and
-/// consented" step). This phase does no automated view/quality validation
-/// here - see docs/coordinate-frames.md "Explicitly deferred" for the AR
-/// anchor / calibration work this will eventually gate on.
+/// consented" step). The per-step checks (level, framing, view, stillness)
+/// run on device during the battery (GuidanceEngine) and again on the server.
 struct CalibrationFlowView: View {
     let credentials: SessionCredentials
+    var mode: SessionMode = .patient
     let onCalibrated: () -> Void
 
     @State private var isCalibrating = false
@@ -14,12 +14,17 @@ struct CalibrationFlowView: View {
 
     private let client = SessionsClient()
 
-    private let checklist: [(icon: String, title: String, detail: String)] = [
-        ("iphone", "Prop your phone upright", "Waist height, against something stable, screen facing you."),
-        ("figure.stand", "Step back 2–3 metres", "Your whole body, head to feet, should fit in the frame."),
-        ("lightbulb", "Face the light", "Avoid a bright window behind you."),
-        ("tshirt", "Wear fitted clothing", "Loose clothes hide the joints the camera looks for."),
-    ]
+    private var checklist: [(icon: String, title: String, detail: String)] {
+        [
+            ("iphone", "Stand the phone upright and level", "On a tripod or against something stable at waist height, back camera facing where you will stand."),
+            ("figure.stand", "Step back about 3 metres", "Your whole body, head to feet, should fit in the frame."),
+            ("lightbulb", "Light from the front", "Avoid a bright window behind you."),
+            ("tshirt", "Wear fitted clothing", "Loose clothes hide the joints the camera looks for."),
+            mode == .patient
+                ? ("speaker.wave.2", "Listen for the voice", "The phone speaks each instruction and starts recording on its own when you are in place.")
+                : ("video", "Recording starts on its own", "Each step records once the person is in frame, the phone is level and they are still."),
+        ]
+    }
 
     var body: some View {
         ScrollView {
