@@ -8,6 +8,7 @@ import SwiftUI
 /// (docs/adr/012).
 struct RootView: View {
     private enum Step {
+        case splash
         case chooseMode
         case clinicianSignIn
         case pickPatient
@@ -19,7 +20,7 @@ struct RootView: View {
         case results
     }
 
-    @State private var step: Step = .chooseMode
+    @State private var step: Step = .splash
     @State private var mode: SessionMode = .patient
     @State private var clinicianToken: String?
     @State private var patient: PatientSummary?
@@ -41,6 +42,8 @@ struct RootView: View {
 
     var body: some View {
         switch step {
+        case .splash:
+            SplashView(onFinished: { step = .chooseMode })
         case .chooseMode:
             ModeChooserView(
                 onChoose: { chosen in
