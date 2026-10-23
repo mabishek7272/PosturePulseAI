@@ -32,3 +32,8 @@ services/ml-service/.models/
 *.p8
 *.p12
 *.mobileprovision
+
+# Third-party reference archives evaluated but not vendored (docs/adr/018).
+# logo.zip is a tracked project asset, not a third-party download - keep it.
+/*.zip
+!/logo.zip
