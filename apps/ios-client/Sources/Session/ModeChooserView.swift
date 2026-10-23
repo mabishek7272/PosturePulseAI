@@ -19,24 +19,39 @@ struct ModeChooserView: View {
         .background(NeonTheme.bgDeep.ignoresSafeArea())
     }
 
+    @State private var dragOffset: CGFloat = 0
+
     private var pager: some View {
         GeometryReader { geo in
+            let height = geo.size.height
             ZStack {
-                TabView(selection: $selection) {
-                    ForEach(SessionMode.allCases) { mode in
-                        ModePage(mode: mode, onChoose: { onChoose(mode) })
-                            .frame(width: geo.size.height, height: geo.size.width)
-                            .rotationEffect(.degrees(-90))
-                            .tag(mode)
-                    }
+                VStack(spacing: 0) {
+                    ModePage(mode: .clinic, onChoose: { onChoose(.clinic) })
+                        .frame(height: height)
+                    ModePage(mode: .patient, onChoose: { onChoose(.patient) })
+                        .frame(height: height)
                 }
-                .frame(width: geo.size.height, height: geo.size.width)
-                .rotationEffect(.degrees(90), anchor: .topLeading)
-                .offset(x: geo.size.width)
-                .tabViewStyle(.page(indexDisplayMode: .never))
+                .offset(y: (selection == .clinic ? 0 : -height) + dragOffset)
+                .gesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            dragOffset = value.translation.height
+                        }
+                        .onEnded { value in
+                            let threshold = height * 0.18
+                            if value.translation.height < -threshold, selection == .clinic {
+                                selection = .patient
+                            } else if value.translation.height > threshold, selection == .patient {
+                                selection = .clinic
+                            }
+                            withAnimation(.easeOut(duration: 0.3)) { dragOffset = 0 }
+                        }
+                )
+                .animation(.easeOut(duration: 0.3), value: selection)
 
                 dots
             }
+            .clipped()
         }
     }
 
