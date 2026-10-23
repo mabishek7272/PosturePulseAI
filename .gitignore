@@ -37,3 +37,4 @@ services/ml-service/.models/
 # logo.zip is a tracked project asset, not a third-party download - keep it.
 /*.zip
 !/logo.zip
+.superpowers/
