@@ -110,6 +110,28 @@ class Excluded(BaseModel):
     clinicianId: str
 
 
+class Method(Enum):
+    """
+    What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).
+    """
+
+    mediapipe_2d_image_plane = 'mediapipe_2d_image_plane'
+    clinician_manual = 'clinician_manual'
+    clinician_annotated = 'clinician_annotated'
+    entered = 'entered'
+    markerless_3d = 'markerless_3d'
+
+
+class MeasuredBy(BaseModel):
+    """
+    Narrow provenance of the measurement itself, distinct from the report's own build-time provenance (the report-level provenance.modelVersion identifies the report builder, not what measured the body).
+    """
+
+    modelVersion: str
+    adapterVersion: str | None = None
+    metricsVersion: str | None = None
+
+
 class Row(BaseModel):
     metricKey: str
     resultId: str | None = None
@@ -130,6 +152,14 @@ class Row(BaseModel):
         ...,
         description='Set when the reviewing clinician excludes the row; the row stays in the record.',
     )
+    method: Method | None = Field(
+        None,
+        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).",
+    )
+    measuredBy: MeasuredBy | None = Field(
+        None,
+        description="Narrow provenance of the measurement itself, distinct from the report's own build-time provenance (the report-level provenance.modelVersion identifies the report builder, not what measured the body).",
+    )
 
 
 class NotMeasurableItem(BaseModel):
@@ -148,6 +178,18 @@ class SignOff(BaseModel):
     clinicianId: str
     signedAt: AwareDatetime
     contentSha256: constr(pattern=r'^[0-9a-f]{64}$')
+
+
+class MeasurementMethod(Enum):
+    """
+    What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).
+    """
+
+    mediapipe_2d_image_plane = 'mediapipe_2d_image_plane'
+    clinician_manual = 'clinician_manual'
+    clinician_annotated = 'clinician_annotated'
+    entered = 'entered'
+    markerless_3d = 'markerless_3d'
 
 
 class Provenance(BaseModel):
@@ -179,6 +221,10 @@ class Provenance(BaseModel):
     )
     clipSha256: str | None = Field(
         None, description='SHA-256 of the clip the value was computed from.'
+    )
+    measurementMethod: MeasurementMethod | None = Field(
+        None,
+        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).",
     )
 
 

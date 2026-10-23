@@ -16,7 +16,7 @@
     "tier": {
       "type": "string",
       "enum": ["estimate", "proxy", "entered", "annotated", "not_measurable"],
-      "description": "estimate: 2D measurement with uncertainty. proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system."
+      "description": "estimate: a measurement with uncertainty, not yet clinically evidenced (see provenance.measurementMethod for how it was produced). proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system."
     },
     "unit": { "type": "string", "enum": ["deg", "cm", "percent_stature", "s", "count", "per_min", "percent", "none"] },
     "side": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", null] },

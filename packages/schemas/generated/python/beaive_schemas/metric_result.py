@@ -18,7 +18,7 @@ class Module(Enum):
 
 class Tier(Enum):
     """
-    estimate: 2D measurement with uncertainty. proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.
+    estimate: a measurement with uncertainty, not yet clinically evidenced (see provenance.measurementMethod for how it was produced). proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.
     """
 
     estimate = 'estimate'
@@ -93,6 +93,18 @@ class Evidence(BaseModel):
     landmarkSeriesSha256: str | None = None
 
 
+class MeasurementMethod(Enum):
+    """
+    What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).
+    """
+
+    mediapipe_2d_image_plane = 'mediapipe_2d_image_plane'
+    clinician_manual = 'clinician_manual'
+    clinician_annotated = 'clinician_annotated'
+    entered = 'entered'
+    markerless_3d = 'markerless_3d'
+
+
 class Provenance(BaseModel):
     """
     Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).
@@ -123,6 +135,10 @@ class Provenance(BaseModel):
     clipSha256: str | None = Field(
         None, description='SHA-256 of the clip the value was computed from.'
     )
+    measurementMethod: MeasurementMethod | None = Field(
+        None,
+        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).",
+    )
 
 
 class MetricResult1(BaseModel):
@@ -144,7 +160,7 @@ class MetricResult1(BaseModel):
     module: Module
     tier: Tier = Field(
         ...,
-        description="estimate: 2D measurement with uncertainty. proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.",
+        description="estimate: a measurement with uncertainty, not yet clinically evidenced (see provenance.measurementMethod for how it was produced). proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.",
     )
     unit: Unit
     side: Side | None
@@ -161,6 +177,42 @@ class MetricResult1(BaseModel):
 class Unsupported1(BaseModel):
     reasons: list[Reason] = Field(..., min_length=1)
     detail: str | None = None
+
+
+class Provenance1(BaseModel):
+    """
+    Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).
+    """
+
+    schemaVersion: str = Field(
+        ...,
+        description='Version of this record\'s own JSON Schema, e.g. "pose-landmark-frame/v0".',
+    )
+    modelVersion: str = Field(
+        ...,
+        description='Identifier+version of the model/adapter that produced this record, e.g. "mediapipe-pose/0.10.9".',
+    )
+    adapterVersion: str | None = None
+    calibrationVersion: str = Field(
+        ...,
+        description='Identifier of the camera calibration record in effect when this record was produced.',
+    )
+    producedAt: AwareDatetime
+    metricsVersion: str | None = Field(
+        None,
+        description='Version of the metric registry that computed the value, e.g. "metrics/v1".',
+    )
+    referenceFileVersion: str | None = Field(
+        None,
+        description='Version of the reference-range set used to classify the value.',
+    )
+    clipSha256: str | None = Field(
+        None, description='SHA-256 of the clip the value was computed from.'
+    )
+    measurementMethod: MeasurementMethod | None = Field(
+        None,
+        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).",
+    )
 
 
 class MetricResult2(BaseModel):
@@ -182,7 +234,7 @@ class MetricResult2(BaseModel):
     module: Module
     tier: Tier = Field(
         ...,
-        description="estimate: 2D measurement with uncertainty. proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.",
+        description="estimate: a measurement with uncertainty, not yet clinically evidenced (see provenance.measurementMethod for how it was produced). proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.",
     )
     unit: Unit
     side: Side | None
@@ -190,7 +242,7 @@ class MetricResult2(BaseModel):
     unsupported: Unsupported1
     notMeasurable: NotMeasurable | None = None
     evidence: Evidence | None = None
-    provenance: Provenance = Field(
+    provenance: Provenance1 = Field(
         ...,
         description='Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).',
     )
@@ -199,6 +251,42 @@ class MetricResult2(BaseModel):
 class Unsupported2(BaseModel):
     reasons: list[Reason] = Field(..., min_length=1)
     detail: str | None = None
+
+
+class Provenance2(BaseModel):
+    """
+    Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).
+    """
+
+    schemaVersion: str = Field(
+        ...,
+        description='Version of this record\'s own JSON Schema, e.g. "pose-landmark-frame/v0".',
+    )
+    modelVersion: str = Field(
+        ...,
+        description='Identifier+version of the model/adapter that produced this record, e.g. "mediapipe-pose/0.10.9".',
+    )
+    adapterVersion: str | None = None
+    calibrationVersion: str = Field(
+        ...,
+        description='Identifier of the camera calibration record in effect when this record was produced.',
+    )
+    producedAt: AwareDatetime
+    metricsVersion: str | None = Field(
+        None,
+        description='Version of the metric registry that computed the value, e.g. "metrics/v1".',
+    )
+    referenceFileVersion: str | None = Field(
+        None,
+        description='Version of the reference-range set used to classify the value.',
+    )
+    clipSha256: str | None = Field(
+        None, description='SHA-256 of the clip the value was computed from.'
+    )
+    measurementMethod: MeasurementMethod | None = Field(
+        None,
+        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).",
+    )
 
 
 class MetricResult3(BaseModel):
@@ -220,7 +308,7 @@ class MetricResult3(BaseModel):
     module: Module
     tier: Tier = Field(
         ...,
-        description="estimate: 2D measurement with uncertainty. proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.",
+        description="estimate: a measurement with uncertainty, not yet clinically evidenced (see provenance.measurementMethod for how it was produced). proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.",
     )
     unit: Unit
     side: Side | None
@@ -228,7 +316,7 @@ class MetricResult3(BaseModel):
     unsupported: Unsupported2 | None = None
     notMeasurable: NotMeasurable
     evidence: Evidence | None = None
-    provenance: Provenance = Field(
+    provenance: Provenance2 = Field(
         ...,
         description='Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).',
     )

@@ -21,7 +21,7 @@ export type MetricResult = {
   metricKey: string;
   module: "static" | "functional" | "gait" | "workstation" | "ergonomic";
   /**
-   * estimate: 2D measurement with uncertainty. proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.
+   * estimate: a measurement with uncertainty, not yet clinically evidenced (see provenance.measurementMethod for how it was produced). proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.
    */
   tier: "estimate" | "proxy" | "entered" | "annotated" | "not_measurable";
   unit: "deg" | "cm" | "percent_stature" | "s" | "count" | "per_min" | "percent" | "none";
@@ -112,6 +112,11 @@ export type MetricResult = {
      * SHA-256 of the clip the value was computed from.
      */
     clipSha256?: string;
+    /**
+     * What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).
+     */
+    measurementMethod?:
+      "mediapipe_2d_image_plane" | "clinician_manual" | "clinician_annotated" | "entered" | "markerless_3d";
   };
 } & {
   [k: string]: unknown;

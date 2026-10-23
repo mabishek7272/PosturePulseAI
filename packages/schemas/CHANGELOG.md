@@ -52,3 +52,42 @@ No breaking changes yet - this is the first cut.
 
 See `docs/adr/005-deterministic-policy-engine.md` through
 `docs/adr/008-scale-calibration-scope.md` for the reasoning behind these.
+
+## v0 - M1 static battery (non-breaking)
+
+- New: `clip-capture` (per-frame gravity/timestamp sidecar for a recorded clip,
+  ADR-013), `metric-result` (one measurement, `oneOf` estimate/unsupported/
+  notMeasurable, ADR-015), `reference-range-set` (draft geometric/literature
+  reference ranges), `assessment-battery` (the capture-step sequence a session
+  runs), `assessment-report` (versioned, clinician-signed report built from
+  metric results, ADR-015).
+- `quality-gate-flag`'s `reasons` enum (factored into `$defs/reason`) extended
+  with `wrong_view`, `out_of_frame`, `camera_not_level`,
+  `insufficient_frame_rate`, `insufficient_frames`, `subject_moving`.
+- `common.provenance` gained **optional** `metricsVersion`, `referenceFileVersion`,
+  `clipSha256`.
+
+## v0 - measurement method provenance (non-breaking)
+
+- `common.$defs` gained `measurementMethod`, an enum of what produced a
+  measurement (`mediapipe_2d_image_plane`, `clinician_manual`,
+  `clinician_annotated`, `entered`; `markerless_3d` reserved, unimplemented).
+  Referenced as an **optional** property on `common.provenance`, so it reaches
+  every record that already embeds provenance with no further schema change.
+- `metric-result.tier`'s description no longer says "2D" - that was the method
+  axis leaking into the confidence-tier axis; `provenance.measurementMethod`
+  is now the single place a record states how it was measured.
+- `assessment-report`'s row gained **optional** `method`
+  (`$ref measurementMethod`) and `measuredBy { modelVersion, adapterVersion?,
+  metricsVersion? }`, carrying the underlying measurement's own provenance onto
+  the row - previously dropped by the report builder, leaving only the
+  report-level `provenance.modelVersion`, which identifies the report builder
+  itself, not what measured the body (CLAUDE.md rule 4).
+- Both new row fields are optional, not required: released report bodies are
+  never re-validated after sign-off, so a required field would reject any
+  future migration or export of a report signed before this change.
+
+See `docs/adr/018-measurement-method-and-validation-strategy.md` for why the
+product's own measurement method is scoped to `mediapipe_2d_image_plane` only,
+and why a method-aware reference lookup (keying `reference-range-set` entries
+by method, not just `metricKey`) is deferred rather than built here.

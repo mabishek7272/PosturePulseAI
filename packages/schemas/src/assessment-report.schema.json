@@ -60,6 +60,17 @@
             "required": ["reason", "clinicianId"],
             "description": "Set when the reviewing clinician excludes the row; the row stays in the record.",
             "properties": { "reason": { "type": "string", "minLength": 1 }, "clinicianId": { "type": "string" } }
+          },
+          "method": { "$ref": "common.schema.json#/$defs/measurementMethod" },
+          "measuredBy": {
+            "type": "object",
+            "description": "Narrow provenance of the measurement itself, distinct from the report's own build-time provenance (the report-level provenance.modelVersion identifies the report builder, not what measured the body).",
+            "required": ["modelVersion"],
+            "properties": {
+              "modelVersion": { "type": "string" },
+              "adapterVersion": { "type": "string" },
+              "metricsVersion": { "type": "string" }
+            }
           }
         }
       }

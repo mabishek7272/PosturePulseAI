@@ -80,5 +80,10 @@ export interface PoseLandmarkFrame {
      * SHA-256 of the clip the value was computed from.
      */
     clipSha256?: string;
+    /**
+     * What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).
+     */
+    measurementMethod?:
+      "mediapipe_2d_image_plane" | "clinician_manual" | "clinician_annotated" | "entered" | "markerless_3d";
   };
 }
