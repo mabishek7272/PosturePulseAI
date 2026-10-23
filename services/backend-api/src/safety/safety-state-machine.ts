@@ -8,8 +8,9 @@ import { createMachine, assign } from "xstate";
  * This is what makes "safety rules outrank AI scores" a structural property of
  * the graph rather than a convention callers must remember.
  *
- * Matches the PRD's state diagram exactly: EVERY symptom/contraindication report
- * lands in Pause first, no matter its severity - escalation to ClinicianReview is
+ * EVERY symptom/contraindication report lands in Pause first - from every
+ * non-terminal state, including Setup and Unavailable, so a report made before
+ * calibration or while tracking is lost is never dropped - no matter its severity - escalation to ClinicianReview is
  * a distinct second step taken from Pause (via ESCALATION_RULE), never a way to
  * skip Pause. safety.service.ts is responsible for sending ESCALATION_RULE right
  * after SYMPTOM_REPORTED when the report's triggeredAction is escalate_review;
@@ -46,6 +47,7 @@ export type SafetyEvent =
   | { type: "SUSTAINED_DEVIATION" }
   | { type: "CUE_DELIVERED" }
   | { type: "SYMPTOM_REPORTED"; symptomReportId: string }
+  | { type: "CONTRAINDICATION_FLAGGED"; reason: string }
   | { type: "ESCALATION_RULE"; reason: string }
   | { type: "QUALITY_LOST"; reason: string }
   | { type: "REACQUIRED" }
@@ -55,6 +57,11 @@ const recordReason = assign<SafetyContext, SafetyEvent, unknown, SafetyEvent, ne
   lastTransitionReason:
     "reason" in event ? event.reason : "symptomReportId" in event ? event.symptomReportId : event.type,
 }));
+
+const PAUSE_ON_SAFETY_REPORT = {
+  SYMPTOM_REPORTED: { target: "Pause", actions: recordReason },
+  CONTRAINDICATION_FLAGGED: { target: "Pause", actions: recordReason },
+} as const;
 
 export const safetyMachine = createMachine({
   id: "safety",
@@ -71,19 +78,20 @@ export const safetyMachine = createMachine({
       on: {
         CALIBRATED: { target: "Observing" },
         SETUP_UNAVAILABLE: { target: "Unavailable", actions: recordReason },
+        ...PAUSE_ON_SAFETY_REPORT,
       },
     },
     Observing: {
       on: {
         SUSTAINED_DEVIATION: { target: "CueEligible" },
-        SYMPTOM_REPORTED: { target: "Pause", actions: recordReason },
+        ...PAUSE_ON_SAFETY_REPORT,
         QUALITY_LOST: { target: "Unavailable", actions: recordReason },
       },
     },
     CueEligible: {
       on: {
         CUE_DELIVERED: { target: "Observing" },
-        SYMPTOM_REPORTED: { target: "Pause", actions: recordReason },
+        ...PAUSE_ON_SAFETY_REPORT,
         QUALITY_LOST: { target: "Unavailable", actions: recordReason },
       },
     },
@@ -96,6 +104,7 @@ export const safetyMachine = createMachine({
     Unavailable: {
       on: {
         REACQUIRED: { target: "Setup" },
+        ...PAUSE_ON_SAFETY_REPORT,
       },
     },
     ClinicianReview: {

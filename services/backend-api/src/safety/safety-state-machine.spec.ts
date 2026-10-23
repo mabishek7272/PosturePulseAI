@@ -148,3 +148,39 @@ describe("safetyMachine - safety rules structurally outrank ML-driven events", (
     expect(value(actor)).toBe("ClinicianReview");
   });
 });
+
+describe("safetyMachine - symptoms and contraindications pause from every non-terminal state", () => {
+  type Reach = (actor: ReturnType<typeof actorAt>) => void;
+  const STATES: Array<[SafetyState, Reach]> = [
+    ["Setup", () => {}],
+    ["Observing", (a) => a.send({ type: "CALIBRATED" })],
+    ["CueEligible", (a) => { a.send({ type: "CALIBRATED" }); a.send({ type: "SUSTAINED_DEVIATION" }); }],
+    ["Unavailable", (a) => a.send({ type: "SETUP_UNAVAILABLE", reason: "poor_view" })],
+  ];
+
+  it.each(STATES)("%s -> Pause on SYMPTOM_REPORTED", (state, reach) => {
+    const actor = actorAt();
+    reach(actor);
+    expect(value(actor)).toBe(state);
+    actor.send({ type: "SYMPTOM_REPORTED", symptomReportId: "sym-1" });
+    expect(value(actor)).toBe("Pause");
+    expect(actor.getSnapshot().context.lastTransitionReason).toBe("sym-1");
+  });
+
+  it.each(STATES)("%s -> Pause on CONTRAINDICATION_FLAGGED", (state, reach) => {
+    const actor = actorAt();
+    reach(actor);
+    expect(value(actor)).toBe(state);
+    actor.send({ type: "CONTRAINDICATION_FLAGGED", reason: "recent_knee_surgery" });
+    expect(value(actor)).toBe("Pause");
+    expect(actor.getSnapshot().context.lastTransitionReason).toBe("recent_knee_surgery");
+  });
+
+  it("a contraindication while Paused keeps the session Paused", () => {
+    const actor = actorAt();
+    actor.send({ type: "CONTRAINDICATION_FLAGGED", reason: "a" });
+    actor.send({ type: "CONTRAINDICATION_FLAGGED", reason: "b" });
+    actor.send({ type: "SUSTAINED_DEVIATION" });
+    expect(value(actor)).toBe("Pause");
+  });
+});
