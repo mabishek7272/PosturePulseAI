@@ -20,6 +20,9 @@ struct ModeChooserView: View {
     }
 
     @State private var dragOffset: CGFloat = 0
+    @State private var wipeIncoming: SessionMode?
+    @State private var wipeProgress: CGFloat = 0
+    @State private var legendDotAtTop = false
 
     private var pager: some View {
         GeometryReader { geo in
@@ -40,18 +43,48 @@ struct ModeChooserView: View {
                             dragOffset = value.translation.height
                         }
                         .onEnded { value in
+                            guard wipeIncoming == nil else { return }
                             let threshold = height * 0.18
-                            if value.translation.height < -threshold, selection == .clinic {
-                                selection = .patient
-                            } else if value.translation.height > threshold, selection == .patient {
-                                selection = .clinic
+                            let next: SessionMode? =
+                                value.translation.height < -threshold && selection == .clinic ? .patient :
+                                value.translation.height > threshold && selection == .patient ? .clinic : nil
+                            guard let next else {
+                                withAnimation(.easeOut(duration: 0.3)) { dragOffset = 0 }
+                                return
                             }
-                            withAnimation(.easeOut(duration: 0.3)) { dragOffset = 0 }
+                            dragOffset = 0
+                            if reduceMotion {
+                                selection = next
+                            } else {
+                                wipeIncoming = next
+                                wipeProgress = 0
+                                withAnimation(.easeInOut(duration: 0.45)) { wipeProgress = 1 }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                                    selection = next
+                                    wipeIncoming = nil
+                                    wipeProgress = 0
+                                }
+                            }
                         }
                 )
                 .animation(.easeOut(duration: 0.3), value: selection)
 
-                dots
+                if let wipeIncoming {
+                    ModePage(mode: wipeIncoming, onChoose: { onChoose(wipeIncoming) })
+                        .frame(height: height)
+                        .clipShape(DiagonalWipe(progress: wipeProgress))
+                        .allowsHitTesting(false)
+                }
+
+                gestureLegend
+
+                Text("SWIPE TO SWITCH")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.5)
+                    .foregroundColor(NeonTheme.textDim)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 44)
+                    .allowsHitTesting(false)
             }
             .frame(width: geo.size.width, height: height)
             .clipped()
@@ -60,19 +93,43 @@ struct ModeChooserView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var dots: some View {
-        VStack(spacing: 7) {
-            ForEach(SessionMode.allCases) { mode in
+    private var gestureLegend: some View {
+        VStack(spacing: 3) {
+            Text("▲")
+                .font(.system(size: 11))
+                .foregroundColor(NeonTheme.textPrimary.opacity(0.55))
+            Text("PATIENT")
+                .font(.system(size: 8.5, weight: .semibold))
+                .tracking(0.5)
+                .foregroundColor(NeonTheme.violetDim)
+                .fixedSize()
+            ZStack(alignment: .top) {
                 Capsule()
-                    .fill(mode == selection ? NeonTheme.violet : NeonTheme.violet.opacity(0.3))
-                    .frame(width: 7, height: mode == selection ? 20 : 7)
-                    .shadow(color: mode == selection ? NeonTheme.violet.opacity(0.7) : .clear, radius: 6)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: selection)
+                    .fill(NeonTheme.violet.opacity(0.25))
+                    .frame(width: 2, height: 70)
+                Circle()
+                    .fill(NeonTheme.mint)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: NeonTheme.mint.opacity(0.7), radius: 4)
+                    .offset(y: reduceMotion ? 35 : (legendDotAtTop ? 0 : 64))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: legendDotAtTop)
             }
+            Text("CLINIC")
+                .font(.system(size: 8.5, weight: .semibold))
+                .tracking(0.5)
+                .foregroundColor(NeonTheme.violetDim)
+                .fixedSize()
+            Text("▼")
+                .font(.system(size: 11))
+                .foregroundColor(NeonTheme.textPrimary.opacity(0.55))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
         .padding(.trailing, 14)
         .allowsHitTesting(false)
+        .onAppear {
+            guard !reduceMotion else { return }
+            legendDotAtTop = true
+        }
     }
 
     private var footer: some View {
@@ -193,5 +250,32 @@ private struct FloatingOrb: View {
             .offset(x: corner == .topTrailing ? 30 : -20, y: corner == .topTrailing ? -30 : 30)
             .onAppear { floated = true }
             .allowsHitTesting(false)
+    }
+}
+
+/// A diagonal-edged region used for the mode-chooser's swipe transition: the
+/// edge slopes from `y` on the left to a point `slant` higher on the right.
+/// At progress 0 the edge sits below the frame (nothing revealed); at
+/// progress 1 it sits above the frame (fully revealed). `Animatable` so
+/// SwiftUI can interpolate it smoothly inside a `withAnimation` block.
+private struct DiagonalWipe: Shape {
+    var progress: CGFloat
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let slant = rect.height * 0.22
+        let span = rect.height + slant
+        let leftY = rect.height + slant - progress * span
+        let rightY = leftY - slant
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: leftY))
+        path.addLine(to: CGPoint(x: rect.width, y: rightY))
+        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        path.addLine(to: CGPoint(x: 0, y: rect.height))
+        path.closeSubpath()
+        return path
     }
 }
