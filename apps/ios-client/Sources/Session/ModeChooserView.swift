@@ -53,6 +53,7 @@ struct ModeChooserView: View {
 
                 dots
             }
+            .frame(width: geo.size.width, height: height)
             .clipped()
         }
     }
