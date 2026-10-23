@@ -51,12 +51,13 @@ export interface ReportRow {
   side: Side;
   estimate: { value: number; uncertainty: number } | null;
   unsupportedReasons?: QualityReason[];
-  reference: { kind: "geometric" | "literature"; label: string; sourceCitation: string; status: "draft" | "approved" } | null;
+  reference: { kind: "geometric" | "literature"; label: string; sourceCitation: string; status: "draft" | "approved"; value?: number; min?: number; max?: number } | null;
   position: Position;
   analysis: { text: string; source: "fixed_template"; templateId: string };
   excluded: { reason: string; clinicianId: string } | null;
   method?: MeasurementMethod;
   measuredBy?: { modelVersion: string; adapterVersion?: string; metricsVersion?: string };
+  signConvention?: string;
 }
 
 export interface AssessmentReportBody {
@@ -189,6 +190,9 @@ function buildRow(
         label: formatReferenceLabel(indexed.bounds, indexed.entry.unit),
         sourceCitation: indexed.entry.sourceCitation,
         status: referenceStatus,
+        ...(indexed.bounds.lo === indexed.bounds.hi
+          ? { value: indexed.bounds.lo }
+          : { min: indexed.bounds.lo, max: indexed.bounds.hi }),
       }
     : null;
 
@@ -220,6 +224,7 @@ function buildRow(
     excluded: null,
   };
   if (result.unsupported) row.unsupportedReasons = [...result.unsupported.reasons];
+  if (result.estimate?.signConvention) row.signConvention = result.estimate.signConvention;
   if (method !== undefined) row.method = method;
   // Narrow provenance of the measurement itself, distinct from the report's
   // own build-time provenance below (CLAUDE.md rule 4: the report-level

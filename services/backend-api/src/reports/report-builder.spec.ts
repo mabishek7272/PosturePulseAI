@@ -144,6 +144,7 @@ describe("buildReport", () => {
         label: "0°",
         sourceCitation: REFERENCES.entries.find((e) => e.metricKey === "static.trunk_inclination")!.sourceCitation,
         status: "draft",
+        value: 0,
       },
       position: "above",
       analysis: {
@@ -266,6 +267,48 @@ describe("buildReport", () => {
     } as never);
     const metrics = [...CATALOG.metrics, { ...CATALOG.metrics[0], metricKey: "static.q_angle", label: "Q-angle", tier: "not_measurable" as never }];
     expect(() => buildReport(input([{ ...r, unit: "deg" }], { catalog: { ...CATALOG, metrics } }))).toThrow(ReportBuildError);
+  });
+
+  it("carries the result's stepId and signConvention onto the row", () => {
+    const r = result("static.trunk_inclination", "static.left_lateral", {
+      estimate: { value: 2, uncertainty: 0.5, framesUsed: 100, signConvention: "positive = forward" },
+    });
+    const [row] = buildReport(input([r])).rows;
+    expect(row.stepId).toBe("static.left_lateral");
+    expect(row.signConvention).toBe("positive = forward");
+  });
+
+  it("puts the reference's numeric bounds on the row - a single value as `value`, a range as min/max", () => {
+    const single = result("static.trunk_inclination", "static.left_lateral", {
+      estimate: { value: 2, uncertainty: 0.5, framesUsed: 100 },
+    });
+    const [singleRow] = buildReport(input([single])).rows;
+    expect(singleRow.reference?.value).toBe(0);
+    expect(singleRow.reference?.min).toBeUndefined();
+    expect(singleRow.reference?.max).toBeUndefined();
+
+    // Every entry in the checked-in reference file is single-value today (confirmed by
+    // reading references/posture-reference.v0-draft.json), so a range case needs a
+    // synthetic reference set - same technique already used by the "indexes single-value
+    // and range references as bounds" test further down this file.
+    const rangedSet: ReferenceRangeSet = { ...REFERENCES, entries: [{ metricKey: "static.trunk_lateral_lean", kind: "literature", min: -2, max: 4, unit: "deg", sourceCitation: "x" }] };
+    const ranged = result("static.trunk_lateral_lean", "static.anterior", {
+      estimate: { value: 1, uncertainty: 0.4, framesUsed: 100 },
+    });
+    const [rangedRow] = buildReport(input([ranged], { referenceSet: rangedSet })).rows;
+    expect(rangedRow.reference?.min).toBe(-2);
+    expect(rangedRow.reference?.max).toBe(4);
+    expect(rangedRow.reference?.value).toBeUndefined();
+  });
+
+  it("stepId always comes from the result, but signConvention/reference are only set when the source data has them", () => {
+    const r = result("static.plumb_offset_ear", "static.left_lateral", {
+      estimate: { value: 3.1, uncertainty: 0.4, framesUsed: 100 },
+    });
+    const [row] = buildReport(input([r])).rows;
+    expect(row.reference).toBeNull();
+    expect(row.stepId).toBe("static.left_lateral"); // still present - stepId always comes from the result
+    expect(row.signConvention).toBeUndefined(); // the fixture's shared `provenance`/estimate has no signConvention
   });
 
   it("is deterministic", () => {
