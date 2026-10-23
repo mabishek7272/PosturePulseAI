@@ -92,8 +92,12 @@ export class ReportsController {
   @UseInterceptors(AuditLogInterceptor)
   @AuditAction("sign_off_report")
   @Post(":reportId/sign-off")
-  signOff(@Param("reportId") reportId: string, @Body() body: { password: string }, @Req() req: ClinicianRequest) {
-    return this.reports.signOff(reportId, req.user.sub, body?.password);
+  signOff(
+    @Param("reportId") reportId: string,
+    @Body() body: { password: string; contentSha256?: string; reportVersion?: number },
+    @Req() req: ClinicianRequest
+  ) {
+    return this.reports.signOff(reportId, req.user.sub, body?.password, body?.contentSha256, body?.reportVersion);
   }
 
   @UseInterceptors(AuditLogInterceptor)

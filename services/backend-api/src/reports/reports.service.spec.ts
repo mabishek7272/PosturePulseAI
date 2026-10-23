@@ -342,6 +342,42 @@ describe("ReportsService.signOff", () => {
     prisma.assessmentReport.updateMany.mockResolvedValue({ count: 0 });
     await expect(service.signOff("rep-1", "clin1", "correct horse")).rejects.toThrow(ConflictException);
   });
+
+  it("signs off successfully when the caller's contentSha256/reportVersion match the current draft", async () => {
+    const row = draftRow();
+    const { service } = setup({ reports: [row] });
+    const expectedSha = reportContentSha256(row.body as never);
+    const body = await service.signOff("rep-1", "clin1", "correct horse", expectedSha, row.reportVersion);
+    expect(body.status).toBe("released");
+  });
+
+  it("409s when the caller's contentSha256 no longer matches (someone else changed the draft first)", async () => {
+    const row = draftRow();
+    const { service, store } = setup({ reports: [row] });
+    const staleSha = reportContentSha256(row.body as never);
+    // Someone else excludes a row first, changing the stored draft's content.
+    await service.excludeRow("rep-1", "clin2", {
+      metricKey: "static.hip_line_tilt",
+      side: null,
+      stepId: "static.posterior",
+      reason: "Subject moved",
+    });
+    await expect(service.signOff("rep-1", "clin1", "correct horse", staleSha, row.reportVersion)).rejects.toThrow(ConflictException);
+    expect(store[0].status).toBe("draft");
+  });
+
+  it("409s when the caller's reportVersion no longer matches", async () => {
+    const row = draftRow();
+    const { service } = setup({ reports: [row] });
+    const currentSha = reportContentSha256(row.body as never);
+    await expect(service.signOff("rep-1", "clin1", "correct horse", currentSha, row.reportVersion + 1)).rejects.toThrow(ConflictException);
+  });
+
+  it("still signs off with no contentSha256/reportVersion supplied at all (back-compat: an older client)", async () => {
+    const { service } = setup({ reports: [draftRow()] });
+    const body = await service.signOff("rep-1", "clin1", "correct horse");
+    expect(body.status).toBe("released");
+  });
 });
 
 describe("ReportsService.reject", () => {

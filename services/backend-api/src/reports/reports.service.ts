@@ -219,11 +219,28 @@ export class ReportsService implements OnApplicationBootstrap {
    * left open on a shared screen must not be enough to sign). contentSha256 is
    * reportContentSha256 of the released body, so it can be recomputed later.
    */
-  async signOff(reportId: string, clinicianId: string, password: string): Promise<AssessmentReportBody> {
+  async signOff(
+    reportId: string,
+    clinicianId: string,
+    password: string,
+    expectedContentSha256?: string,
+    expectedReportVersion?: number
+  ): Promise<AssessmentReportBody> {
     if (typeof password !== "string" || password.length === 0) throw new BadRequestException("password is required.");
     const row = await this.load(reportId);
     this.assertDraft(row.status);
     this.assertNotLocked(clinicianId);
+
+    if (expectedContentSha256 !== undefined || expectedReportVersion !== undefined) {
+      const currentBody = row.body as unknown as AssessmentReportBody;
+      const currentSha = reportContentSha256(currentBody as never);
+      if (
+        (expectedContentSha256 !== undefined && expectedContentSha256 !== currentSha) ||
+        (expectedReportVersion !== undefined && expectedReportVersion !== currentBody.reportVersion)
+      ) {
+        throw new ConflictException("This report changed since you last reviewed it. Reload and try again.");
+      }
+    }
 
     const clinician = await this.prisma.clinician.findUnique({ where: { id: clinicianId } });
     // Compare even when the account is gone so both failures cost the same.

@@ -58,7 +58,7 @@ describe("clinician report routes", () => {
     await reports.assess("r1", { text: "t" }, clinicianReq);
     expect(service.setAssessment).toHaveBeenCalledWith("r1", "clin1", "t");
     await reports.signOff("r1", { password: "pw" }, clinicianReq);
-    expect(service.signOff).toHaveBeenCalledWith("r1", "clin1", "pw");
+    expect(service.signOff).toHaveBeenCalledWith("r1", "clin1", "pw", undefined, undefined);
     await reports.reject("r1", { reason: "no" }, clinicianReq);
     expect(service.reject).toHaveBeenCalledWith("r1", "clin1", "no");
   });
