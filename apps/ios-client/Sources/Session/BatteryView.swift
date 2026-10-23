@@ -10,6 +10,7 @@ struct BatteryView: View {
     let onExit: () -> Void
 
     @StateObject private var runner: BatteryRunner
+    @StateObject private var torch: TorchSwitch
     @State private var started = false
 
     init(battery: AssessmentBattery, mode: SessionMode, credentials: SessionCredentials,
@@ -19,11 +20,13 @@ struct BatteryView: View {
         self.onExit = onExit
         // Built once per view identity (StateObject's autoclosure), so the
         // preview always shows the recorder the runner records with.
+        let recorder = ClipRecorder()
+        _torch = StateObject(wrappedValue: TorchSwitch(torch: recorder))
         _runner = StateObject(wrappedValue: BatteryRunner(
             battery: battery,
             mode: mode,
             credentials: credentials,
-            recorder: ClipRecorder(),
+            recorder: recorder,
             queue: ClipUploadQueue(
                 directory: (try? ClipUploadQueue.defaultDirectory())
                     ?? FileManager.default.temporaryDirectory.appendingPathComponent("ClipUploads", isDirectory: true),
@@ -46,7 +49,12 @@ struct BatteryView: View {
                 // Send any clip a previous run could not deliver.
                 await runner.drainPendingUploads()
             }
-            .onDisappear { runner.recorder.halt() }
+            .onAppear { ScreenAwake.shared.hold() }
+            .onDisappear {
+                torch.turnOff()
+                runner.recorder.halt()
+                ScreenAwake.shared.release()
+            }
     }
 
     private var stepTitles: [String] { runner.steps.map { $0.title } }
@@ -68,7 +76,7 @@ struct BatteryView: View {
         case .refused:
             message(title: "Recording not accepted", detail: "The clinic server is not accepting recordings for this session right now. Please contact your clinic.", button: "Done")
         case .cameraUnavailable:
-            message(title: "Camera not available", detail: "Allow camera access for PosturePulse AI in Settings, then start again.", button: "Done")
+            message(title: "Camera not available", detail: "Allow camera access for PosturePulse in Settings, then start again.", button: "Done")
         case .finished:
             statusScreen(eyebrow: "Assessment", title: "All steps recorded", detail: "", busy: true)
         }
@@ -105,6 +113,7 @@ struct BatteryView: View {
                 ZStack {
                     if let recorder { CameraPreviewView(session: recorder.session) }
                     SkeletonOverlay(pose: runner.pose, imageSize: runner.imageSize)
+                    TorchButton(torch: torch)
                 }
             },
             stop: { stopButton }
@@ -218,6 +227,34 @@ private struct OutcomeView<Stop: View>: View {
             Button(isLastStep ? "Finish without redoing" : "Skip for now", action: onNext)
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+/// Flashlight switch over the camera preview, bottom-trailing. Hidden on
+/// devices without a flashlight. The light is part of the camera, so it needs
+/// no permission of its own.
+private struct TorchButton: View {
+    @ObservedObject var torch: TorchSwitch
+
+    var body: some View {
+        if torch.isAvailable {
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button { torch.toggle() } label: {
+                        Image(systemName: torch.isOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                            .font(.title3)
+                            .foregroundColor(.white)
+                            .frame(width: 48, height: 48)
+                            .background(Circle().fill(torch.isOn ? Theme.brand : Color.black.opacity(0.55)))
+                    }
+                    .accessibilityLabel(torch.isOn ? "Turn flashlight off" : "Turn flashlight on")
+                    .accessibilityHint("For a dim room. Off by default.")
+                }
+                .padding(14)
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-# apps/ios-client — PosturePulse AI
+# apps/ios-client — PosturePulse
 
 Native iOS (Swift/SwiftUI) capture + display front end for the assessment
 battery (M1 spec: `docs/superpowers/specs/2026-10-23-m1-static-battery.md`,
@@ -49,56 +49,30 @@ Internal testers receive the build in the TestFlight app once Apple finishes pro
 
 ### Brand assets
 
-`AppResources/Assets.xcassets` holds the icon (mark only), the in-app logo and
-the accent colour. Regenerate both images from a new logo file:
+`AppResources/Assets.xcassets` holds the icon (mark only, opaque 1024 px), the in-app logo and the accent colour; the
+source logo is `brand/posturepulse-logo-source.png`. The in-app logo is an opaque image drawn with the `multiply` blend
+so its white background disappears into the paper. Regenerate both from a new logo (crop rectangles are
+`x,y,width,height` in source pixels: the mark alone for the icon, the full lockup for the logo):
 
 ```bash
-cd AppResources/Assets.xcassets
-swift ../../scripts/make-brand-assets.swift <logo.png> AppIcon.appiconset BrandLogo.imageset
+cd apps/ios-client
+swift scripts/make-brand-assets.swift brand/posturepulse-logo-source.png \
+  AppResources/Assets.xcassets/AppIcon.appiconset AppResources/Assets.xcassets/BrandLogo.imageset \
+  102,198,1650,1650 40,180,1840,2030
 ```
 
-## Structure
+### Device access and the device check
 
-- `Sources/App/` - app entry (`BeAIveApp`, forces light appearance) and `RootView`:
-  mode -> (Clinic: clinician sign-in -> `PatientPickerView`) -> consent ->
-  battery + session -> setup -> `BatteryView` -> `BatteryDoneView`
-  (Patient: report-access token; Clinic: link the visit to the patient).
-- `Sources/Assessment/` - `AssessmentBattery` (GET /assessment-battery),
-  `ClipCapture` + `SidecarBuilder` (clip-capture sidecar), `GuidanceEngine`
-  (level, framing, view and stillness rules, 1.5 s ready hold), `BatteryRunner`
-  (guide -> record -> upload -> poll step status -> Looks good / Redo).
-- `Sources/Capture/` - `ClipRecorder` (back wide 1x, 1080p30, stabilisation
-  off, HEVC via AVAssetWriter, CMDeviceMotion gravity per frame, Vision every
-  third frame), `CameraGravity` (device -> camera-frame gravity), small
-  protocols (`ClipRecording`, `MotionSource`, `PoseDetecting`) so the logic is
-  unit-tested without a camera.
-- `Sources/Consent/`, `Sources/Identity/` - consent screen/client and the
-  pseudonymous device id (random UUID in Keychain) - docs/adr/012.
-- `Sources/Session/` - `BatteryView`, `GuidedCaptureView` (data-driven steps,
-  no measured numbers), `CalibrationFlowView` (setup checklist),
-  `PatientPickerView`, `BatteryDoneView`, `ModeChooserView`.
-- `Sources/Networking/` - REST clients (`BatteryClient`, `ClipUploadClient`
-  multipart PUT, `ClipUploadQueue` persisted retry queue in Application
-  Support with complete file protection, `StepStatusClient`,
-  `ReportAccessClient` + `ReportAccessStore` (Keychain), `PatientsClient`),
-  `SessionWebSocketClient`, `SessionCredentials`, and hand-kept DTOs mirroring
-  `packages/schemas` (docs/adr/004).
-- `Sources/Safety/` - `SymptomStopButton` (local-first stop) and its client.
-  The local stop must complete before any network call is awaited; it is on
-  screen in every battery phase.
-- `Sources/Overlay/` - `SkeletonOverlay`: the guidance pose as plain lines, no numbers.
-- `Sources/Report/` - `AssessmentReportBody` (assessment-report DTO), the
-  readout model and `AssessmentReportView` (tier chip, positions incl.
-  indeterminate / no reference, Not measured with reasons, not-measurable
-  list, clinician's assessment), `ResultsView` (Patient mode released reports).
-- `Sources/DesignSystem/` - `Theme` (paper + ink, brand purple, serif display,
-  monospaced measurements), `DraftBadge`.
+The only permission the app requests is **Camera** (`NSCameraUsageDescription`). Everything else in the device check
+(`Sources/Device/`) is either part of the camera or handled in the app:
 
-## Known gaps
+* **Flashlight** - part of the camera, no separate permission. A light switch appears while recording (off by default,
+  turned off when leaving the screen).
+* **Infrared / depth sensor** (TrueDepth, LiDAR) - no separate permission and no API to switch it; this version does
+  not use it. The check only reports whether the device has one.
+* **Battery** - iOS has no per-app "battery optimisation" setting. The app keeps the screen from auto-locking while a
+  clip is recorded (`ScreenAwake`) and warns when Low Power Mode is on (it can lower the camera frame rate) or the
+  device is hot, with a button to Settings.
+* Not requested because not needed: microphone (clips are video only), motion (device gravity needs no permission),
+  photos, location, notifications.
 
-- Clip recording, motion and Vision need a physical device; on the Simulator
-  the battery stops at "Camera not available". Their logic is covered by unit
-  tests through the protocols above.
-- M1 records timed holds only (the static battery); reps/passes steps arrive with M2.
-- Session tokens last 4 h with no refresh (docs/adr/012); a queued clip whose
-  token has expired is dropped, not kept.

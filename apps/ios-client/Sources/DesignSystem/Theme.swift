@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// PosturePulse AI design system: "clinical instrument on paper".
+/// PosturePulse design system: "clinical instrument on paper".
 /// Light ivory paper + ink everywhere; results render in a dark aubergine
 /// readout panel. Brand purple (sampled from the logo) is the only accent.
 /// No red/amber/green anywhere in results - position on a scale carries the
@@ -87,7 +87,9 @@ struct BrandHeader: View {
                 .interpolation(.high)
                 .scaledToFit()
                 .frame(height: 96)
-                .accessibilityLabel("PosturePulse AI")
+                // The logo keeps its soft glow on an opaque white image; multiply makes the white vanish into the paper.
+                .blendMode(.multiply)
+                .accessibilityLabel("PosturePulse")
             if let subtitle {
                 Text(subtitle)
                     .font(Typo.caption)

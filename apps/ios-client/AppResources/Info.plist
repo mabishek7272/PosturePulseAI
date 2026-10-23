@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>PosturePulse AI</string>
+	<string>PosturePulse</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -28,7 +28,7 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>PosturePulse AI records short video clips during an assessment to estimate your posture. Clips are sent to your clinic's PosturePulse server and deleted after analysis, unless you chose to keep session video.</string>
+	<string>PosturePulse uses the camera, and the flashlight if you switch it on, to record short video clips during an assessment so your clinic's server can estimate your posture. Clips are sent to your clinic's PosturePulse server and deleted after analysis, unless you chose to keep session video.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiresFullScreen</key>

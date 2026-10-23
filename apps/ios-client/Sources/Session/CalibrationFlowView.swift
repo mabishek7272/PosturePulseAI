@@ -10,6 +10,7 @@ struct CalibrationFlowView: View {
     let onCalibrated: () -> Void
 
     @State private var isCalibrating = false
+    @StateObject private var deviceCheck = DeviceCheckModel()
     @State private var errorMessage: String?
 
     private let client = SessionsClient()
@@ -36,6 +37,8 @@ struct CalibrationFlowView: View {
                         .foregroundColor(Theme.ink)
                 }
                 .padding(.top, 16)
+
+                DeviceCheckView(model: deviceCheck)
 
                 VStack(spacing: 0) {
                     ForEach(Array(checklist.enumerated()), id: \.offset) { index, item in
@@ -80,7 +83,13 @@ struct CalibrationFlowView: View {
                     }
                 }
                 .buttonStyle(.primary)
-                .disabled(isCalibrating)
+                .disabled(isCalibrating || !deviceCheck.readiness.canRecord)
+
+                if !deviceCheck.readiness.canRecord {
+                    Text("Allow camera access above to continue.")
+                        .font(.footnote)
+                        .foregroundColor(Theme.inkSoft)
+                }
             }
             .padding(.horizontal, Theme.gutter)
             .readableColumn()
