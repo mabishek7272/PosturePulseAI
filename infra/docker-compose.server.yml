@@ -1,47 +1,41 @@
-# Shared-server overrides for infra/docker-compose.yml. Only Caddy (80/443,
-# TLS for posture.beaive.com) is published; backend-api, postgres, redis and
-# ml-service are reachable on the compose network only. Secrets come from
-# infra/.env on the server (gitignored):
+# Shared-host overrides for infra/docker-compose.yml (docs/adr/016-shared-host-nginx.md).
+# The host's own nginx terminates TLS for posture.beaive.com and proxies to
+# backend-api on 127.0.0.1:3100. Nothing else is published; other projects on
+# the host keep their ports. Secrets come from infra/.env (root/owner-only):
 #   POSTGRES_PASSWORD=...   JWT_SECRET=...
 #
 #   docker compose -f infra/docker-compose.yml -f infra/docker-compose.server.yml \
 #     --env-file infra/.env up -d --build
+name: posturepulse
+
 services:
   postgres:
     ports: !reset []
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}
     restart: unless-stopped
+    deploy:
+      resources:
+        limits: { cpus: "1.5", memory: 1536M }
 
+  # Not used by any code path (ADR-003); kept out of the shared host.
   redis:
-    ports: !reset []
-    restart: unless-stopped
+    profiles: ["unused"]
 
   ml-service:
     ports: !reset []
     restart: unless-stopped
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 2G }
 
   backend-api:
-    ports: !reset []
+    ports: !override
+      - "127.0.0.1:3100:3000"
     environment:
       DATABASE_URL: postgresql://beaive:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}@postgres:5432/beaive
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in infra/.env}
     restart: unless-stopped
-
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - backend-api
-    restart: unless-stopped
-
-volumes:
-  caddy_data:
-  caddy_config:
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 1G }
