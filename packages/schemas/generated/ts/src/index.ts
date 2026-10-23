@@ -17,6 +17,7 @@ export * from "./pose-landmark-frame";
 export * from "./protocol-definition";
 export * from "./quality-gate-flag";
 export * from "./reference-range-set";
+export * from "./report-rejection";
 export * from "./scale-calibration-record";
 export * from "./sensor-reading";
 export * from "./session";

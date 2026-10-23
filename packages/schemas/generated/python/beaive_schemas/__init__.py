@@ -16,6 +16,7 @@ from .pose_landmark_frame import PoseLandmarkFrame
 from .protocol_definition import ProtocolDefinition
 from .quality_gate_flag import QualityGateFlag
 from .reference_range_set import ReferenceRangeSet
+from .report_rejection import ReportRejection
 from .scale_calibration_record import ScaleCalibrationRecord
 from .sensor_reading import SensorReading
 from .session import Session

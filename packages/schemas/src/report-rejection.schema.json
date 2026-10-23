@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/report-rejection.schema.json",
+  "title": "ReportRejection",
+  "description": "Bookkeeping event logged when a clinician rejects a draft report (ADR-015) - why the draft was withdrawn, not a measurement or an assessment. The clinician's reason is free text, so this record is deliberately left out of the research export.",
+  "type": "object",
+  "version": "v0",
+  "required": ["reportId", "clinicianId", "reason", "provenance"],
+  "properties": {
+    "reportId": { "type": "string" },
+    "clinicianId": { "type": "string" },
+    "reason": { "type": "string", "minLength": 1 },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  }
+}

@@ -102,3 +102,9 @@ by method, not just `metricKey`) is deferred rather than built here.
   a client draw a reference band without parsing the existing text `label` (e.g. "0-5 deg").
 
 See docs/HANDOFF.md §4.C items #1-#3.
+
+## v0 - report-rejection schema registered (non-breaking, new record type)
+
+- New `report-rejection` schema, `version: "v0"`, matching the `report-rejection/v0` event id
+  `services/backend-api/src/reports/reports.service.ts` already emits - previously an id with no registered
+  shape (HANDOFF §4.C item #9).
