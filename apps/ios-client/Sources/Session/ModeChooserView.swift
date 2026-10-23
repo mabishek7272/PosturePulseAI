@@ -28,8 +28,10 @@ struct ModeChooserView: View {
                 VStack(spacing: 0) {
                     ModePage(mode: .clinic, onChoose: { onChoose(.clinic) })
                         .frame(height: height)
+                        .accessibilityHidden(selection != .clinic)
                     ModePage(mode: .patient, onChoose: { onChoose(.patient) })
                         .frame(height: height)
+                        .accessibilityHidden(selection != .patient)
                 }
                 .offset(y: (selection == .clinic ? 0 : -height) + dragOffset)
                 .gesture(
