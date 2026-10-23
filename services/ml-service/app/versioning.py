@@ -19,3 +19,14 @@ SCHEMA_VERSION_CALIBRATED_JOINT_FRAME = "calibrated-joint-frame/v0"
 SCHEMA_VERSION_SCALE_CALIBRATION_RECORD = "scale-calibration-record/v0"
 SCHEMA_VERSION_OBJECT_DETECTION_FRAME = "object-detection-frame/v0"
 SCHEMA_VERSION_MOVEMENT_PHASE_EVENT = "movement-phase-event/v0"
+SCHEMA_VERSION_METRIC_RESULT = "metric-result/v0"
+
+# Clip analysis (POST /internal/clips/analyze) runs the FULL PoseLandmarker in
+# VIDEO mode, so its records carry a different model identifier from the
+# per-frame lite path above.
+CLIP_MODEL_VERSION = f"mediapipe-pose-full/{mediapipe.__version__}"
+
+# Version of the metric registry (app/metrics/static_metrics.py). Bump whenever
+# a definition, sign convention, quality threshold or the uncertainty model
+# changes, so results computed under different rules are never mixed silently.
+METRICS_VERSION = "metrics/v1"
