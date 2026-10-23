@@ -11,6 +11,7 @@
 		10934429AF704D33E6FE0406 /* AssessmentReportBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1DD52826A16559B60BAB9D /* AssessmentReportBody.swift */; };
 		188F06327C21F40FB3807718 /* PatientsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B9DFCDF7CF2EB1ED4AA9993 /* PatientsClient.swift */; };
 		1E997F25BCDF55ED4EF5EBF7 /* CalibrationFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 631179AE5335BD7C96AF5C64 /* CalibrationFlowView.swift */; };
+		24B4EF4CBBCBA771DB694830 /* BatteryRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E58B1C4309E59747727136C /* BatteryRunnerTests.swift */; };
 		2B2F5863E081056F84583647 /* AssessmentReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53E64C1DF9B127DADA9CC9D /* AssessmentReport.swift */; };
 		2CD4BC530DF3D028E0A3B286 /* DraftBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E843086F9BD8E5BBC78E09FE /* DraftBadge.swift */; };
 		3A39EB8C6F61B3844FB04870 /* CameraGravity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 029B9F5B992284F5209319D6 /* CameraGravity.swift */; };
@@ -38,6 +39,7 @@
 		83DFDC552AC68B5C4B5148D7 /* PoseLandmarkFrameDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0BA1BDE7420999FC2AA4E9 /* PoseLandmarkFrameDecodingTests.swift */; };
 		84F6D7F7D85C13806370AE9A /* SessionAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC06C85A7921E87A00117FFF /* SessionAuthTests.swift */; };
 		85912A844193CFE0C408DC64 /* HeightEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30A4E7552211A36818A6F730 /* HeightEntryView.swift */; };
+		8A6FBC92EBB37642DF0D2F1F /* InstructionSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EF18BCCC19CAB027C4FDC8 /* InstructionSpeaker.swift */; };
 		90986459E3CF41F2D5781F52 /* ClipUploadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62E8EBBE5A5370570AFAF107 /* ClipUploadQueue.swift */; };
 		920E0A5FF85382B212357C63 /* BeAIveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1C8FBD01F7164F77272946 /* BeAIveApp.swift */; };
 		9AB0A91D6CAABC583E7D78C0 /* SessionsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD41F562E7D312D15F5D9144 /* SessionsClient.swift */; };
@@ -53,6 +55,7 @@
 		BEFECB77CDD338C4370F1C8E /* SafetyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E3660E5B3EE516E66E5ACC0 /* SafetyState.swift */; };
 		BF7BD8CBB4FE47081433DEEB /* SubjectIdentityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE50BE5DBD6A448A101EFF32 /* SubjectIdentityStoreTests.swift */; };
 		CD3A5D2D50A22CA0C70103EF /* ClipUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2487785F9226B93FAE9444EA /* ClipUploadTests.swift */; };
+		CEDA5E5D629FDF6BD39C0497 /* ClipRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6F44435038AD47D142D82A /* ClipRecording.swift */; };
 		CF69AFD79620579293FBD5C4 /* ReportAccessAndPatientsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 131C22ED96D72AE8B6B5C868 /* ReportAccessAndPatientsTests.swift */; };
 		D0CF3D121821FE4A92AC9AD5 /* ProtocolSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 849FA9CA68FD4BF120DA20C8 /* ProtocolSummary.swift */; };
 		D130811C3CCE594B1105518C /* GuidanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC707F242F56774B2D1CBCBE /* GuidanceEngine.swift */; };
@@ -63,6 +66,7 @@
 		E2159C446D4789FD66270ED4 /* ConsentScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C8EFCA96F2EFF118FF07534 /* ConsentScope.swift */; };
 		E56E2C301032948A7D78EE12 /* AssessmentReportMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00047D48851F18507C4900A /* AssessmentReportMappingTests.swift */; };
 		E86B172A9832E74B74E0780D /* SessionWebSocketClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 205935779DA08608299CA4E0 /* SessionWebSocketClient.swift */; };
+		EA56A6830554B96A4F43A36F /* BatteryRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41109D671FE6E08E780C247 /* BatteryRunner.swift */; };
 		EEDB52CB80067A3CDD9BDA1C /* DecisionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6280C2E43B051FE0F85A953E /* DecisionEvent.swift */; };
 		F0F1CD2640F5F68EC75428A1 /* GuidanceEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED786BEC2AE633F206AD084 /* GuidanceEngineTests.swift */; };
 		F2EA464EAF712D01C2DBC1B0 /* ClipCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCCFDE3254C2FF8A58A7CF6E /* ClipCapture.swift */; };
@@ -98,6 +102,7 @@
 		2487785F9226B93FAE9444EA /* ClipUploadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipUploadTests.swift; sourceTree = "<group>"; };
 		27766606FC5EBEE2DE6558D4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		27DFC1E235A5842CF93D3F66 /* SymptomStopButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomStopButton.swift; sourceTree = "<group>"; };
+		2E58B1C4309E59747727136C /* BatteryRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryRunnerTests.swift; sourceTree = "<group>"; };
 		30A4E7552211A36818A6F730 /* HeightEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeightEntryView.swift; sourceTree = "<group>"; };
 		36B17F6733630932B561060E /* ModeChooserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeChooserView.swift; sourceTree = "<group>"; };
 		395BF3977B2EA63672A5E67C /* AssessmentBattery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentBattery.swift; sourceTree = "<group>"; };
@@ -136,9 +141,12 @@
 		C523B99AD82754101F2258A6 /* SessionMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMode.swift; sourceTree = "<group>"; };
 		CC06C85A7921E87A00117FFF /* SessionAuthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionAuthTests.swift; sourceTree = "<group>"; };
 		D134C19270911B3A7BB3E99F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		D41109D671FE6E08E780C247 /* BatteryRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryRunner.swift; sourceTree = "<group>"; };
+		DC6F44435038AD47D142D82A /* ClipRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipRecording.swift; sourceTree = "<group>"; };
 		DC707F242F56774B2D1CBCBE /* GuidanceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuidanceEngine.swift; sourceTree = "<group>"; };
 		E5C001CA23CCCA7ED0B9705C /* PosturePulseTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PosturePulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E843086F9BD8E5BBC78E09FE /* DraftBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftBadge.swift; sourceTree = "<group>"; };
+		E9EF18BCCC19CAB027C4FDC8 /* InstructionSpeaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstructionSpeaker.swift; sourceTree = "<group>"; };
 		EF9BC4C8656F5C479198267F /* ProtocolSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolSelectionView.swift; sourceTree = "<group>"; };
 		F00047D48851F18507C4900A /* AssessmentReportMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentReportMappingTests.swift; sourceTree = "<group>"; };
 		F487A9E2AF90CE1028B4480F /* PoseOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseOverlayView.swift; sourceTree = "<group>"; };
@@ -214,6 +222,7 @@
 			children = (
 				9371ECE77FFAC457237CD343 /* CameraCaptureController.swift */,
 				029B9F5B992284F5209319D6 /* CameraGravity.swift */,
+				DC6F44435038AD47D142D82A /* ClipRecording.swift */,
 				594CB27235723F9449641B96 /* FrameEncoder.swift */,
 			);
 			path = Capture;
@@ -288,6 +297,7 @@
 			children = (
 				95FEAE17B0B5C5FEA421DAC6 /* AssessmentBatteryTests.swift */,
 				F00047D48851F18507C4900A /* AssessmentReportMappingTests.swift */,
+				2E58B1C4309E59747727136C /* BatteryRunnerTests.swift */,
 				C2A7C187176389D42BD152CE /* ClipSidecarTests.swift */,
 				2487785F9226B93FAE9444EA /* ClipUploadTests.swift */,
 				61B99A4140F01A5BFA626E0A /* GravityConversionTests.swift */,
@@ -356,8 +366,10 @@
 			isa = PBXGroup;
 			children = (
 				395BF3977B2EA63672A5E67C /* AssessmentBattery.swift */,
+				D41109D671FE6E08E780C247 /* BatteryRunner.swift */,
 				BCCFDE3254C2FF8A58A7CF6E /* ClipCapture.swift */,
 				DC707F242F56774B2D1CBCBE /* GuidanceEngine.swift */,
+				E9EF18BCCC19CAB027C4FDC8 /* InstructionSpeaker.swift */,
 			);
 			path = Assessment;
 			sourceTree = "<group>";
@@ -482,6 +494,7 @@
 			files = (
 				9B132AD804D8EBE02D613C06 /* AssessmentBatteryTests.swift in Sources */,
 				E56E2C301032948A7D78EE12 /* AssessmentReportMappingTests.swift in Sources */,
+				24B4EF4CBBCBA771DB694830 /* BatteryRunnerTests.swift in Sources */,
 				701B9DF48C334C8AD8C48D73 /* ClipSidecarTests.swift in Sources */,
 				CD3A5D2D50A22CA0C70103EF /* ClipUploadTests.swift in Sources */,
 				80DA3172C4FBED0197599D16 /* GravityConversionTests.swift in Sources */,
@@ -505,6 +518,7 @@
 				484D1F3CDCE749241A175BEE /* AssessmentReportView.swift in Sources */,
 				F3CC3B196151435ED147DD27 /* BackendConfig.swift in Sources */,
 				3FFA05C260EFD5FA6B1947C9 /* BatteryClient.swift in Sources */,
+				EA56A6830554B96A4F43A36F /* BatteryRunner.swift in Sources */,
 				920E0A5FF85382B212357C63 /* BeAIveApp.swift in Sources */,
 				1E997F25BCDF55ED4EF5EBF7 /* CalibrationFlowView.swift in Sources */,
 				7D87EFED76CECD883671B0DE /* CameraCaptureController.swift in Sources */,
@@ -512,6 +526,7 @@
 				A5A1D8F8485C7BE39C11C886 /* ClinicianAuthClient.swift in Sources */,
 				57217FBFFDF50171F129D911 /* ClinicianSignInView.swift in Sources */,
 				F2EA464EAF712D01C2DBC1B0 /* ClipCapture.swift in Sources */,
+				CEDA5E5D629FDF6BD39C0497 /* ClipRecording.swift in Sources */,
 				5383AC5A20B06E15CE784183 /* ClipUploadClient.swift in Sources */,
 				90986459E3CF41F2D5781F52 /* ClipUploadQueue.swift in Sources */,
 				DCF8FA815C25AF938F3DD0C2 /* ConsentClient.swift in Sources */,
@@ -525,6 +540,7 @@
 				D130811C3CCE594B1105518C /* GuidanceEngine.swift in Sources */,
 				786B6514630233FDDAB3A786 /* GuidedCaptureView.swift in Sources */,
 				85912A844193CFE0C408DC64 /* HeightEntryView.swift in Sources */,
+				8A6FBC92EBB37642DF0D2F1F /* InstructionSpeaker.swift in Sources */,
 				F993D900DD4D36EB8AE404B9 /* ModeChooserView.swift in Sources */,
 				188F06327C21F40FB3807718 /* PatientsClient.swift in Sources */,
 				F7BDD255856D3560E2735A5C /* PoseLandmarkFrame.swift in Sources */,
