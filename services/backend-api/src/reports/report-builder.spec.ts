@@ -290,7 +290,9 @@ describe("buildReport", () => {
     // Every entry in the checked-in reference file is single-value today (confirmed by
     // reading references/posture-reference.v0-draft.json), so a range case needs a
     // synthetic reference set - same technique already used by the "indexes single-value
-    // and range references as bounds" test further down this file.
+    // and range references as bounds" test further down this file. trunk_lateral_lean (not
+    // hip_line_tilt) because it's tier "estimate", not "proxy" - indexReferences rejects a
+    // literature reference for a proxy metric, and this range needs to be literature-kind.
     const rangedSet: ReferenceRangeSet = { ...REFERENCES, entries: [{ metricKey: "static.trunk_lateral_lean", kind: "literature", min: -2, max: 4, unit: "deg", sourceCitation: "x" }] };
     const ranged = result("static.trunk_lateral_lean", "static.anterior", {
       estimate: { value: 1, uncertainty: 0.4, framesUsed: 100 },
