@@ -786,6 +786,96 @@ git commit -m "ios: rebuild the mode chooser as a vertical full-bleed neon pager
 
 ---
 
+### Task 5b: Fix the pager — replace the rotation trick with a direct drag gesture
+
+**Found during on-device verification (Task 7):** the rotated-`TabView` vertical-pager technique from Task 5
+did not swipe reliably on the real device — the owner reported it took more than one swipe to change pages
+and the direction didn't match the intended mapping (swipe **up** → Patient, swipe **down** → Clinic). This
+is exactly the risk flagged in Task 5's own notes ("genuinely needs on-device visual verification... if the
+swipe direction or page sizing looks wrong once built, that's the moment to adjust"). Rather than keep tuning
+rotation angles/anchors/offsets by trial and error, replace the technique entirely with a plain `DragGesture`
+that directly controls a vertical offset — this makes the direction mapping an explicit, readable `if`
+instead of an emergent property of a coordinate-space rotation hack.
+
+**Files:**
+- Modify: `apps/ios-client/Sources/Session/ModeChooserView.swift`
+
+- [ ] **Step 1: Replace the `pager` computed property and its supporting state**
+
+In `apps/ios-client/Sources/Session/ModeChooserView.swift`, replace the existing `pager` computed property
+(the one using `GeometryReader { geo in ZStack { TabView(...)... } }` with the rotation/offset modifiers) with:
+
+```swift
+    @State private var dragOffset: CGFloat = 0
+
+    private var pager: some View {
+        GeometryReader { geo in
+            let height = geo.size.height
+            ZStack {
+                VStack(spacing: 0) {
+                    ModePage(mode: .clinic, onChoose: { onChoose(.clinic) })
+                        .frame(height: height)
+                    ModePage(mode: .patient, onChoose: { onChoose(.patient) })
+                        .frame(height: height)
+                }
+                .offset(y: (selection == .clinic ? 0 : -height) + dragOffset)
+                .gesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            dragOffset = value.translation.height
+                        }
+                        .onEnded { value in
+                            let threshold = height * 0.18
+                            if value.translation.height < -threshold, selection == .clinic {
+                                selection = .patient
+                            } else if value.translation.height > threshold, selection == .patient {
+                                selection = .clinic
+                            }
+                            withAnimation(.easeOut(duration: 0.3)) { dragOffset = 0 }
+                        }
+                )
+                .animation(.easeOut(duration: 0.3), value: selection)
+
+                dots
+            }
+            .clipped()
+        }
+    }
+```
+
+Direction check (so this is verifiable by reading, not just by feel): `DragGesture.Value.translation.height`
+is `current.y - start.y` in screen coordinates, where y increases downward. A physical swipe **up** (finger
+moves toward the top of the screen) therefore produces a **negative** `translation.height`. The `onEnded`
+logic advances `.clinic -> .patient` when `translation.height < -threshold` (swipe up) and reverses
+`.patient -> .clinic` when `translation.height > threshold` (swipe down) — matching "swipe up goes to Patient,
+swipe down goes to Clinic" exactly as the owner specified. The `VStack` stacks Clinic above Patient, and a
+`-height` offset (sliding the stack up) is what brings Patient into view — consistent with that same mapping,
+not an arbitrary choice.
+
+`ModeChooserView`'s existing `selection`, `dots`, `footer`, `ModePage`, `DotGrid`, `FloatingOrb` and the
+overall `body` (`VStack(spacing: 0) { pager; footer }`) are UNCHANGED by this fix — only the `pager` property
+gains the `dragOffset` state and loses the `TabView`/rotation implementation.
+
+- [ ] **Step 2: Build to confirm it compiles**
+
+```bash
+cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' build
+```
+Expected: `** BUILD SUCCEEDED **`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/ios-client/Sources/Session/ModeChooserView.swift
+git commit -m "ios: replace the rotated-TabView pager with a direct drag gesture (fixes swipe direction/reliability)"
+```
+
+- [ ] **Step 4: Build to the connected device and have the owner re-verify** (same device/commands as Task 7)
+  that a single swipe up reliably moves to Patient, a single swipe down reliably moves back to Clinic, and
+  the dot indicator and footer still behave as before.
+
+---
+
 ### Task 6: Add `splash` and `mode-chooser` design-preview cases
 
 **Files:**
