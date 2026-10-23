@@ -13,27 +13,29 @@ datasource db {
 }
 
 model Session {
-  id                String   @id @default(uuid())
-  subjectPseudoId   String
-  protocolId        String
-  protocolVersion   String
-  deploymentContext String
-  consentRecordId   String
-  retentionPolicy   Json
-  calibrationRef    String?
+  id                  String   @id @default(uuid())
+  subjectPseudoId     String
+  protocolId          String
+  protocolVersion     String
+  deploymentContext   String
+  consentRecordId     String
+  retentionPolicy     Json
+  calibrationRef      String?
   // Feeds subject-specific scale calibration (the only TRD-approved method
   // implemented this phase - docs/adr/008-scale-calibration-scope.md). Set via
   // POST /sessions/:id/height before calling POST /sessions/:id/scale-calibration.
   subjectHeightMeters Float?
-  state             String
+  state               String
   // Full XState persisted snapshot (actor.getPersistedSnapshot()), so the safety
   // FSM can be correctly rehydrated after a process restart via the officially
   // supported createActor(machine, { snapshot }) path - `state` alone is kept as
   // a denormalized, human-readable/queryable mirror of snapshot.value.
-  safetySnapshot    Json?
-  createdAt         DateTime @default(now())
+  safetySnapshot      Json?
+  createdAt           DateTime @default(now())
 
-  events Event[]
+  events  Event[]
+  clips   Clip[]
+  reports AssessmentReport[]
 
   @@index([subjectPseudoId])
 }
@@ -55,12 +57,12 @@ model Event {
 // via Session.consentRecordId. Not stored as an Event (Event.sessionId is
 // required, but consent logically precedes session creation).
 model ConsentRecord {
-  id                     String    @id @default(uuid())
-  subjectPseudoId        String
-  scopes                 Json
-  grantedAt              DateTime  @default(now())
-  revokedAt              DateTime?
-  withdrawalRequestedAt  DateTime?
+  id                    String    @id @default(uuid())
+  subjectPseudoId       String
+  scopes                Json
+  grantedAt             DateTime  @default(now())
+  revokedAt             DateTime?
+  withdrawalRequestedAt DateTime?
 
   @@index([subjectPseudoId])
 }
@@ -134,4 +136,83 @@ model AdverseEvent {
   @@index([subjectPseudoId, reportedAt])
   @@index([sessionId])
   @@index([serious, reportedAt])
+}
+
+// M1 clip-based assessment (docs/adr/013-clip-based-analysis.md). One row per
+// uploaded clip; a re-upload of the same step is a new row (the newest analysed
+// clip per step is the one a report uses). `id` is the device-generated
+// clipId from the sidecar, so a retried upload is idempotent.
+// status: uploaded | analyzed | failed | discarded
+model Clip {
+  id        String       @id
+  sessionId String
+  session   Session      @relation(fields: [sessionId], references: [id])
+  stepId    String
+  path      String
+  sha256    String
+  sidecar   Json
+  status    String       @default("uploaded")
+  createdAt DateTime     @default(now())
+  job       AnalysisJob?
+
+  @@index([sessionId, stepId, createdAt])
+}
+
+// Postgres-backed job queue, claimed with FOR UPDATE SKIP LOCKED by the
+// in-process AnalysisJobRunner (ADR-013). status: pending | running | done | failed
+model AnalysisJob {
+  id        String    @id @default(uuid())
+  clipId    String    @unique
+  clip      Clip      @relation(fields: [clipId], references: [id])
+  status    String    @default("pending")
+  attempts  Int       @default(0)
+  lastError String?
+  lockedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([status, createdAt])
+}
+
+// Versioned assessment report (assessment-report.schema.json, ADR-015). `body`
+// is the canonical AssessmentReport document; the other columns mirror it for
+// queries. status: draft | released | rejected
+model AssessmentReport {
+  id            String    @id
+  sessionId     String
+  session       Session   @relation(fields: [sessionId], references: [id])
+  reportVersion Int
+  status        String
+  body          Json
+  signedBy      String?
+  signedAt      DateTime?
+  contentSha256 String?
+  createdAt     DateTime  @default(now())
+
+  @@unique([sessionId, reportVersion])
+  @@index([status, createdAt])
+}
+
+// Clinician-only patient register (docs/adr/017-patient-register.md). Every
+// identifying field is AES-256-GCM ciphertext (PATIENT_DATA_KEY); none of it
+// ever enters Event, Session, ConsentRecord or a report body.
+model Patient {
+  id         String               @id @default(uuid())
+  nameEnc    String
+  dobEnc     String
+  contactEnc String?
+  createdBy  String
+  createdAt  DateTime             @default(now())
+  links      PatientSubjectLink[]
+}
+
+// Patient -> pseudonymous subjectPseudoId. A subjectPseudoId belongs to at most
+// one patient.
+model PatientSubjectLink {
+  id              String   @id @default(uuid())
+  patientId       String
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  subjectPseudoId String   @unique
+  createdAt       DateTime @default(now())
+
+  @@index([patientId])
 }
