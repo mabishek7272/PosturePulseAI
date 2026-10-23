@@ -2,17 +2,24 @@ import SwiftUI
 
 /// A measurement scale for the dark readout: the reference (band for a range,
 /// tick for a single value), the estimate as a marker, and its uncertainty as
-/// a whisker. Deliberately colour-neutral - no good/bad colouring.
+/// a whisker. Without a reference the scale shows only the estimate and its
+/// whisker - no band is invented. Deliberately colour-neutral - no good/bad
+/// colouring.
 struct ReferenceGauge: View {
     let estimate: AssessmentReport.Estimate
-    let reference: AssessmentReport.Reference
+    let reference: AssessmentReport.Reference?
     let unit: String
 
     @State private var revealed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private var bounds: ClosedRange<Double>? { reference?.bounds }
+
     private var window: ClosedRange<Double> {
-        let ref = reference.bounds
+        guard let ref = bounds else {
+            let reach = max(estimate.uncertainty * 2.5, abs(estimate.value) * 0.5, 4)
+            return (estimate.value - reach)...(estimate.value + reach)
+        }
         let reach = max(
             abs(estimate.value - ref.lowerBound) + estimate.uncertainty,
             abs(estimate.value - ref.upperBound) + estimate.uncertainty,
@@ -34,8 +41,8 @@ struct ReferenceGauge: View {
             GeometryReader { geo in
                 let width = geo.size.width
                 let midY = geo.size.height / 2
-                let ref = reference.bounds
-                let shown = revealed ? estimate.value : (ref.lowerBound + ref.upperBound) / 2
+                let start = bounds.map { ($0.lowerBound + $0.upperBound) / 2 } ?? estimate.value
+                let shown = revealed ? estimate.value : start
 
                 ZStack(alignment: .topLeading) {
                     // Track
@@ -45,17 +52,19 @@ struct ReferenceGauge: View {
                         .offset(y: midY - 1.5)
 
                     // Reference band or tick
-                    if ref.lowerBound == ref.upperBound {
-                        Rectangle()
-                            .fill(Theme.readoutDim)
-                            .frame(width: 2, height: 18)
-                            .offset(x: x(ref.lowerBound, in: width) - 1, y: midY - 9)
-                    } else {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(Theme.readoutAccent.opacity(0.18))
-                            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.readoutAccent.opacity(0.35), lineWidth: 1))
-                            .frame(width: max(x(ref.upperBound, in: width) - x(ref.lowerBound, in: width), 2), height: 14)
-                            .offset(x: x(ref.lowerBound, in: width), y: midY - 7)
+                    if let ref = bounds {
+                        if ref.lowerBound == ref.upperBound {
+                            Rectangle()
+                                .fill(Theme.readoutDim)
+                                .frame(width: 2, height: 18)
+                                .offset(x: x(ref.lowerBound, in: width) - 1, y: midY - 9)
+                        } else {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Theme.readoutAccent.opacity(0.18))
+                                .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.readoutAccent.opacity(0.35), lineWidth: 1))
+                                .frame(width: max(x(ref.upperBound, in: width) - x(ref.lowerBound, in: width), 2), height: 14)
+                                .offset(x: x(ref.lowerBound, in: width), y: midY - 7)
+                        }
                     }
 
                     // Uncertainty whisker
@@ -80,8 +89,12 @@ struct ReferenceGauge: View {
             HStack {
                 Text(AssessmentReport.format(window.lowerBound.rounded()) + unit)
                 Spacer()
-                Text("ref " + reference.label + unit)
-                    .foregroundColor(Theme.readoutAccent)
+                if let reference, bounds != nil {
+                    Text("ref " + reference.label + unit)
+                        .foregroundColor(Theme.readoutAccent)
+                } else {
+                    Text("no reference")
+                }
                 Spacer()
                 Text(AssessmentReport.format(window.upperBound.rounded()) + unit)
             }
@@ -97,10 +110,12 @@ struct ReferenceGauge: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "Estimate \(AssessmentReport.format(estimate.value)) \(unit), plus or minus \(AssessmentReport.format(estimate.uncertainty)). Reference \(reference.label) \(unit)."
+            "Estimate \(AssessmentReport.format(estimate.value)) \(unit), plus or minus \(AssessmentReport.format(estimate.uncertainty)). "
+                + (reference.map { "Reference \($0.label) \(unit)." } ?? "No reference.")
         )
     }
 }
+
 
 /// Per-rep dot plot for movement rows: one dot per rep on the same scale as the
 /// reference band. Dots, not bars - bars on a cropped axis would exaggerate

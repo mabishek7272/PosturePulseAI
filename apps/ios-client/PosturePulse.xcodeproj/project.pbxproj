@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		08CB53CEA116C259DBF79C4F /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 86920C31142A08BF3EBADB5D /* SocketIO */; };
+		10934429AF704D33E6FE0406 /* AssessmentReportBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1DD52826A16559B60BAB9D /* AssessmentReportBody.swift */; };
 		1E997F25BCDF55ED4EF5EBF7 /* CalibrationFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 631179AE5335BD7C96AF5C64 /* CalibrationFlowView.swift */; };
 		2B2F5863E081056F84583647 /* AssessmentReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53E64C1DF9B127DADA9CC9D /* AssessmentReport.swift */; };
 		2CD4BC530DF3D028E0A3B286 /* DraftBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E843086F9BD8E5BBC78E09FE /* DraftBadge.swift */; };
@@ -57,6 +58,7 @@
 		D99683367AA8D65BF0B93D3B /* StubURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18DD03A7CCCDDE97B50D9B66 /* StubURLProtocol.swift */; };
 		DCF8FA815C25AF938F3DD0C2 /* ConsentClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99DA08773E14DC424036AEF7 /* ConsentClient.swift */; };
 		E2159C446D4789FD66270ED4 /* ConsentScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C8EFCA96F2EFF118FF07534 /* ConsentScope.swift */; };
+		E56E2C301032948A7D78EE12 /* AssessmentReportMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00047D48851F18507C4900A /* AssessmentReportMappingTests.swift */; };
 		E86B172A9832E74B74E0780D /* SessionWebSocketClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 205935779DA08608299CA4E0 /* SessionWebSocketClient.swift */; };
 		EEDB52CB80067A3CDD9BDA1C /* DecisionEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6280C2E43B051FE0F85A953E /* DecisionEvent.swift */; };
 		F0F1CD2640F5F68EC75428A1 /* GuidanceEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED786BEC2AE633F206AD084 /* GuidanceEngineTests.swift */; };
@@ -107,6 +109,7 @@
 		62E8EBBE5A5370570AFAF107 /* ClipUploadQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipUploadQueue.swift; sourceTree = "<group>"; };
 		631179AE5335BD7C96AF5C64 /* CalibrationFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationFlowView.swift; sourceTree = "<group>"; };
 		6564A543F6944C5F78483C6D /* SubjectIdentityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectIdentityStore.swift; sourceTree = "<group>"; };
+		6C1DD52826A16559B60BAB9D /* AssessmentReportBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentReportBody.swift; sourceTree = "<group>"; };
 		6F0BA1BDE7420999FC2AA4E9 /* PoseLandmarkFrameDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseLandmarkFrameDecodingTests.swift; sourceTree = "<group>"; };
 		6F1C8FBD01F7164F77272946 /* BeAIveApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeAIveApp.swift; sourceTree = "<group>"; };
 		7E1DF9A9FB22055230942447 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -131,6 +134,7 @@
 		E5C001CA23CCCA7ED0B9705C /* PosturePulseTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PosturePulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E843086F9BD8E5BBC78E09FE /* DraftBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftBadge.swift; sourceTree = "<group>"; };
 		EF9BC4C8656F5C479198267F /* ProtocolSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolSelectionView.swift; sourceTree = "<group>"; };
+		F00047D48851F18507C4900A /* AssessmentReportMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentReportMappingTests.swift; sourceTree = "<group>"; };
 		F487A9E2AF90CE1028B4480F /* PoseOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseOverlayView.swift; sourceTree = "<group>"; };
 		F53E64C1DF9B127DADA9CC9D /* AssessmentReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentReport.swift; sourceTree = "<group>"; };
 		F89282ECA3ED59BE9C64DF82 /* SessionCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCredentials.swift; sourceTree = "<group>"; };
@@ -192,6 +196,7 @@
 			isa = PBXGroup;
 			children = (
 				F53E64C1DF9B127DADA9CC9D /* AssessmentReport.swift */,
+				6C1DD52826A16559B60BAB9D /* AssessmentReportBody.swift */,
 				52A2CB8BA9ECDBF16C84643F /* AssessmentReportView.swift */,
 				51245B6B6CE2A8B753AAE620 /* ReferenceGauge.swift */,
 			);
@@ -276,6 +281,7 @@
 			isa = PBXGroup;
 			children = (
 				95FEAE17B0B5C5FEA421DAC6 /* AssessmentBatteryTests.swift */,
+				F00047D48851F18507C4900A /* AssessmentReportMappingTests.swift */,
 				C2A7C187176389D42BD152CE /* ClipSidecarTests.swift */,
 				2487785F9226B93FAE9444EA /* ClipUploadTests.swift */,
 				61B99A4140F01A5BFA626E0A /* GravityConversionTests.swift */,
@@ -466,6 +472,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9B132AD804D8EBE02D613C06 /* AssessmentBatteryTests.swift in Sources */,
+				E56E2C301032948A7D78EE12 /* AssessmentReportMappingTests.swift in Sources */,
 				701B9DF48C334C8AD8C48D73 /* ClipSidecarTests.swift in Sources */,
 				CD3A5D2D50A22CA0C70103EF /* ClipUploadTests.swift in Sources */,
 				80DA3172C4FBED0197599D16 /* GravityConversionTests.swift in Sources */,
@@ -484,6 +491,7 @@
 			files = (
 				D6B28DD144A849120B46A785 /* AssessmentBattery.swift in Sources */,
 				2B2F5863E081056F84583647 /* AssessmentReport.swift in Sources */,
+				10934429AF704D33E6FE0406 /* AssessmentReportBody.swift in Sources */,
 				484D1F3CDCE749241A175BEE /* AssessmentReportView.swift in Sources */,
 				F3CC3B196151435ED147DD27 /* BackendConfig.swift in Sources */,
 				3FFA05C260EFD5FA6B1947C9 /* BatteryClient.swift in Sources */,
