@@ -1,4 +1,4 @@
-import type { AssessmentBattery, MetricCatalog, MetricResult, QualityReason, ReferenceEntry, ReferenceRangeSet, Side, Tier } from "../battery/types";
+import type { AssessmentBattery, MeasurementMethod, MetricCatalog, MetricResult, QualityReason, ReferenceEntry, ReferenceRangeSet, Side, Tier } from "../battery/types";
 import { bannedHits } from "./banned-phrases";
 import { computePosition, type Position, type ReferenceBounds } from "./report-position";
 import { formatReferenceLabel, renderAnalysis } from "./report-templates";
@@ -16,6 +16,17 @@ import { formatReferenceLabel, renderAnalysis } from "./report-templates";
 
 export const REPORT_BUILDER_VERSION = "report-builder/v1";
 export const REPORT_SCHEMA_VERSION = "assessment-report/v0";
+
+/**
+ * The only measurement method this phase's reference ranges are drawn for
+ * (ADR-018: the ranges are camera-derived geometric definitions, not
+ * method-aware). A result that names a *different, explicit* method is never
+ * compared against these bounds - see the `no_reference` gate in buildRow. A
+ * result with no `measurementMethod` at all (every result produced before
+ * this provenance field existed) is treated as this default: it was, in
+ * fact, always this method, since no other one was ever implemented.
+ */
+export const DEFAULT_MEASUREMENT_METHOD: MeasurementMethod = "mediapipe_2d_image_plane";
 
 export class ReportBuildError extends Error {
   constructor(message: string) {
@@ -44,6 +55,8 @@ export interface ReportRow {
   position: Position;
   analysis: { text: string; source: "fixed_template"; templateId: string };
   excluded: { reason: string; clinicianId: string } | null;
+  method?: MeasurementMethod;
+  measuredBy?: { modelVersion: string; adapterVersion?: string; metricsVersion?: string };
 }
 
 export interface AssessmentReportBody {
@@ -161,7 +174,15 @@ function buildRow(
     throw new ReportBuildError(`Result ${result.resultId} has unit "${result.unit}" but the catalog says "${metric.unit}"`);
   }
 
-  const indexed = references.get(result.metricKey) ?? null;
+  // Reference ranges here are camera-derived geometric definitions, not
+  // keyed by method (ADR-018). A row measured by anything other than the
+  // default method is never compared against them - that comparison would
+  // silently assume the two methods measure the same quantity in the same
+  // way. A result with no measurementMethod at all predates this field and
+  // was always this method in practice (see DEFAULT_MEASUREMENT_METHOD).
+  const method = result.provenance.measurementMethod;
+  const isDefaultMethod = method === undefined || method === DEFAULT_MEASUREMENT_METHOD;
+  const indexed = isDefaultMethod ? references.get(result.metricKey) ?? null : null;
   const reference = indexed
     ? {
         kind: indexed.entry.kind,
@@ -199,6 +220,16 @@ function buildRow(
     excluded: null,
   };
   if (result.unsupported) row.unsupportedReasons = [...result.unsupported.reasons];
+  if (method !== undefined) row.method = method;
+  // Narrow provenance of the measurement itself, distinct from the report's
+  // own build-time provenance below (CLAUDE.md rule 4: the report-level
+  // provenance.modelVersion names the report builder, not what measured the
+  // body - this is where that gets closed).
+  row.measuredBy = {
+    modelVersion: result.provenance.modelVersion,
+    ...(result.provenance.adapterVersion !== undefined ? { adapterVersion: result.provenance.adapterVersion } : {}),
+    ...(result.provenance.metricsVersion !== undefined ? { metricsVersion: result.provenance.metricsVersion } : {}),
+  };
   return row;
 }
 

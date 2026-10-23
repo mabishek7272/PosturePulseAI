@@ -152,6 +152,7 @@ describe("buildReport", () => {
         templateId: "measured.above",
       },
       excluded: null,
+      measuredBy: { modelVersion: provenance.modelVersion, metricsVersion: provenance.metricsVersion },
     });
   });
 
@@ -173,6 +174,33 @@ describe("buildReport", () => {
     expect(row.reference).toBeNull();
     expect(row.position).toBe("no_reference");
     expect(row.analysis.text).toBe("3.1% of stature ± 0.4% of stature. No reference value is set for this measurement.");
+  });
+
+  it("carries the result's own measurementMethod and provenance onto the row (CLAUDE.md rule 4)", () => {
+    const r = result("static.trunk_inclination", "static.left_lateral", {
+      estimate: { value: 2, uncertainty: 0.5, framesUsed: 100 },
+      provenance: { ...provenance, measurementMethod: "mediapipe_2d_image_plane", adapterVersion: "pyav/12.0" },
+    });
+    const [row] = buildReport(input([r])).rows;
+    expect(row.method).toBe("mediapipe_2d_image_plane");
+    expect(row.measuredBy).toEqual({
+      modelVersion: provenance.modelVersion,
+      adapterVersion: "pyav/12.0",
+      metricsVersion: provenance.metricsVersion,
+    });
+    // Still compared against the reference: this is the default method.
+    expect(row.position).toBe("above");
+  });
+
+  it("never compares a result measured by a non-default method against the camera-derived reference", () => {
+    const r = result("static.trunk_inclination", "static.left_lateral", {
+      estimate: { value: 2, uncertainty: 0.5, framesUsed: 100 },
+      provenance: { ...provenance, measurementMethod: "clinician_manual" },
+    });
+    const [row] = buildReport(input([r])).rows;
+    expect(row.method).toBe("clinician_manual");
+    expect(row.reference).toBeNull();
+    expect(row.position).toBe("no_reference");
   });
 
   it("reports an unsupported result as not_applicable with its reasons, never a value", () => {

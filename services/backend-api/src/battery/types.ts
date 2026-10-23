@@ -60,6 +60,8 @@ export type QualityReason =
 export type Tier = "estimate" | "proxy" | "entered" | "annotated" | "not_measurable";
 export type Side = "left" | "right" | "bilateral" | null;
 
+export type MeasurementMethod = "mediapipe_2d_image_plane" | "clinician_manual" | "clinician_annotated" | "entered" | "markerless_3d";
+
 export interface Provenance {
   schemaVersion: string;
   modelVersion: string;
@@ -69,6 +71,7 @@ export interface Provenance {
   metricsVersion?: string;
   referenceFileVersion?: string;
   clipSha256?: string;
+  measurementMethod?: MeasurementMethod;
 }
 
 export interface MetricResult {
@@ -100,6 +103,7 @@ export interface MetricCatalog {
     side: string | null;
     signConvention: string;
     description: string;
+    measurementMethod?: MeasurementMethod;
   }>;
   notMeasurable: Array<{ metricKey: string; label: string; reason: string; whatWouldBeNeeded: string }>;
 }
