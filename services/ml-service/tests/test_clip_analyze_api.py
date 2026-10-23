@@ -76,7 +76,7 @@ def test_landmark_series_is_stored_on_the_shared_volume(env):
     tmp_path, clip, _ = env
     body = client.post("/internal/clips/analyze", json=request_body(str(clip))).json()
     series = body["landmarkSeries"]
-    assert series["path"] == str(tmp_path / "landmarks" / "clip-1.json.gz")
+    assert series["path"] == str(tmp_path / "landmarks" / "clip-1" / f"{series['sha256']}.json.gz")
     data = Path(series["path"]).read_bytes()
     assert hashlib.sha256(data).hexdigest() == series["sha256"]
     stored = json.loads(gzip.decompress(data))

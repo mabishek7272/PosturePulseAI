@@ -1,6 +1,7 @@
 import gzip
 import hashlib
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -15,8 +16,8 @@ def test_series_is_gzip_json_with_a_matching_sha256(tmp_path):
         tmp_path, clip_id="clip-1", session_id="s", step_id="static.anterior", view="anterior",
         width=1080, height=1920, model_version="mediapipe-pose-full/x", observations=frames,
     )
-    assert info["path"] == str(tmp_path / "landmarks" / "clip-1.json.gz")
-    data = (tmp_path / "landmarks" / "clip-1.json.gz").read_bytes()
+    assert info["path"] == str(tmp_path / "landmarks" / "clip-1" / f"{info['sha256']}.json.gz")
+    data = Path(info["path"]).read_bytes()
     assert info["sha256"] == hashlib.sha256(data).hexdigest()
     body = json.loads(gzip.decompress(data))
     assert body["clipId"] == "clip-1" and body["modelVersion"] == "mediapipe-pose-full/x"
@@ -68,4 +69,7 @@ def test_temp_file_name_is_unique_and_no_part_file_is_left_behind(tmp_path, monk
     store_landmark_series(tmp_path, **kwargs)
     store_landmark_series(tmp_path, **kwargs)
     assert len(seen) == 2 and seen[0] != seen[1]
-    assert [p.name for p in (tmp_path / "landmarks").iterdir()] == ["c.json.gz"]
+    clip_dirs = list((tmp_path / "landmarks").iterdir())
+    assert len(clip_dirs) == 1 and clip_dirs[0].name == "c"
+    files_in_clip_dir = list(clip_dirs[0].iterdir())
+    assert len(files_in_clip_dir) == 1 and files_in_clip_dir[0].suffix == ".gz"

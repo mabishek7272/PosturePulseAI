@@ -1,16 +1,16 @@
 """Stores the per-frame landmark series of an analysed clip as gzip JSON under
-`<clip dir>/landmarks/<clipId>.json.gz`, so every reported number can be traced
-back to (and re-computed from) the landmarks it came from.
+`<clip dir>/landmarks/<clipId>/<sha256>.json.gz`, so every reported number can be
+traced back to (and re-computed from) the landmarks it came from.
 
 Points are pixel coordinates of the oriented image BEFORE roll correction
 (MediaPipe x*width, y*height). Frames with no detected pose store `null`
 points - never zeros. The gzip header carries no timestamp, so identical input
 gives identical bytes and a stable sha256.
 
-The file is keyed by clipId only (path fixed by the M1 spec). Re-analysing a clip
-overwrites it, so results that reference an older `landmarkSeriesSha256` would then
-point at replaced bytes: the backend must not re-analyse a clip across model or
-metrics version changes without re-reading the new sha256.
+The file is keyed by (clipId, sha256), so re-analysing a clip no longer overwrites
+a prior result's bytes: a new sha256 from different model output lands at a new
+filename, leaving any stored `landmarkSeriesSha256` that cites the old file intact.
+Only a byte-identical re-analysis reuses the same path, same as before.
 """
 from __future__ import annotations
 
@@ -69,10 +69,11 @@ def store_landmark_series(
     with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as gz:
         gz.write(raw)
     data = buf.getvalue()
+    sha256 = hashlib.sha256(data).hexdigest()
 
-    target_dir = Path(clip_dir) / "landmarks"
+    target_dir = Path(clip_dir) / "landmarks" / clip_id
     target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / f"{clip_id}.json.gz"
+    target = target_dir / f"{sha256}.json.gz"
     # Unique temp name: concurrent analyses of one clip must not share a half-written file.
     tmp = target.with_name(f"{target.name}.{os.getpid()}.{uuid.uuid4().hex}.part")
     try:
@@ -80,4 +81,4 @@ def store_landmark_series(
         tmp.replace(target)
     finally:
         tmp.unlink(missing_ok=True)
-    return {"path": str(target), "sha256": hashlib.sha256(data).hexdigest()}
+    return {"path": str(target), "sha256": sha256}
