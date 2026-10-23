@@ -10,7 +10,7 @@ and every schema field typed `$ref: common.schema.json#/$defs/coordinateFrame`.
 | `I` | Image pixels | Raw 2D pixel coordinates in a captured frame. |
 | `C` | Camera | 3D coordinates relative to the camera's optical center, using intrinsics `K` + distortion to undo the `I` projection. |
 | `W` | Local AR world | A locally consistent world frame established by the device's AR tracking (ARKit/ARCore plane/mesh anchors), localized via `T_WC(t)`. |
-| `B` | Body-centered skeleton | Pose-model output ("world landmarks") expressed relative to the tracked body, not a surveyed location. |
+| `B` | Body-centered skeleton | Pose-model output labelled with this frame. Today ml-service records MediaPipe's *image-normalized* landmarks here (x/width, y/height, relative z), not its metric "world landmarks"; joint angles are taken in pixel space with z dropped (`app/geometry/kinematics.py`). Not a surveyed location. |
 | `O` | Workstation object frame | Coordinates relative to a detected stationary object (desk, monitor, chair). |
 
 ## The rule that must never be violated

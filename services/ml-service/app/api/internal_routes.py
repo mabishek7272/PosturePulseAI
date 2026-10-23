@@ -83,7 +83,7 @@ def submit_frame(body: FrameSubmission) -> dict:
     quality_flag = build_quality_gate_flag_validated(build_quality_gate_flag(body.sessionId, body.frameId, assessment))
 
     landmarks_by_name = {lm["jointName"]: lm for lm in landmarks}
-    angles = compute_joint_angles(landmarks_by_name)
+    angles = compute_joint_angles(landmarks_by_name, image_size=(image.width, image.height))
     calibrated_joint_frame = None
     if angles:
         # angles is only non-empty when at least one full (a,b,c)-observed
