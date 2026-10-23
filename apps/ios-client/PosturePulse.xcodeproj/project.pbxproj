@@ -58,6 +58,7 @@
 		A51539D9D3FA21D39869DBED /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1DF9A9FB22055230942447 /* RootView.swift */; };
 		A5A1D8F8485C7BE39C11C886 /* ClinicianAuthClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071632355380F53077D17276 /* ClinicianAuthClient.swift */; };
 		A7D097254A950F10567C8786 /* ProtocolsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF65A90326FBB9AE5210CFD /* ProtocolsClient.swift */; };
+		AC28B8B255B75C4C6EB7ACC9 /* NeonTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89D6652E9682E11F1F85CEA7 /* NeonTheme.swift */; };
 		AC569A1C61A16706827AFCF4 /* SymptomStopButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DFC1E235A5842CF93D3F66 /* SymptomStopButton.swift */; };
 		ADB7D924D4613990A6842836 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587BE549A0647040F37078BA /* CameraPreviewView.swift */; };
 		B7CFD7AEB19AA9C593DCE292 /* ReportAccessClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B641E83F5424FA2D47D6A19 /* ReportAccessClient.swift */; };
@@ -151,6 +152,7 @@
 		86C7C106F64165E071DFA55D /* DeviceReadinessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceReadinessTests.swift; sourceTree = "<group>"; };
 		879FAB315AE9445FC18E5911 /* ClipRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipRecorder.swift; sourceTree = "<group>"; };
 		88CA8600B4B24CAC4AFA4C2B /* BackendConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendConfig.swift; sourceTree = "<group>"; };
+		89D6652E9682E11F1F85CEA7 /* NeonTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeonTheme.swift; sourceTree = "<group>"; };
 		8B9DFCDF7CF2EB1ED4AA9993 /* PatientsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatientsClient.swift; sourceTree = "<group>"; };
 		93A3A6AD11E3C886C8F13DEB /* VisionJointMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionJointMappingTests.swift; sourceTree = "<group>"; };
 		95FEAE17B0B5C5FEA421DAC6 /* AssessmentBatteryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentBatteryTests.swift; sourceTree = "<group>"; };
@@ -276,6 +278,7 @@
 			isa = PBXGroup;
 			children = (
 				E843086F9BD8E5BBC78E09FE /* DraftBadge.swift */,
+				89D6652E9682E11F1F85CEA7 /* NeonTheme.swift */,
 				D134C19270911B3A7BB3E99F /* Theme.swift */,
 			);
 			path = DesignSystem;
@@ -593,6 +596,7 @@
 				8A6FBC92EBB37642DF0D2F1F /* InstructionSpeaker.swift in Sources */,
 				F993D900DD4D36EB8AE404B9 /* ModeChooserView.swift in Sources */,
 				E3937780F570055A14EFB454 /* MotionSource.swift in Sources */,
+				AC28B8B255B75C4C6EB7ACC9 /* NeonTheme.swift in Sources */,
 				5A7C834587087F4542D98F4C /* PatientPickerView.swift in Sources */,
 				188F06327C21F40FB3807718 /* PatientsClient.swift in Sources */,
 				F7BDD255856D3560E2735A5C /* PoseLandmarkFrame.swift in Sources */,
