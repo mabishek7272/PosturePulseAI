@@ -30,6 +30,8 @@ struct BeAIveApp: App {
 private enum DesignPreview: String {
     case report, capture, reps, setup, patients, results
     case reportMovement = "report-movement"
+    case splash
+    case modeChooser = "mode-chooser"
 
     static func fromLaunchArguments() -> DesignPreview? {
         UserDefaults.standard.string(forKey: "designPreview").flatMap(DesignPreview.init(rawValue:))
@@ -82,6 +84,10 @@ private enum DesignPreview: String {
             ResultsView(onBack: {})
         case .setup:
             CalibrationFlowView(credentials: SessionCredentials(sessionId: "preview", token: "preview")) {}
+        case .splash:
+            SplashView(onFinished: {})
+        case .modeChooser:
+            ModeChooserView(onChoose: { _ in }, onViewResults: {})
         }
     }
 }
