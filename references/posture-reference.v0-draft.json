@@ -1,0 +1,63 @@
+{
+  "version": "posture-reference/v0-draft",
+  "status": "draft",
+  "reviewedBy": null,
+  "entries": [
+    {
+      "metricKey": "static.head_lateral_tilt",
+      "kind": "geometric",
+      "value": 0,
+      "unit": "deg",
+      "sourceCitation": "Definition: the line through both ear landmarks is level with true horizontal (Kendall FP et al., Muscles: Testing and Function with Posture and Pain, 5th ed., 2005, ideal alignment).",
+      "appliesTo": "Standing, anterior or posterior view"
+    },
+    {
+      "metricKey": "static.shoulder_line_tilt",
+      "kind": "geometric",
+      "value": 0,
+      "unit": "deg",
+      "sourceCitation": "Definition: the line through both shoulder landmarks is level with true horizontal (Kendall et al. 2005, ideal alignment).",
+      "appliesTo": "Standing, anterior or posterior view"
+    },
+    {
+      "metricKey": "static.hip_line_tilt",
+      "kind": "geometric",
+      "value": 0,
+      "unit": "deg",
+      "sourceCitation": "Definition: the line through both hip landmarks is level with true horizontal (Kendall et al. 2005, ideal alignment).",
+      "appliesTo": "Standing, anterior or posterior view"
+    },
+    {
+      "metricKey": "static.trunk_lateral_lean",
+      "kind": "geometric",
+      "value": 0,
+      "unit": "deg",
+      "sourceCitation": "Definition: the hip-midpoint to shoulder-midpoint line is vertical (Kendall et al. 2005, ideal alignment).",
+      "appliesTo": "Standing, anterior or posterior view"
+    },
+    {
+      "metricKey": "static.lateral_body_shift",
+      "kind": "geometric",
+      "value": 0,
+      "unit": "percent_stature",
+      "sourceCitation": "Definition: the shoulder midpoint lies vertically above the ankle midpoint (Kendall et al. 2005, ideal alignment).",
+      "appliesTo": "Standing, anterior view"
+    },
+    {
+      "metricKey": "static.trunk_inclination",
+      "kind": "geometric",
+      "value": 0,
+      "unit": "deg",
+      "sourceCitation": "Definition: the hip-to-shoulder line is vertical in the side view (Kendall et al. 2005, ideal alignment).",
+      "appliesTo": "Standing, lateral view"
+    },
+    {
+      "metricKey": "static.knee_extension",
+      "kind": "geometric",
+      "value": 0,
+      "unit": "deg",
+      "sourceCitation": "Definition: hip, knee and ankle landmarks are collinear in the side view (0 = straight; positive = extended beyond straight).",
+      "appliesTo": "Standing, lateral view"
+    }
+  ]
+}

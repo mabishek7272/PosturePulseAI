@@ -34,6 +34,17 @@ class Provenance(BaseModel):
         description='Identifier of the camera calibration record in effect when this record was produced.',
     )
     producedAt: AwareDatetime
+    metricsVersion: str | None = Field(
+        None,
+        description='Version of the metric registry that computed the value, e.g. "metrics/v1".',
+    )
+    referenceFileVersion: str | None = Field(
+        None,
+        description='Version of the reference-range set used to classify the value.',
+    )
+    clipSha256: str | None = Field(
+        None, description='SHA-256 of the clip the value was computed from.'
+    )
 
 
 class ScaleCalibrationRecord(BaseModel):

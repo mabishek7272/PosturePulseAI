@@ -23,6 +23,12 @@ export interface QualityGateFlag {
     | "anchor_drift"
     | "low_confidence"
     | "occlusion"
+    | "wrong_view"
+    | "out_of_frame"
+    | "camera_not_level"
+    | "insufficient_frame_rate"
+    | "insufficient_frames"
+    | "subject_moving"
   )[];
   /**
    * Names of downstream outputs suppressed by this flag, e.g. 'kneeFlexionAngle', 'decisionEvent.cue'. Empty when state=supported.

@@ -5,45 +5,108 @@
   "description": "First-class 'unsupported' state. When required landmarks, scale, identity, or anchor are insufficient, numeric guidance MUST be suppressed via this record - never silently omitted (PRD 1.6, TRD 2.7).",
   "type": "object",
   "version": "v0",
-  "required": ["flagId", "sessionId", "frameId", "evaluatedAt", "state", "reasons", "affectedOutputs"],
+  "required": [
+    "flagId",
+    "sessionId",
+    "frameId",
+    "evaluatedAt",
+    "state",
+    "reasons",
+    "affectedOutputs"
+  ],
   "properties": {
-    "flagId": { "type": "string" },
-    "sessionId": { "type": "string" },
-    "frameId": { "type": "string" },
-    "evaluatedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+    "flagId": {
+      "type": "string"
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "frameId": {
+      "type": "string"
+    },
+    "evaluatedAt": {
+      "$ref": "common.schema.json#/$defs/isoTimestamp"
+    },
     "state": {
       "type": "string",
-      "enum": ["supported", "unsupported"]
+      "enum": [
+        "supported",
+        "unsupported"
+      ]
     },
     "reasons": {
       "type": "array",
       "items": {
-        "type": "string",
-        "enum": [
-          "insufficient_landmarks",
-          "insufficient_scale",
-          "identity_uncertain",
-          "anchor_drift",
-          "low_confidence",
-          "occlusion"
-        ]
+        "$ref": "#/$defs/reason"
       },
       "description": "Must be non-empty when state=unsupported; must be empty when state=supported."
     },
     "affectedOutputs": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Names of downstream outputs suppressed by this flag, e.g. 'kneeFlexionAngle', 'decisionEvent.cue'. Empty when state=supported."
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "state": { "const": "unsupported" } } },
-      "then": { "properties": { "reasons": { "minItems": 1 } }, "required": ["reasons"] }
+      "if": {
+        "properties": {
+          "state": {
+            "const": "unsupported"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reasons": {
+            "minItems": 1
+          }
+        },
+        "required": [
+          "reasons"
+        ]
+      }
     },
     {
-      "if": { "properties": { "state": { "const": "supported" } } },
-      "then": { "properties": { "reasons": { "maxItems": 0 }, "affectedOutputs": { "maxItems": 0 } } }
+      "if": {
+        "properties": {
+          "state": {
+            "const": "supported"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reasons": {
+            "maxItems": 0
+          },
+          "affectedOutputs": {
+            "maxItems": 0
+          }
+        }
+      }
     }
-  ]
+  ],
+  "$defs": {
+    "reason": {
+      "type": "string",
+      "enum": [
+        "insufficient_landmarks",
+        "insufficient_scale",
+        "identity_uncertain",
+        "anchor_drift",
+        "low_confidence",
+        "occlusion",
+        "wrong_view",
+        "out_of_frame",
+        "camera_not_level",
+        "insufficient_frame_rate",
+        "insufficient_frames",
+        "subject_moving"
+      ],
+      "description": "wrong_view: the body is not facing the way the step requires. out_of_frame: a required body part is cut off. camera_not_level: device tilt exceeds the step's tolerance. insufficient_frame_rate / insufficient_frames: too few usable frames for the metric. subject_moving: the hold was not still enough."
+    }
+  }
 }

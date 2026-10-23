@@ -1,0 +1,86 @@
+{
+  "version": "assessment-battery/v0-draft",
+  "status": "draft",
+  "steps": [
+    {
+      "stepId": "static.anterior",
+      "module": "static",
+      "title": "Front view",
+      "instruction": "Face the camera. Stand tall and relaxed, feet hip-width apart, arms by your sides. Hold still.",
+      "view": "anterior",
+      "kind": "hold",
+      "durationSeconds": 15,
+      "minFps": 24,
+      "levelToleranceDegrees": 3,
+      "modes": ["clinic", "patient"],
+      "metricKeys": [
+        "static.head_lateral_tilt",
+        "static.shoulder_line_tilt",
+        "static.hip_line_tilt",
+        "static.trunk_lateral_lean",
+        "static.lateral_body_shift",
+        "static.knee_frontal_alignment"
+      ]
+    },
+    {
+      "stepId": "static.left_lateral",
+      "module": "static",
+      "title": "Left side",
+      "instruction": "Turn so your left side faces the camera. Stand tall and relaxed, arms by your sides. Hold still.",
+      "view": "left_lateral",
+      "kind": "hold",
+      "durationSeconds": 5,
+      "minFps": 24,
+      "levelToleranceDegrees": 3,
+      "modes": ["clinic", "patient"],
+      "metricKeys": [
+        "static.plumb_offset_ear",
+        "static.plumb_offset_shoulder",
+        "static.plumb_offset_hip",
+        "static.plumb_offset_knee",
+        "static.head_shoulder_angle",
+        "static.trunk_inclination",
+        "static.knee_extension"
+      ]
+    },
+    {
+      "stepId": "static.right_lateral",
+      "module": "static",
+      "title": "Right side",
+      "instruction": "Turn so your right side faces the camera. Stand tall and relaxed, arms by your sides. Hold still.",
+      "view": "right_lateral",
+      "kind": "hold",
+      "durationSeconds": 5,
+      "minFps": 24,
+      "levelToleranceDegrees": 3,
+      "modes": ["clinic", "patient"],
+      "metricKeys": [
+        "static.plumb_offset_ear",
+        "static.plumb_offset_shoulder",
+        "static.plumb_offset_hip",
+        "static.plumb_offset_knee",
+        "static.head_shoulder_angle",
+        "static.trunk_inclination",
+        "static.knee_extension"
+      ]
+    },
+    {
+      "stepId": "static.posterior",
+      "module": "static",
+      "title": "Back view",
+      "instruction": "Turn your back to the camera. Stand tall and relaxed, feet hip-width apart, arms by your sides. Hold still.",
+      "view": "posterior",
+      "kind": "hold",
+      "durationSeconds": 5,
+      "minFps": 24,
+      "levelToleranceDegrees": 3,
+      "modes": ["clinic", "patient"],
+      "metricKeys": [
+        "static.head_lateral_tilt",
+        "static.shoulder_line_tilt",
+        "static.hip_line_tilt",
+        "static.trunk_lateral_lean"
+      ]
+    }
+  ]
+}

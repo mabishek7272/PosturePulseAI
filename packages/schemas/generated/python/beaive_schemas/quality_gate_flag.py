@@ -14,12 +14,22 @@ class State(Enum):
 
 
 class Reason(Enum):
+    """
+    wrong_view: the body is not facing the way the step requires. out_of_frame: a required body part is cut off. camera_not_level: device tilt exceeds the step's tolerance. insufficient_frame_rate / insufficient_frames: too few usable frames for the metric. subject_moving: the hold was not still enough.
+    """
+
     insufficient_landmarks = 'insufficient_landmarks'
     insufficient_scale = 'insufficient_scale'
     identity_uncertain = 'identity_uncertain'
     anchor_drift = 'anchor_drift'
     low_confidence = 'low_confidence'
     occlusion = 'occlusion'
+    wrong_view = 'wrong_view'
+    out_of_frame = 'out_of_frame'
+    camera_not_level = 'camera_not_level'
+    insufficient_frame_rate = 'insufficient_frame_rate'
+    insufficient_frames = 'insufficient_frames'
+    subject_moving = 'subject_moving'
 
 
 class QualityGateFlag(BaseModel):

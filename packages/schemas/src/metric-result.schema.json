@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/metric-result.schema.json",
+  "title": "MetricResult",
+  "description": "One assessment measurement (ADR-015). Exactly one of estimate / unsupported / notMeasurable is present: a value is never shown without its uncertainty, a quality failure is never silently dropped, and anything the system cannot measure says so instead of guessing (CLAUDE.md rule 3).",
+  "type": "object",
+  "version": "v0",
+  "required": ["resultId", "sessionId", "metricKey", "module", "tier", "unit", "side", "provenance"],
+  "properties": {
+    "resultId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "clipId": { "type": ["string", "null"], "description": "Clip the result was computed from; null for entered values and the standing not-measurable list." },
+    "stepId": { "type": ["string", "null"] },
+    "metricKey": { "type": "string", "description": "Stable key from the metric registry, e.g. \"static.shoulder_line_tilt\"." },
+    "module": { "type": "string", "enum": ["static", "functional", "gait", "workstation", "ergonomic"] },
+    "tier": {
+      "type": "string",
+      "enum": ["estimate", "proxy", "entered", "annotated", "not_measurable"],
+      "description": "estimate: 2D measurement with uncertainty. proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system."
+    },
+    "unit": { "type": "string", "enum": ["deg", "cm", "percent_stature", "s", "count", "per_min", "percent", "none"] },
+    "side": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", null] },
+    "estimate": {
+      "type": "object",
+      "required": ["value", "uncertainty", "framesUsed"],
+      "properties": {
+        "value": { "type": "number" },
+        "uncertainty": { "type": "number", "minimum": 0, "description": "Same unit as value; combines per-frame landmark uncertainty and spread across the frames used." },
+        "framesUsed": { "type": "integer", "minimum": 1 },
+        "signConvention": { "type": "string", "description": "What a positive value means, e.g. \"positive = right side lower\"." }
+      }
+    },
+    "unsupported": {
+      "type": "object",
+      "required": ["reasons"],
+      "properties": {
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "quality-gate-flag.schema.json#/$defs/reason" }
+        },
+        "detail": { "type": "string" }
+      }
+    },
+    "notMeasurable": {
+      "type": "object",
+      "required": ["reason", "whatWouldBeNeeded"],
+      "properties": {
+        "reason": { "type": "string" },
+        "whatWouldBeNeeded": { "type": "string" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "frameIndices": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "landmarkSeriesSha256": { "type": "string" }
+      }
+    },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  },
+  "oneOf": [
+    { "required": ["estimate"], "not": { "anyOf": [{ "required": ["unsupported"] }, { "required": ["notMeasurable"] }] } },
+    { "required": ["unsupported"], "not": { "anyOf": [{ "required": ["estimate"] }, { "required": ["notMeasurable"] }] } },
+    { "required": ["notMeasurable"], "not": { "anyOf": [{ "required": ["estimate"] }, { "required": ["unsupported"] }] } }
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "tier": { "const": "not_measurable" } } },
+      "then": { "required": ["notMeasurable"] }
+    },
+    {
+      "if": { "required": ["notMeasurable"] },
+      "then": { "properties": { "tier": { "const": "not_measurable" } } }
+    }
+  ]
+}

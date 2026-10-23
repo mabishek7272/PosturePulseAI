@@ -53,5 +53,17 @@ export interface ExposureEvent {
      */
     calibrationVersion: string;
     producedAt: string;
+    /**
+     * Version of the metric registry that computed the value, e.g. "metrics/v1".
+     */
+    metricsVersion?: string;
+    /**
+     * Version of the reference-range set used to classify the value.
+     */
+    referenceFileVersion?: string;
+    /**
+     * SHA-256 of the clip the value was computed from.
+     */
+    clipSha256?: string;
   };
 }

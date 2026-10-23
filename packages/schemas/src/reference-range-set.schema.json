@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/reference-range-set.schema.json",
+  "title": "ReferenceRangeSet",
+  "description": "Versioned 'Theoretical Ideal' values for report rows (ADR-015). A draft set must not name a reviewer; only a clinical lead's sign-off turns it into an approved set. Proxy metrics never receive a literature reference for the construct they stand in for.",
+  "type": "object",
+  "version": "v0",
+  "required": ["version", "status", "reviewedBy", "entries"],
+  "properties": {
+    "version": { "type": "string", "description": "e.g. \"posture-reference/v0-draft\"." },
+    "status": { "type": "string", "enum": ["draft", "approved"] },
+    "reviewedBy": { "type": ["string", "null"] },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["metricKey", "kind", "unit", "sourceCitation"],
+        "properties": {
+          "metricKey": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["geometric", "literature"],
+            "description": "geometric: a value implied by the measurement's definition (e.g. a level line is 0 deg). literature: a published value, cited."
+          },
+          "value": { "type": "number" },
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "unit": { "type": "string" },
+          "sourceCitation": { "type": "string" },
+          "appliesTo": { "type": "string", "description": "Population or protocol the reference was derived for." }
+        },
+        "oneOf": [
+          { "required": ["value"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }] } },
+          { "required": ["min", "max"], "not": { "required": ["value"] } }
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "draft" } } },
+      "then": { "properties": { "reviewedBy": { "const": null } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "approved" } } },
+      "then": { "properties": { "reviewedBy": { "type": "string", "minLength": 1 } } }
+    }
+  ]
+}

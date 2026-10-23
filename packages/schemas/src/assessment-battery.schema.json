@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/assessment-battery.schema.json",
+  "title": "AssessmentBattery",
+  "description": "The ordered capture steps of an assessment, as data, so the app, backend and analysis agree on what each step records and which metrics it can produce. Draft until a clinical lead signs it off.",
+  "type": "object",
+  "version": "v0",
+  "required": ["version", "status", "steps"],
+  "properties": {
+    "version": { "type": "string" },
+    "status": { "type": "string", "enum": ["draft", "approved"] },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["stepId", "module", "title", "instruction", "view", "kind", "minFps", "modes", "metricKeys"],
+        "properties": {
+          "stepId": { "type": "string" },
+          "module": { "type": "string", "enum": ["static", "functional", "gait", "workstation"] },
+          "title": { "type": "string" },
+          "instruction": { "type": "string", "description": "Shown and spoken to the person being assessed." },
+          "view": { "type": "string", "enum": ["anterior", "posterior", "left_lateral", "right_lateral"] },
+          "kind": { "type": "string", "enum": ["hold", "reps", "passes"] },
+          "durationSeconds": { "type": "number", "exclusiveMinimum": 0, "description": "Required when kind=hold." },
+          "reps": { "type": "integer", "minimum": 1, "description": "Required when kind=reps or passes." },
+          "minFps": { "type": "number", "exclusiveMinimum": 0 },
+          "levelToleranceDegrees": { "type": "number", "exclusiveMinimum": 0, "default": 3 },
+          "modes": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "enum": ["clinic", "patient"] }
+          },
+          "metricKeys": { "type": "array", "items": { "type": "string" } }
+        },
+        "allOf": [
+          { "if": { "properties": { "kind": { "const": "hold" } } }, "then": { "required": ["durationSeconds"] } },
+          { "if": { "properties": { "kind": { "enum": ["reps", "passes"] } } }, "then": { "required": ["reps"] } }
+        ]
+      }
+    }
+  }
+}

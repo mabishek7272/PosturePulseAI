@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.beaive.dev/assessment-report.schema.json",
+  "title": "AssessmentReport",
+  "description": "A versioned assessment report (ADR-015). Built deterministically from metric results and a reference set; released only by a signed-in clinician. Report rows describe measurements only - the clinicianAssessment is the single place where a named clinician's own interpretation may appear.",
+  "type": "object",
+  "version": "v0",
+  "required": ["reportId", "sessionId", "reportVersion", "status", "rows", "notMeasurable", "clinicianAssessment", "signOff", "provenance"],
+  "properties": {
+    "reportId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "reportVersion": { "type": "integer", "minimum": 1 },
+    "supersedesReportId": { "type": ["string", "null"] },
+    "status": { "type": "string", "enum": ["draft", "released", "rejected"] },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["metricKey", "label", "module", "tier", "unit", "side", "position", "analysis", "excluded"],
+        "properties": {
+          "metricKey": { "type": "string" },
+          "resultId": { "type": ["string", "null"] },
+          "label": { "type": "string", "description": "Descriptive name, never a condition name." },
+          "module": { "type": "string", "enum": ["static", "functional", "gait", "workstation", "ergonomic"] },
+          "tier": { "type": "string", "enum": ["estimate", "proxy", "entered", "annotated", "not_measurable"] },
+          "unit": { "type": "string" },
+          "side": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", null] },
+          "estimate": {
+            "type": ["object", "null"],
+            "required": ["value", "uncertainty"],
+            "properties": { "value": { "type": "number" }, "uncertainty": { "type": "number", "minimum": 0 } }
+          },
+          "unsupportedReasons": { "type": "array", "items": { "$ref": "quality-gate-flag.schema.json#/$defs/reason" } },
+          "reference": {
+            "type": ["object", "null"],
+            "required": ["kind", "label", "sourceCitation", "status"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["geometric", "literature"] },
+              "label": { "type": "string", "description": "e.g. \"0 deg\" or \"0-5 deg\"." },
+              "sourceCitation": { "type": "string" },
+              "status": { "type": "string", "enum": ["draft", "approved"] }
+            }
+          },
+          "position": {
+            "type": "string",
+            "enum": ["below", "within", "above", "indeterminate", "no_reference", "not_applicable"],
+            "description": "below/above only when the whole value +/- uncertainty interval lies outside the reference; indeterminate when the interval overlaps a bound; no_reference for proxies and rows without a reference; not_applicable when there is no estimate."
+          },
+          "analysis": {
+            "type": "object",
+            "required": ["text", "source"],
+            "properties": {
+              "text": { "type": "string" },
+              "source": { "type": "string", "enum": ["fixed_template"] },
+              "templateId": { "type": "string" }
+            }
+          },
+          "excluded": {
+            "type": ["object", "null"],
+            "required": ["reason", "clinicianId"],
+            "description": "Set when the reviewing clinician excludes the row; the row stays in the record.",
+            "properties": { "reason": { "type": "string", "minLength": 1 }, "clinicianId": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "notMeasurable": {
+      "type": "array",
+      "description": "The standing list of things this system cannot measure, always shown.",
+      "items": {
+        "type": "object",
+        "required": ["metricKey", "label", "reason", "whatWouldBeNeeded"],
+        "properties": {
+          "metricKey": { "type": "string" },
+          "label": { "type": "string" },
+          "reason": { "type": "string" },
+          "whatWouldBeNeeded": { "type": "string" }
+        }
+      }
+    },
+    "clinicianAssessment": {
+      "type": ["object", "null"],
+      "required": ["text", "clinicianId"],
+      "properties": { "text": { "type": "string" }, "clinicianId": { "type": "string" } }
+    },
+    "signOff": {
+      "type": ["object", "null"],
+      "required": ["clinicianId", "signedAt", "contentSha256"],
+      "properties": {
+        "clinicianId": { "type": "string" },
+        "signedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+        "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "released" } } },
+      "then": { "properties": { "signOff": { "type": "object" } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "draft" } } },
+      "then": { "properties": { "signOff": { "const": null } } }
+    }
+  ]
+}
