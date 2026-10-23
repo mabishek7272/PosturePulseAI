@@ -91,3 +91,14 @@ See `docs/adr/018-measurement-method-and-validation-strategy.md` for why the
 product's own measurement method is scoped to `mediapipe_2d_image_plane` only,
 and why a method-aware reference lookup (keying `reference-range-set` entries
 by method, not just `metricKey`) is deferred rather than built here.
+
+## v0 - report row disambiguation and reference bounds (non-breaking)
+
+- `assessment-report`'s row gained **optional** `stepId`, `signConvention`, and (on `reference`) `value`/
+  `min`/`max`. All optional, matching the existing pattern for `method`/`measuredBy` - released report bodies
+  signed before this change remain valid with no migration.
+- `stepId` lets a client group/disambiguate left-and-right rows of the same metric across different battery
+  steps; `signConvention` carries the same text `metric-result` already has; the numeric reference bounds let
+  a client draw a reference band without parsing the existing text `label` (e.g. "0-5 deg").
+
+See docs/HANDOFF.md §4.C items #1-#3.

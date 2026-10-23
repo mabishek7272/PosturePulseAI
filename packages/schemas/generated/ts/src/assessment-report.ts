@@ -24,6 +24,14 @@ export interface AssessmentReport {
     tier: "estimate" | "proxy" | "entered" | "annotated" | "not_measurable";
     unit: string;
     side: "left" | "right" | "bilateral" | null;
+    /**
+     * Which battery step this row's result came from, so the UI can group/disambiguate left and right rows of the same metric across different steps.
+     */
+    stepId?: string | null;
+    /**
+     * What a positive value means for this row, e.g. "positive = right side lower" (metric-result.schema.json carries the same field).
+     */
+    signConvention?: string;
     estimate?: {
       value: number;
       uncertainty: number;
@@ -50,6 +58,18 @@ export interface AssessmentReport {
       label: string;
       sourceCitation: string;
       status: "draft" | "approved";
+      /**
+       * A single-value reference's numeric value (e.g. 0 for a 0 deg geometric reference). Absent for a range reference.
+       */
+      value?: number;
+      /**
+       * A range reference's lower bound. Absent for a single-value reference.
+       */
+      min?: number;
+      /**
+       * A range reference's upper bound. Absent for a single-value reference.
+       */
+      max?: number;
     } | null;
     /**
      * below/above only when the whole value +/- uncertainty interval lies outside the reference; indeterminate when the interval overlaps a bound; no_reference for proxies and rows without a reference; not_applicable when there is no estimate.

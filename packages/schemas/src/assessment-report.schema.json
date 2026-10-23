@@ -25,6 +25,8 @@
           "tier": { "type": "string", "enum": ["estimate", "proxy", "entered", "annotated", "not_measurable"] },
           "unit": { "type": "string" },
           "side": { "type": ["string", "null"], "enum": ["left", "right", "bilateral", null] },
+          "stepId": { "type": ["string", "null"], "description": "Which battery step this row's result came from, so the UI can group/disambiguate left and right rows of the same metric across different steps." },
+          "signConvention": { "type": "string", "description": "What a positive value means for this row, e.g. \"positive = right side lower\" (metric-result.schema.json carries the same field)." },
           "estimate": {
             "type": ["object", "null"],
             "required": ["value", "uncertainty"],
@@ -38,7 +40,10 @@
               "kind": { "type": "string", "enum": ["geometric", "literature"] },
               "label": { "type": "string", "description": "e.g. \"0 deg\" or \"0-5 deg\"." },
               "sourceCitation": { "type": "string" },
-              "status": { "type": "string", "enum": ["draft", "approved"] }
+              "status": { "type": "string", "enum": ["draft", "approved"] },
+              "value": { "type": "number", "description": "A single-value reference's numeric value (e.g. 0 for a 0 deg geometric reference). Absent for a range reference." },
+              "min": { "type": "number", "description": "A range reference's lower bound. Absent for a single-value reference." },
+              "max": { "type": "number", "description": "A range reference's upper bound. Absent for a single-value reference." }
             }
           },
           "position": {

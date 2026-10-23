@@ -76,6 +76,18 @@ class Reference(BaseModel):
     label: str = Field(..., description='e.g. "0 deg" or "0-5 deg".')
     sourceCitation: str
     status: Status1
+    value: float | None = Field(
+        None,
+        description="A single-value reference's numeric value (e.g. 0 for a 0 deg geometric reference). Absent for a range reference.",
+    )
+    min: float | None = Field(
+        None,
+        description="A range reference's lower bound. Absent for a single-value reference.",
+    )
+    max: float | None = Field(
+        None,
+        description="A range reference's upper bound. Absent for a single-value reference.",
+    )
 
 
 class Position(Enum):
@@ -140,6 +152,14 @@ class Row(BaseModel):
     tier: Tier
     unit: str
     side: Side | None
+    stepId: str | None = Field(
+        None,
+        description="Which battery step this row's result came from, so the UI can group/disambiguate left and right rows of the same metric across different steps.",
+    )
+    signConvention: str | None = Field(
+        None,
+        description='What a positive value means for this row, e.g. "positive = right side lower" (metric-result.schema.json carries the same field).',
+    )
     estimate: Estimate | None = None
     unsupportedReasons: list[UnsupportedReason] | None = None
     reference: Reference | None = None
