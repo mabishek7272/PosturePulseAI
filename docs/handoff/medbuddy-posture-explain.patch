@@ -1,0 +1,1268 @@
+From bfbc7a48f2e3fd154a50ecf50e1ea174b66950ff Mon Sep 17 00:00:00 2001
+From: "Dr.Abishek Murugan" <reainmaker@Abishek-Murugans-MacBook-Pro.local>
+Date: Fri, 23 Oct 2026 13:14:01 +0530
+Subject: [PATCH 1/2] Add posture-report explanation layer and POST
+ /v1/posture/explain
+
+One checked sentence per measured posture row for beAIve reports. Strict request
+(no identifiers), refuses positions that contradict their numbers, deterministic
+template narrator plus consistency guard and banned-phrase list; an injected model
+narrator is supported but not wired.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ ANUClaw/src/api/routes/posture.ts             |  28 +++
+ ANUClaw/src/api/server.ts                     |   5 +
+ ANUClaw/src/cds/posture-explanation/README.md |  19 ++
+ ANUClaw/src/cds/posture-explanation/api.ts    |  79 +++++++
+ ANUClaw/src/cds/posture-explanation/banned.ts |  24 ++
+ .../posture-explanation/consistency-guard.ts  |  87 ++++++++
+ .../explanation-service.ts                    |  85 ++++++++
+ ANUClaw/src/cds/posture-explanation/format.ts |  73 +++++++
+ ANUClaw/src/cds/posture-explanation/index.ts  |  10 +
+ .../posture-explanation.test.ts               | 206 ++++++++++++++++++
+ ANUClaw/src/cds/posture-explanation/prompt.ts |  34 +++
+ .../posture-explanation/template-provider.ts  |  62 ++++++
+ ANUClaw/src/cds/posture-explanation/types.ts  |  90 ++++++++
+ 13 files changed, 802 insertions(+)
+ create mode 100644 ANUClaw/src/api/routes/posture.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/README.md
+ create mode 100644 ANUClaw/src/cds/posture-explanation/api.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/banned.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/consistency-guard.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/explanation-service.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/format.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/index.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/posture-explanation.test.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/prompt.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/template-provider.ts
+ create mode 100644 ANUClaw/src/cds/posture-explanation/types.ts
+
+diff --git a/ANUClaw/src/api/routes/posture.ts b/ANUClaw/src/api/routes/posture.ts
+new file mode 100644
+index 0000000..1895e2d
+--- /dev/null
++++ b/ANUClaw/src/api/routes/posture.ts
+@@ -0,0 +1,28 @@
++/**
++ * POST /v1/posture/explain - one plain sentence per measured posture row.
++ *
++ * Auth (X-API-Key or Bearer) is applied where the router is mounted (server.ts), the
++ * same as /v1/ruo. The body carries measurements only: no patient or session
++ * identifiers (unknown fields are rejected). The sentence can only describe the row;
++ * it never changes a number or a classification (see src/cds/posture-explanation).
++ */
++import { Router, Request, Response } from 'express';
++import { handleExplainRequest } from '../../cds/posture-explanation';
++import { logger } from '../../logger';
++
++export function createPostureRouter(): Router {
++  const router = Router();
++
++  router.post('/explain', async (req: Request, res: Response) => {
++    try {
++      const { status, body } = await handleExplainRequest(req.body);
++      res.status(status).json(body);
++    } catch (err) {
++      // Fail closed: no sentence is better than a guessed one; the caller has its own fixed text.
++      logger.error(`posture explain failed: ${err instanceof Error ? err.message : String(err)}`);
++      res.status(500).json({ error: 'Explanation failed' });
++    }
++  });
++
++  return router;
++}
+diff --git a/ANUClaw/src/api/server.ts b/ANUClaw/src/api/server.ts
+index 9ea3ca6..d2e8073 100644
+--- a/ANUClaw/src/api/server.ts
++++ b/ANUClaw/src/api/server.ts
+@@ -8,6 +8,7 @@ import skillRoutes  from './routes/skills';
+ import ehrRoutes    from './routes/ehr';
+ import usageRoutes  from './routes/usage';
+ import { createCdsRouter } from './routes/cds';
++import { createPostureRouter } from './routes/posture';
+ import { requireAuth } from './middleware/auth';
+ import { createElabPlatformRouter } from './routes/elab-platform';
+ import { createElabUiRouter } from './routes/elab-ui';
+@@ -69,6 +70,9 @@ export function startApiServer(): void {
+       resolveContext: resolveTenantContext,
+     }),
+   );
++  // Posture-report explanations (beAIve): measurements in, one checked sentence per row out.
++  app.use('/v1/posture', requireAuth, createPostureRouter());
++
+   // E-LAB console UI (public page + demo endpoint) at GET /v1/elab.
+   app.use(createElabUiRouter());
+ 
+@@ -103,6 +107,7 @@ export function startApiServer(): void {
+         cds_review:   'GET  /cds/review/demo',
+         cds_signoff:  'POST /cds/review/signoff',
+         cds_audit:    'GET  /cds/review/audit/export',
++        posture_explain: 'POST /v1/posture/explain (auth required; measurements only)',
+         elab_ruo:     'POST /v1/ruo/:engineId            (RUO tier — de-id gated)',
+         elab_clinical:'POST /v1/clinical/drug-combination (Clinical tier — scope+BAA+domain)',
+         elab_console: 'GET  /v1/elab                     (engine console UI)',
+diff --git a/ANUClaw/src/cds/posture-explanation/README.md b/ANUClaw/src/cds/posture-explanation/README.md
+new file mode 100644
+index 0000000..42630f6
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/README.md
+@@ -0,0 +1,19 @@
++# Posture-report explanations
++
++`POST /v1/posture/explain` (auth required, mounted in `src/api/server.ts`) turns each
++already-measured row of a beAIve posture report into one plain sentence.
++
++Request: `{ verdicts: PostureVerdict[] }` (1-200 rows; see `types.ts`). Measurements only -
++unknown fields (patient or session identifiers) are rejected with 400. A row whose
++`position` disagrees with its own value, uncertainty and reference is refused with 422;
++this layer never reclassifies.
++
++Response: `{ explanationVersion, results: PostureExplanation[] }`. `text` is `null` when a
++row is `escalated` - the caller must then use its own fixed sentence. The caller should
++also re-check every returned sentence against its own rules before showing it.
++
++Authority order is the same as `src/cds/explanation`: measurement and classification are
++decided upstream; this layer only describes; the consistency guard rejects any sentence
++with a banned phrase, a number the row does not own, or a direction that contradicts the
++position. No model is wired in: the deterministic template is the default narrator, and a
++`PostureProvider` can be injected (outside `src/cds`) later.
+diff --git a/ANUClaw/src/cds/posture-explanation/api.ts b/ANUClaw/src/cds/posture-explanation/api.ts
+new file mode 100644
+index 0000000..632250c
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/api.ts
+@@ -0,0 +1,79 @@
++/**
++ * Request validation and handler for POST /v1/posture/explain. Framework-agnostic so
++ * it is unit-tested without HTTP; src/api/routes/posture.ts is the thin Express adapter.
++ *
++ * The request is strict: unknown fields are rejected so patient or session identifiers
++ * cannot ride along, and a row whose position disagrees with its own numbers is refused
++ * (422) rather than silently reclassified.
++ */
++import { computePosition } from './format';
++import { explainPostureRow, ExplainOptions } from './explanation-service';
++import { EXPLANATION_VERSION, PostureVerdict } from './types';
++
++const POSITIONS = ['below', 'within', 'above', 'indeterminate', 'no_reference', 'not_applicable'];
++const TIERS = ['estimate', 'proxy', 'entered', 'annotated'];
++const UNITS = ['deg', 'cm', 'percent_stature', 's', 'count', 'per_min', 'percent', 'none'];
++const SIDES = ['left', 'right', 'bilateral', null];
++const ROW_KEYS = new Set(['rowId', 'metricKey', 'label', 'tier', 'unit', 'side', 'position', 'estimate', 'reference', 'unsupportedReasons']);
++const REF_KEYS = new Set(['kind', 'label', 'min', 'max', 'status']);
++export const MAX_ROWS = 200;
++
++const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
++const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
++const isStr = (x: unknown, max = 200): x is string => typeof x === 'string' && x.length > 0 && x.length <= max;
++
++export type Validation = { ok: true; verdicts: PostureVerdict[] } | { ok: false; errors: string[] };
++
++export function validateExplainRequest(body: unknown): Validation {
++  const errors: string[] = [];
++  if (!isObj(body)) return { ok: false, errors: ['body must be an object'] };
++  for (const k of Object.keys(body)) if (k !== 'verdicts') errors.push(`unknown field '${k}'`);
++  const rows = body.verdicts;
++  if (!Array.isArray(rows) || rows.length === 0) errors.push('verdicts must be a non-empty array');
++  else if (rows.length > MAX_ROWS) errors.push(`at most ${MAX_ROWS} verdicts per request`);
++  if (errors.length || !Array.isArray(rows)) return { ok: false, errors };
++
++  const seen = new Set<string>();
++  rows.forEach((r, i) => {
++    const at = `verdicts[${i}]`;
++    if (!isObj(r)) { errors.push(`${at} must be an object`); return; }
++    for (const k of Object.keys(r)) if (!ROW_KEYS.has(k)) errors.push(`${at}: unknown field '${k}'`);
++    if (!isStr(r.rowId, 80)) errors.push(`${at}.rowId`); else if (seen.has(r.rowId)) errors.push(`${at}.rowId duplicate '${r.rowId}'`); else seen.add(r.rowId);
++    if (!isStr(r.metricKey, 120)) errors.push(`${at}.metricKey`);
++    if (!isStr(r.label, 120)) errors.push(`${at}.label`);
++    if (!TIERS.includes(r.tier as string)) errors.push(`${at}.tier`);
++    if (!UNITS.includes(r.unit as string)) errors.push(`${at}.unit`);
++    if (!SIDES.includes((r.side ?? null) as string | null)) errors.push(`${at}.side`);
++    if (!POSITIONS.includes(r.position as string)) errors.push(`${at}.position`);
++    if (r.estimate != null) {
++      const est = r.estimate;
++      if (!isObj(est) || !isNum(est.value) || !isNum(est.uncertainty) || est.uncertainty < 0) errors.push(`${at}.estimate`);
++      else for (const k of Object.keys(est)) if (k !== 'value' && k !== 'uncertainty') errors.push(`${at}.estimate: unknown field '${k}'`);
++    }
++    if (r.reference != null) {
++      const ref = r.reference;
++      if (!isObj(ref) || !isStr(ref.label, 60) || !isNum(ref.min) || !isNum(ref.max) || ref.min > ref.max
++        || !['geometric', 'literature'].includes(ref.kind as string) || !['draft', 'approved'].includes(ref.status as string)) errors.push(`${at}.reference`);
++      else for (const k of Object.keys(ref)) if (!REF_KEYS.has(k)) errors.push(`${at}.reference: unknown field '${k}'`);
++    }
++    if (r.unsupportedReasons != null && !(Array.isArray(r.unsupportedReasons) && r.unsupportedReasons.every((x) => isStr(x, 60)))) errors.push(`${at}.unsupportedReasons`);
++  });
++  return errors.length ? { ok: false, errors } : { ok: true, verdicts: rows as PostureVerdict[] };
++}
++
++export interface HandlerResult { status: number; body: unknown }
++
++export async function handleExplainRequest(body: unknown, options: ExplainOptions = {}): Promise<HandlerResult> {
++  const v = validateExplainRequest(body);
++  if (!v.ok) return { status: 400, body: { error: 'Invalid request', errors: v.errors } };
++
++  const mismatches: string[] = [];
++  for (const row of v.verdicts) {
++    const expected = computePosition(row.estimate ?? null, row.reference ?? null);
++    if (expected !== row.position) mismatches.push(`${row.rowId}: position '${row.position}' disagrees with its numbers ('${expected}')`);
++  }
++  if (mismatches.length) return { status: 422, body: { error: 'Position disagrees with the measurement', errors: mismatches } };
++
++  const results = await Promise.all(v.verdicts.map((row) => explainPostureRow(row, options)));
++  return { status: 200, body: { explanationVersion: EXPLANATION_VERSION, results } };
++}
+diff --git a/ANUClaw/src/cds/posture-explanation/banned.ts b/ANUClaw/src/cds/posture-explanation/banned.ts
+new file mode 100644
+index 0000000..7c96581
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/banned.ts
+@@ -0,0 +1,24 @@
++/**
++ * Wording that must never appear in a posture-report sentence: condition names,
++ * grades, risk and causation claims, scores. Kept in step with the beAIve
++ * repository's references/banned-phrases.json (that file is the source of truth for
++ * the product; this copy is MedBuddy's own last line of defence).
++ */
++const PATTERNS: RegExp[] = [
++  /\bdiagnos\w*/i,
++  /\b(scolio\w*|kyphos\w*|lordos\w*|valgus|varus|valgum|varum|recurvatum|trendelenburg|spondyl\w*|arthrit\w*|osteo\w*)\b/i,
++  /\b(syndrome|deformity|dysfunction|pathology|pathological|disorder|disease|condition|impairment|weakness|tightness)\b/i,
++  /\b(normal|abnormal|healthy|unhealthy|optimal|ideal|excellent|perfect|textbook|great|poor|bad|good)\b/i,
++  /\b(risk|injur\w*|prevent\w*|treat\w*|cure\w*|therap\w*|predict\w*)\b/i,
++  /\b(caused by|due to|because of|typical for|typical of|common in|indicates|indicative|suggests|likely|probably|linked to|sign of)\b/i,
++  /\b(score\w*|rating|grade\w*|rank\w*)\b/i,
++  /\b(should|must|need to|recommend\w*|advise\w*)\b/i,
++];
++
++export function findBannedPhrase(text: string): string | null {
++  for (const re of PATTERNS) {
++    const m = re.exec(text);
++    if (m) return m[0];
++  }
++  return null;
++}
+diff --git a/ANUClaw/src/cds/posture-explanation/consistency-guard.ts b/ANUClaw/src/cds/posture-explanation/consistency-guard.ts
+new file mode 100644
+index 0000000..095de90
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/consistency-guard.ts
+@@ -0,0 +1,87 @@
++/**
++ * Consistency guard for posture rows. Layer A: the narrator's structured assertions
++ * must equal the verdict. Layer B: the prose must contain no banned phrase, no number
++ * the row does not own, and no claim that contradicts the position. Pure and
++ * deterministic; the verdict is never changed to match the prose.
++ */
++import { findBannedPhrase } from './banned';
++import { deviationFrom, round1 } from './format';
++import type { PostureConsistency, PostureDraft, PostureVerdict } from './types';
++
++const NUMBER_RE = /\d+(?:\.\d+)?/g;
++const near = (a: number, b: number) => Math.abs(a - b) < 0.051;
++
++function numbersIn(text: string): number[] {
++  return (text.match(NUMBER_RE) ?? []).map(Number);
++}
++
++export function checkPostureConsistency(v: PostureVerdict, draft: PostureDraft): PostureConsistency {
++  const out: string[] = [];
++  const a = draft.assertions;
++  const text = draft.text;
++  const lc = text.toLowerCase();
++  const e = v.estimate ?? null;
++  const ref = v.reference ?? null;
++
++  // The caller-supplied label is part of the sentence, so a banned label fails the row.
++  const banned = findBannedPhrase(text);
++  if (banned) out.push(`banned phrase in text: '${banned}'`);
++
++  // ── Layer A ───────────────────────────────────────────────────────────────
++  if (a.rowId !== v.rowId) out.push(`rowId mismatch: '${a.rowId}'`);
++  if (a.metricKey !== v.metricKey) out.push(`metricKey mismatch: '${a.metricKey}'`);
++  if (a.position !== v.position) out.push(`position mismatch: narrative asserts '${a.position}' but row is '${v.position}'`);
++  if ((a.side ?? null) !== (v.side ?? null)) out.push(`side mismatch: '${a.side}' vs '${v.side}'`);
++  const expectedValue = e ? round1(e.value) : undefined;
++  if (a.value !== expectedValue) out.push(`value mismatch: '${a.value}' vs '${expectedValue}'`);
++  const expectedDev = deviationFrom(v.position, e, ref);
++  if (a.deviation !== expectedDev) out.push(`deviation mismatch: '${a.deviation}' vs '${expectedDev}'`);
++
++  // ── Layer B ───────────────────────────────────────────────────────────────
++  const allowed: number[] = [];
++  if (e) allowed.push(e.value, e.uncertainty);
++  if (expectedDev !== undefined) allowed.push(expectedDev);
++  if (ref) allowed.push(ref.min, ref.max, ...numbersIn(ref.label));
++  allowed.push(...numbersIn(v.label));
++  for (const n of numbersIn(text)) {
++    if (!allowed.some((x) => near(n, x) || near(n, Math.abs(x)))) out.push(`number not in the row: ${n}`);
++  }
++
++  if (!lc.includes(v.label.toLowerCase())) out.push('text does not name the measurement');
++
++  const mentionsWithin = /\bwithin\b/.test(lc);
++  const mentionsAbove = /\babove\b/.test(lc);
++  const mentionsBelow = /\bbelow\b/.test(lc);
++  const mentionsOverlap = /\boverlaps?\b/.test(lc);
++  const mentionsNotMeasured = /\bnot measured\b/.test(lc);
++
++  switch (v.position) {
++    case 'within':
++      if (!mentionsWithin) out.push("'within' row does not say so");
++      if (mentionsAbove || mentionsBelow || mentionsOverlap) out.push("'within' row contains a contradicting direction");
++      break;
++    case 'above':
++      if (!mentionsAbove) out.push("'above' row does not say so");
++      if (mentionsBelow || mentionsWithin || mentionsOverlap) out.push("'above' row contains a contradicting direction");
++      break;
++    case 'below':
++      if (!mentionsBelow) out.push("'below' row does not say so");
++      if (mentionsAbove || mentionsWithin || mentionsOverlap) out.push("'below' row contains a contradicting direction");
++      break;
++    case 'indeterminate':
++      if (!mentionsOverlap) out.push("'indeterminate' row does not say the uncertainty overlaps");
++      if (mentionsAbove || mentionsBelow || mentionsWithin) out.push("'indeterminate' row contains a definite direction");
++      break;
++    case 'no_reference':
++      if (mentionsAbove || mentionsBelow || mentionsWithin || mentionsOverlap) out.push("'no_reference' row compares with a reference");
++      if (!/\bno reference\b/.test(lc)) out.push("'no_reference' row does not say no reference is set");
++      break;
++    case 'not_applicable':
++    default:
++      if (!mentionsNotMeasured) out.push("'not_applicable' row does not say 'not measured'");
++      if (/\d/.test(text.replace(v.label, ''))) out.push("'not_applicable' row contains a number");
++      break;
++  }
++
++  return { consistent: out.length === 0, violations: out };
++}
+diff --git a/ANUClaw/src/cds/posture-explanation/explanation-service.ts b/ANUClaw/src/cds/posture-explanation/explanation-service.ts
+new file mode 100644
+index 0000000..fe9bd0e
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/explanation-service.ts
+@@ -0,0 +1,85 @@
++/**
++ * Explanation service for one posture row: constrained generation + consistency guard.
++ *   1. Ask the narrator (deterministic template by default, or an injected model).
++ *   2. Verify against the verdict; on contradiction discard and retry up to N times.
++ *   3. After N failures, ESCALATE with no text - the caller uses its own fixed sentence.
++ *   4. If the provider throws, fall back to the template (flagged).
++ * The row's numbers and position are never changed to match a narrative.
++ */
++import { checkPostureConsistency } from './consistency-guard';
++import { buildPosturePrompt } from './prompt';
++import { deterministicPostureProvider, renderPostureTemplate } from './template-provider';
++import type { PostureConsistency, PostureExplanation, PostureProvider, PostureVerdict } from './types';
++
++export interface ExplainOptions {
++  provider?: PostureProvider;
++  maxAttempts?: number;
++}
++
++export async function explainPostureRow(
++  verdict: PostureVerdict,
++  options: ExplainOptions = {},
++): Promise<PostureExplanation> {
++  const provider = options.provider ?? deterministicPostureProvider;
++  const isModel = provider !== deterministicPostureProvider;
++  const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
++  const prompt = buildPosturePrompt(verdict);
++  const audit: PostureExplanation['audit'] = [];
++  let last: PostureConsistency = { consistent: false, violations: [] };
++
++  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
++    let draft;
++    try {
++      draft = await provider.generate({ prompt, verdict, attempt });
++    } catch (err) {
++      audit.push({ type: 'provider_error', attempt, detail: err instanceof Error ? err.message : String(err) });
++      return fallback(verdict, attempt, audit);
++    }
++    audit.push({ type: 'generated', attempt, detail: provider.name });
++    last = checkPostureConsistency(verdict, draft);
++    audit.push({ type: last.consistent ? 'consistent' : 'inconsistent', attempt, detail: last.violations.join('; ') || undefined });
++    if (last.consistent) {
++      return {
++        rowId: verdict.rowId,
++        status: isModel ? 'llm' : 'template',
++        text: draft.text,
++        assertions: draft.assertions,
++        source: provider.name,
++        attempts: attempt,
++        escalate: false,
++        flagged: false,
++        consistency: last,
++        audit,
++      };
++    }
++  }
++
++  return {
++    rowId: verdict.rowId,
++    status: 'escalated',
++    text: null,
++    assertions: null,
++    source: provider.name,
++    attempts: maxAttempts,
++    escalate: true,
++    flagged: true,
++    consistency: last,
++    audit,
++  };
++}
++
++function fallback(verdict: PostureVerdict, attempt: number, audit: PostureExplanation['audit']): PostureExplanation {
++  const draft = renderPostureTemplate(verdict);
++  const consistency = checkPostureConsistency(verdict, draft);
++  if (!consistency.consistent) {
++    // e.g. a banned caller-supplied label: no safe text exists for this row.
++    return {
++      rowId: verdict.rowId, status: 'escalated', text: null, assertions: null, source: deterministicPostureProvider.name,
++      attempts: attempt, escalate: true, flagged: true, consistency, audit,
++    };
++  }
++  return {
++    rowId: verdict.rowId, status: 'template_fallback', text: draft.text, assertions: draft.assertions,
++    source: deterministicPostureProvider.name, attempts: attempt, escalate: false, flagged: true, consistency, audit,
++  };
++}
+diff --git a/ANUClaw/src/cds/posture-explanation/format.ts b/ANUClaw/src/cds/posture-explanation/format.ts
+new file mode 100644
+index 0000000..771bdff
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/format.ts
+@@ -0,0 +1,73 @@
++import type { PosturePosition, PostureUnit } from './types';
++
++/** Round to 0.1 and drop a trailing ".0" so 4.0 reads "4". */
++export function fmt(n: number): string {
++  return String(Number((Math.round(n * 10) / 10).toFixed(1)));
++}
++
++export function round1(n: number): number {
++  return Math.round(n * 10) / 10;
++}
++
++export function unitText(unit: PostureUnit): string {
++  switch (unit) {
++    case 'deg': return '°';
++    case 'cm': return ' cm';
++    case 'percent_stature': return '% of stature';
++    case 's': return ' s';
++    case 'per_min': return ' /min';
++    case 'percent': return '%';
++    default: return '';
++  }
++}
++
++/**
++ * The one position rule, identical to the beAIve report builder: the interval
++ * value +/- uncertainty is compared with the reference range. below/above only when the whole
++ * interval is outside; within only when it is entirely inside; otherwise indeterminate.
++ */
++export function computePosition(
++  estimate: { value: number; uncertainty: number } | null | undefined,
++  reference: { min: number; max: number } | null | undefined,
++): PosturePosition {
++  if (!estimate) return 'not_applicable';
++  if (!reference) return 'no_reference';
++  const lo = estimate.value - estimate.uncertainty;
++  const hi = estimate.value + estimate.uncertainty;
++  if (hi < reference.min) return 'below';
++  if (lo > reference.max) return 'above';
++  if (lo >= reference.min && hi <= reference.max) return 'within';
++  return 'indeterminate';
++}
++
++/** Distance of the point estimate from the nearest reference bound, in the row's unit. */
++export function deviationFrom(
++  position: PosturePosition,
++  estimate: { value: number } | null | undefined,
++  reference: { min: number; max: number } | null | undefined,
++): number | undefined {
++  if (!estimate || !reference) return undefined;
++  if (position === 'above') return round1(estimate.value - reference.max);
++  if (position === 'below') return round1(reference.min - estimate.value);
++  return undefined;
++}
++
++const REASONS: Record<string, string> = {
++  insufficient_landmarks: 'too few body points could be found',
++  insufficient_scale: 'no reliable scale was available',
++  identity_uncertain: 'the person could not be tracked reliably',
++  anchor_drift: 'the camera position drifted',
++  low_confidence: 'the body points were not clear enough',
++  occlusion: 'part of the body was hidden',
++  wrong_view: 'the body was not facing the required way',
++  out_of_frame: 'part of the body was cut off by the edge of the picture',
++  camera_not_level: 'the phone was tilted too much',
++  insufficient_frame_rate: 'the video frame rate was too low',
++  insufficient_frames: 'too few usable frames were recorded',
++  subject_moving: 'the person was not still enough',
++};
++
++export function reasonsText(codes: string[] | undefined): string {
++  const list = (codes ?? []).map((c) => REASONS[c]).filter(Boolean);
++  return list.length ? list.join('; ') : 'the recording did not meet the quality needed';
++}
+diff --git a/ANUClaw/src/cds/posture-explanation/index.ts b/ANUClaw/src/cds/posture-explanation/index.ts
+new file mode 100644
+index 0000000..6dcd46f
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/index.ts
+@@ -0,0 +1,10 @@
++export * from './types';
++export { computePosition, fmt } from './format';
++export { findBannedPhrase } from './banned';
++export { renderPostureTemplate, deterministicPostureProvider } from './template-provider';
++export { checkPostureConsistency } from './consistency-guard';
++export { buildPosturePrompt } from './prompt';
++export { explainPostureRow } from './explanation-service';
++export { validateExplainRequest, handleExplainRequest, MAX_ROWS } from './api';
++// A model-backed PostureProvider (if used) is wired OUTSIDE src/cds, as for the PGx
++// explanation layer, so the decision core stays model-free.
+diff --git a/ANUClaw/src/cds/posture-explanation/posture-explanation.test.ts b/ANUClaw/src/cds/posture-explanation/posture-explanation.test.ts
+new file mode 100644
+index 0000000..e999c18
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/posture-explanation.test.ts
+@@ -0,0 +1,206 @@
++import { describe, it, expect } from 'vitest';
++import { computePosition, fmt } from './format';
++import { findBannedPhrase } from './banned';
++import { renderPostureTemplate } from './template-provider';
++import { checkPostureConsistency } from './consistency-guard';
++import { explainPostureRow } from './explanation-service';
++import { validateExplainRequest, handleExplainRequest } from './api';
++import type { PostureProvider, PostureVerdict } from './types';
++
++const base: PostureVerdict = {
++  rowId: 'r1',
++  metricKey: 'static.shoulder_line_tilt',
++  label: 'Shoulder-line tilt',
++  tier: 'proxy',
++  unit: 'deg',
++  side: null,
++  position: 'within',
++  estimate: { value: 1.2, uncertainty: 0.6 },
++  reference: { kind: 'geometric', label: '0-5 deg', min: 0, max: 5, status: 'draft' },
++};
++const row = (over: Partial<PostureVerdict>): PostureVerdict => ({ ...base, ...over });
++
++const CASES: Array<[string, PostureVerdict]> = [
++  ['within', base],
++  ['above', row({ position: 'above', estimate: { value: 9.3, uncertainty: 1.1 } })],
++  ['below', row({ position: 'below', estimate: { value: -4.4, uncertainty: 0.5 } })],
++  ['indeterminate', row({ position: 'indeterminate', estimate: { value: 5.2, uncertainty: 1.5 } })],
++  ['no_reference', row({ position: 'no_reference', reference: null })],
++  ['estimate tier', row({ tier: 'estimate', side: 'left', metricKey: 'static.knee_extension', label: 'Knee extension' })],
++  ['not_applicable', row({ position: 'not_applicable', estimate: null, unsupportedReasons: ['out_of_frame', 'subject_moving'] })],
++];
++
++describe('computePosition (shared rule)', () => {
++  it('within only when the whole interval is inside the range', () => {
++    expect(computePosition({ value: 2, uncertainty: 1 }, { min: 0, max: 5 })).toBe('within');
++  });
++  it('below / above only when the whole interval is outside', () => {
++    expect(computePosition({ value: 9, uncertainty: 1 }, { min: 0, max: 5 })).toBe('above');
++    expect(computePosition({ value: -3, uncertainty: 1 }, { min: 0, max: 5 })).toBe('below');
++  });
++  it('indeterminate when the interval overlaps a bound', () => {
++    expect(computePosition({ value: 5.5, uncertainty: 1 }, { min: 0, max: 5 })).toBe('indeterminate');
++    expect(computePosition({ value: 0.2, uncertainty: 1 }, { min: 0, max: 5 })).toBe('indeterminate');
++  });
++  it('a single-value reference is indeterminate when the interval contains it', () => {
++    expect(computePosition({ value: 0.4, uncertainty: 1 }, { min: 0, max: 0 })).toBe('indeterminate');
++    expect(computePosition({ value: 3, uncertainty: 1 }, { min: 0, max: 0 })).toBe('above');
++  });
++  it('no_reference without a reference, not_applicable without an estimate', () => {
++    expect(computePosition({ value: 1, uncertainty: 1 }, null)).toBe('no_reference');
++    expect(computePosition(null, { min: 0, max: 5 })).toBe('not_applicable');
++  });
++  it('formats numbers without trailing zeros', () => {
++    expect([fmt(4), fmt(80.74), fmt(2.05)]).toEqual(['4', '80.7', '2.1']);
++  });
++});
++
++describe('banned phrase list', () => {
++  it.each([
++    'Possible scoliosis', 'a normal range', 'excellent alignment', 'poor posture', 'risk of injury',
++    'caused by desk work', 'posture score 80', 'typical for office workers', 'valgus deformity',
++  ])('flags %s', (t) => expect(findBannedPhrase(t)).not.toBeNull());
++  it('lets plain measurement wording through', () => {
++    expect(findBannedPhrase('Shoulder-line tilt: 1.2° ± 0.6°; within the 0-5 deg reference.')).toBeNull();
++  });
++});
++
++describe('deterministic template is faithful for every position', () => {
++  it.each(CASES)('%s passes the consistency guard and the banned list', (_n, verdict) => {
++    const draft = renderPostureTemplate(verdict);
++    expect(checkPostureConsistency(verdict, draft)).toEqual({ consistent: true, violations: [] });
++    expect(findBannedPhrase(draft.text)).toBeNull();
++  });
++
++  it('states uncertainty with the value and names the side', () => {
++    const t = renderPostureTemplate(CASES[5][1]).text;
++    expect(t).toContain('1.2');
++    expect(t).toContain('0.6');
++    expect(t.toLowerCase()).toContain('left');
++  });
++
++  it('not-applicable text contains no numbers and lists the reasons in plain words', () => {
++    const t = renderPostureTemplate(CASES[6][1]).text;
++    expect(t).not.toMatch(/\d/);
++    expect(t.toLowerCase()).toContain('not measured');
++    expect(t.toLowerCase()).toContain('cut off');
++  });
++});
++
++describe('consistency guard rejects unfaithful narratives', () => {
++  const draftFor = (verdict: PostureVerdict, text: string, over = {}) => {
++    const d = renderPostureTemplate(verdict);
++    return { text, assertions: { ...d.assertions, ...over } };
++  };
++  it('wrong position assertion', () => {
++    const d = draftFor(base, 'Shoulder-line tilt: 1.2° ± 0.6°; within the 0-5 deg reference.', { position: 'above' });
++    expect(checkPostureConsistency(base, d).consistent).toBe(false);
++  });
++  it('invented number', () => {
++    const d = draftFor(base, 'Shoulder-line tilt: 1.2° ± 0.6°; within the 0-5 deg reference; about 12° from level.');
++    const r = checkPostureConsistency(base, d);
++    expect(r.consistent).toBe(false);
++    expect(r.violations.join(' ')).toMatch(/12/);
++  });
++  it('flipped direction in prose', () => {
++    const v = row({ position: 'above', estimate: { value: 9.3, uncertainty: 1.1 } });
++    const d = draftFor(v, 'Shoulder-line tilt: 9.3° ± 1.1°; below the 0-5 deg reference by about 4.3°.');
++    expect(checkPostureConsistency(v, d).consistent).toBe(false);
++  });
++  it('banned phrase in prose', () => {
++    const d = draftFor(base, 'Shoulder-line tilt: 1.2° ± 0.6°; within the 0-5 deg reference, which is normal.');
++    expect(checkPostureConsistency(base, d).consistent).toBe(false);
++  });
++  it('a reference claim when none is set', () => {
++    const v = row({ position: 'no_reference', reference: null });
++    const d = draftFor(v, 'Shoulder-line tilt: 1.2° ± 0.6°; within the usual reference.');
++    expect(checkPostureConsistency(v, d).consistent).toBe(false);
++  });
++  it('a value on a not-measured row', () => {
++    const v = CASES[6][1];
++    const d = draftFor(v, 'Shoulder-line tilt: not measured; about 3° from level.');
++    expect(checkPostureConsistency(v, d).consistent).toBe(false);
++  });
++  it('a banned phrase supplied through the label escalates the whole row', () => {
++    const v = row({ label: 'Scoliosis angle' });
++    expect(checkPostureConsistency(v, renderPostureTemplate(v)).consistent).toBe(false);
++  });
++});
++
++describe('explainPostureRow', () => {
++  it('uses the deterministic template by default', async () => {
++    const r = await explainPostureRow(base);
++    expect(r.status).toBe('template');
++    expect(r.text).toContain('within the 0-5 deg reference');
++    expect(r.escalate).toBe(false);
++  });
++
++  it('accepts an injected narrator that passes the guard', async () => {
++    const good: PostureProvider = {
++      name: 'fake-llm',
++      generate: ({ verdict }) => renderPostureTemplate(verdict),
++    };
++    const r = await explainPostureRow(base, { provider: good });
++    expect(r.status).toBe('llm');
++    expect(r.source).toBe('fake-llm');
++  });
++
++  it('discards a contradicting narrator output, retries, then escalates with no text', async () => {
++    let calls = 0;
++    const bad: PostureProvider = {
++      name: 'bad-llm',
++      generate: ({ verdict }) => {
++        calls++;
++        return { ...renderPostureTemplate(verdict), text: 'Looks perfect, textbook alignment.' };
++      },
++    };
++    const r = await explainPostureRow(base, { provider: bad, maxAttempts: 2 });
++    expect(calls).toBe(2);
++    expect(r.status).toBe('escalated');
++    expect(r.text).toBeNull();
++    expect(r.escalate).toBe(true);
++  });
++
++  it('falls back to the template (flagged) when the provider throws', async () => {
++    const down: PostureProvider = { name: 'down', generate: () => { throw new Error('unavailable'); } };
++    const r = await explainPostureRow(base, { provider: down });
++    expect(r.status).toBe('template_fallback');
++    expect(r.flagged).toBe(true);
++    expect(r.text).not.toBeNull();
++  });
++});
++
++describe('request validation and handler', () => {
++  const ok = { verdicts: [base] };
++
++  it('accepts a well-formed request', () => {
++    expect(validateExplainRequest(ok)).toEqual({ ok: true, verdicts: [base] });
++  });
++  it('rejects unknown fields so identifiers cannot ride along', () => {
++    const r = validateExplainRequest({ verdicts: [{ ...base, patientName: 'x' }] });
++    expect(r.ok).toBe(false);
++    const r2 = validateExplainRequest({ verdicts: [base], sessionId: 's1' });
++    expect(r2.ok).toBe(false);
++  });
++  it('rejects empty, oversized and malformed bodies', () => {
++    expect(validateExplainRequest({ verdicts: [] }).ok).toBe(false);
++    expect(validateExplainRequest({ verdicts: Array(201).fill(base) }).ok).toBe(false);
++    expect(validateExplainRequest(null).ok).toBe(false);
++    expect(validateExplainRequest({ verdicts: [{ ...base, position: 'great' }] }).ok).toBe(false);
++  });
++  it('rejects duplicate row ids', () => {
++    expect(validateExplainRequest({ verdicts: [base, base] }).ok).toBe(false);
++  });
++  it('rejects a position that disagrees with the numbers (never reclassify)', async () => {
++    const r = await handleExplainRequest({ verdicts: [row({ position: 'within', estimate: { value: 9.3, uncertainty: 1.1 } })] });
++    expect(r.status).toBe(422);
++  });
++  it('explains every row and reports the explanation version', async () => {
++    const r = await handleExplainRequest({ verdicts: CASES.map(([, v], i) => ({ ...v, rowId: `r${i}` })) });
++    expect(r.status).toBe(200);
++    const body = r.body as { explanationVersion: string; results: Array<{ rowId: string; text: string | null }> };
++    expect(body.explanationVersion).toMatch(/^posture-explain\//);
++    expect(body.results).toHaveLength(CASES.length);
++    expect(body.results.every((x) => typeof x.text === 'string')).toBe(true);
++  });
++});
+diff --git a/ANUClaw/src/cds/posture-explanation/prompt.ts b/ANUClaw/src/cds/posture-explanation/prompt.ts
+new file mode 100644
+index 0000000..2111db3
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/prompt.ts
+@@ -0,0 +1,34 @@
++/**
++ * Prompt for an injected model narrator. The deterministic template ignores it.
++ * Not wired to any model yet; see index.ts.
++ */
++import { deviationFrom, round1 } from './format';
++import type { PostureVerdict } from './types';
++
++export function buildPosturePrompt(v: PostureVerdict): string {
++  const facts = {
++    rowId: v.rowId,
++    metricKey: v.metricKey,
++    label: v.label,
++    tier: v.tier,
++    unit: v.unit,
++    side: v.side,
++    position: v.position,
++    value: v.estimate ? round1(v.estimate.value) : null,
++    uncertainty: v.estimate ? round1(v.estimate.uncertainty) : null,
++    reference: v.reference ? v.reference.label : null,
++    deviation: deviationFrom(v.position, v.estimate, v.reference) ?? null,
++    unsupportedReasons: v.unsupportedReasons ?? [],
++  };
++  return [
++    'You write ONE short sentence describing a camera-based body measurement.',
++    'You describe; you never grade, diagnose, explain causes, predict, or advise.',
++    'Use only the numbers below. Do not add any other number. Do not name any condition.',
++    'Say whether the value is within, above or below the reference, or that its uncertainty overlaps it,',
++    'or that no reference is set, or that it was not measured - exactly as the position states.',
++    'Return STRICT JSON: { "text": string, "assertions": { "rowId", "metricKey", "position", "side", "value", "deviation" } }.',
++    '',
++    'ROW FACTS (authoritative - do not alter):',
++    JSON.stringify(facts, null, 2),
++  ].join('\n');
++}
+diff --git a/ANUClaw/src/cds/posture-explanation/template-provider.ts b/ANUClaw/src/cds/posture-explanation/template-provider.ts
+new file mode 100644
+index 0000000..4febc50
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/template-provider.ts
+@@ -0,0 +1,62 @@
++/**
++ * Deterministic narrator: builds one sentence from the row's own numbers, so it is
++ * faithful by construction and always passes the consistency guard. It is the default
++ * narrator, the fallback when an injected model is unavailable, and uses no model.
++ * Wording describes the measurement against the stated reference - never a grade,
++ * a cause, a condition or advice.
++ */
++import { deviationFrom, fmt, reasonsText, round1, unitText } from './format';
++import type { PostureDraft, PostureProvider, PostureVerdict } from './types';
++
++function sideText(side: PostureVerdict['side']): string {
++  return side === 'left' ? ' (left)' : side === 'right' ? ' (right)' : '';
++}
++
++export function renderPostureTemplate(v: PostureVerdict): PostureDraft {
++  const head = `${v.label}${sideText(v.side)}`;
++  const u = unitText(v.unit);
++  const e = v.estimate ?? null;
++  const ref = v.reference ?? null;
++  const proxy = v.tier === 'proxy' ? ' This is a proxy measure.' : '';
++  const measured = e ? `${head}: ${fmt(e.value)}${u} ± ${fmt(e.uncertainty)}${u}` : head;
++  let text: string;
++
++  switch (v.position) {
++    case 'within':
++      text = `${measured}; within the ${ref?.label} reference.${proxy}`;
++      break;
++    case 'above':
++    case 'below': {
++      const d = deviationFrom(v.position, e, ref);
++      text = `${measured}; ${v.position} the ${ref?.label} reference by about ${fmt(d ?? 0)}${u}.${proxy}`;
++      break;
++    }
++    case 'indeterminate':
++      text = `${measured}; the uncertainty overlaps the ${ref?.label} reference.${proxy}`;
++      break;
++    case 'no_reference':
++      text = `${measured}. No reference value is set for this measurement.${proxy}`;
++      break;
++    case 'not_applicable':
++    default:
++      text = `${head}: not measured - ${reasonsText(v.unsupportedReasons)}.`;
++      break;
++  }
++
++  return {
++    text,
++    assertions: {
++      rowId: v.rowId,
++      metricKey: v.metricKey,
++      position: v.position,
++      side: v.side,
++      value: e ? round1(e.value) : undefined,
++      deviation: deviationFrom(v.position, e, ref),
++    },
++  };
++}
++
++export const deterministicPostureProvider: PostureProvider = {
++  name: 'deterministic-template',
++  generate: ({ verdict }) => renderPostureTemplate(verdict),
++};
+diff --git a/ANUClaw/src/cds/posture-explanation/types.ts b/ANUClaw/src/cds/posture-explanation/types.ts
+new file mode 100644
+index 0000000..5ecae0e
+--- /dev/null
++++ b/ANUClaw/src/cds/posture-explanation/types.ts
+@@ -0,0 +1,90 @@
++/**
++ * Posture-report explanation layer types.
++ *
++ * Same authority model as src/cds/explanation: a deterministic caller (the
++ * beAIve report builder) has already measured and classified each row. This layer only
++ * DESCRIBES a row in one sentence and can never change a number or a position. Every
++ * narrative - template or injected model - must pass the consistency guard.
++ *
++ * The request carries no patient or session identifiers by design (validate.ts
++ * rejects unknown fields).
++ */
++
++export type PosturePosition =
++  | 'below' | 'within' | 'above' | 'indeterminate' | 'no_reference' | 'not_applicable';
++export type PostureTier = 'estimate' | 'proxy' | 'entered' | 'annotated';
++export type PostureUnit = 'deg' | 'cm' | 'percent_stature' | 's' | 'count' | 'per_min' | 'percent' | 'none';
++export type PostureSide = 'left' | 'right' | 'bilateral' | null;
++
++export interface PostureVerdict {
++  /** Caller's row id, echoed back. Not an identifier of a person. */
++  rowId: string;
++  metricKey: string;
++  /** Descriptive name supplied by the caller. Checked against the banned-phrase list. */
++  label: string;
++  tier: PostureTier;
++  unit: PostureUnit;
++  side: PostureSide;
++  position: PosturePosition;
++  estimate?: { value: number; uncertainty: number } | null;
++  reference?: {
++    kind: 'geometric' | 'literature';
++    /** Human label, e.g. "0-5 deg". */
++    label: string;
++    min: number;
++    max: number;
++    status: 'draft' | 'approved';
++  } | null;
++  /** Plain reason codes (quality-gate vocabulary) when the row could not be measured. */
++  unsupportedReasons?: string[];
++}
++
++export interface PostureAssertions {
++  rowId: string;
++  metricKey: string;
++  position: PosturePosition;
++  side: PostureSide;
++  /** Value rounded to 0.1, absent when the row has no estimate. */
++  value?: number;
++  /** Distance of the estimate from the nearest reference bound (0.1), only for above/below. */
++  deviation?: number;
++}
++
++export interface PostureDraft {
++  text: string;
++  assertions: PostureAssertions;
++}
++
++export interface PostureProviderInput {
++  prompt: string;
++  verdict: PostureVerdict;
++  attempt: number;
++}
++
++export interface PostureProvider {
++  name: string;
++  generate(input: PostureProviderInput): PostureDraft | Promise<PostureDraft>;
++}
++
++export interface PostureConsistency {
++  consistent: boolean;
++  violations: string[];
++}
++
++export type PostureExplanationStatus = 'template' | 'llm' | 'template_fallback' | 'escalated';
++
++export interface PostureExplanation {
++  rowId: string;
++  status: PostureExplanationStatus;
++  /** null when escalated: the caller must use its own fixed sentence. */
++  text: string | null;
++  assertions: PostureAssertions | null;
++  source: string;
++  attempts: number;
++  escalate: boolean;
++  flagged: boolean;
++  consistency: PostureConsistency;
++  audit: Array<{ type: string; attempt: number; detail?: string }>;
++}
++
++export const EXPLANATION_VERSION = 'posture-explain/v0';
+-- 
+2.53.0
+
+
+From e9c2d89aaea3f07dfbbecc542001b6d790e2cbee Mon Sep 17 00:00:00 2001
+From: beAIve dev <dev@beaive.com>
+Date: Fri, 23 Oct 2026 16:54:23 +0530
+Subject: [PATCH 2/2] Posture explain: OpenRouter narrator (benchmarked default
+ model), env wiring, bench script
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+---
+ ANUClaw/scripts/posture-model-bench.ts        | 78 +++++++++++++++++++
+ ANUClaw/src/api/posture-llm.test.ts           | 61 +++++++++++++++
+ ANUClaw/src/api/posture-llm.ts                | 73 +++++++++++++++++
+ ANUClaw/src/api/routes/posture.ts             |  8 +-
+ ANUClaw/src/cds/posture-explanation/README.md |  9 +++
+ .../posture-explanation/consistency-guard.ts  |  4 +-
+ ANUClaw/src/cds/posture-explanation/prompt.ts |  4 +-
+ 7 files changed, 232 insertions(+), 5 deletions(-)
+ create mode 100644 ANUClaw/scripts/posture-model-bench.ts
+ create mode 100644 ANUClaw/src/api/posture-llm.test.ts
+ create mode 100644 ANUClaw/src/api/posture-llm.ts
+
+diff --git a/ANUClaw/scripts/posture-model-bench.ts b/ANUClaw/scripts/posture-model-bench.ts
+new file mode 100644
+index 0000000..1a66a02
+--- /dev/null
++++ b/ANUClaw/scripts/posture-model-bench.ts
+@@ -0,0 +1,78 @@
++/**
++ * Benchmarks candidate OpenRouter models as the posture-sentence narrator, through the
++ * real consistency guard. Usage: OPENROUTER_API_KEY=... tsx scripts/posture-model-bench.ts [model ...]
++ * Rows are synthetic; no patient data is ever sent. The key is read from the environment only.
++ */
++import { buildPosturePrompt } from '../src/cds/posture-explanation/prompt';
++import { checkPostureConsistency } from '../src/cds/posture-explanation/consistency-guard';
++import { computePosition } from '../src/cds/posture-explanation/format';
++import type { PostureVerdict } from '../src/cds/posture-explanation/types';
++import { createOpenRouterPostureProvider } from '../src/api/posture-llm';
++
++const KEY = process.env.OPENROUTER_API_KEY;
++if (!KEY) { console.error('OPENROUTER_API_KEY not set'); process.exit(1); }
++
++const MODELS = process.argv.slice(2).length ? process.argv.slice(2) : [
++  'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'mistralai/mistral-small-3.2-24b-instruct',
++  'deepseek/deepseek-v4-flash', 'qwen/qwen3.7-flash', 'google/gemma-3-12b-it', 'meta-llama/llama-3.1-8b-instruct',
++];
++const RUNS = Number(process.env.RUNS ?? 2);
++
++const ref = (label: string, min: number, max: number) => ({ kind: 'geometric' as const, label, min, max, status: 'draft' as const });
++function row(i: number, o: Partial<PostureVerdict> & { v?: number; u?: number; r?: ReturnType<typeof ref> | null }): PostureVerdict {
++  const estimate = o.estimate === undefined ? { value: o.v ?? 1, uncertainty: o.u ?? 1 } : o.estimate;
++  const reference = o.r === undefined ? (o.reference ?? ref('0 deg', 0, 0)) : o.r;
++  const v: PostureVerdict = { rowId: `r${i}`, metricKey: 'static.x', label: 'Shoulder-line tilt', tier: 'proxy', unit: 'deg', side: null,
++    position: 'within', estimate, reference, ...o } as PostureVerdict;
++  delete (v as any).v; delete (v as any).u; delete (v as any).r;
++  v.estimate = estimate; v.reference = reference;
++  v.position = computePosition(estimate, reference);
++  return v;
++}
++const ROWS: PostureVerdict[] = [
++  row(1, { v: 1.2, u: 0.6, r: ref('0-5 deg', 0, 5) }),
++  row(2, { v: 9.3, u: 1.1, r: ref('0-5 deg', 0, 5) }),
++  row(3, { v: -4.4, u: 0.5, r: ref('0-5 deg', 0, 5), label: 'Hip-line tilt' }),
++  row(4, { v: 5.2, u: 1.5, r: ref('0-5 deg', 0, 5), label: 'Knee extension', side: 'left', tier: 'estimate' }),
++  row(5, { v: 3.1, u: 0.8, r: null, label: 'Head-shoulder angle' }),
++  row(6, { v: 2.6, u: 1.5, r: ref('0 deg', 0, 0), label: 'Trunk lateral lean', tier: 'estimate' }),
++  row(7, { v: 6.8, u: 0.9, r: ref('0 percent_stature', 0, 0), label: 'Lateral body shift', unit: 'percent_stature', tier: 'estimate' }),
++  row(8, { estimate: null, r: ref('0 deg', 0, 0), label: 'Hip-line tilt', unsupportedReasons: ['out_of_frame'] }),
++  row(9, { v: 0.3, u: 0.2, r: ref('0-5 deg', 0, 5), label: 'Knee frontal alignment', side: 'right' }),
++  row(10, { v: 12.4, u: 2.0, r: ref('0-10 cm', 0, 10), label: 'Plumb offset at ear', unit: 'cm', tier: 'estimate' }),
++];
++
++let catalog: any[] = [];
++const price = (id: string) => { const m = catalog.find((x) => x.id === id); return m ? [Number(m.pricing.prompt) * 1e6, Number(m.pricing.completion) * 1e6] : [NaN, NaN]; };
++
++async function ask(model: string, v: PostureVerdict) {
++  const provider = createOpenRouterPostureProvider({ apiKey: KEY as string, model, timeoutMs: 40000 });
++  const t0 = Date.now();
++  try {
++    const draft = await provider.generate({ prompt: buildPosturePrompt(v), verdict: v, attempt: 1 });
++    const c = checkPostureConsistency(v, draft);
++    return { ok: c.consistent, err: c.consistent ? '' : c.violations[0], ms: Date.now() - t0, pt: 0, ct: 0, text: draft.text };
++  } catch (e) {
++    return { ok: false, err: String(e instanceof Error ? e.message : e).slice(0, 80), ms: Date.now() - t0, pt: 0, ct: 0 };
++  }
++}
++
++async function main() {
++  catalog = (await (await fetch('https://openrouter.ai/api/v1/models')).json() as any).data;
++  console.log(`rows=${ROWS.length} runs=${RUNS}`);
++  for (const model of MODELS) {
++    let pass = 0, total = 0, ms = 0, pt = 0, ct = 0; const fails: string[] = []; let sample = '';
++    for (let r = 0; r < RUNS; r++) for (const v of ROWS) {
++      const out = await ask(model, v).catch((e) => ({ ok: false, err: String(e), ms: 0, pt: 0, ct: 0 } as any));
++      total++; ms += out.ms; pt += out.pt; ct += out.ct;
++      if (out.ok) { pass++; sample ||= (out as any).text; } else fails.push(`${v.rowId}:${out.err}`);
++    }
++    const [pi, po] = price(model);
++    const per1k = ((300 * pi + 60 * po) / 1e6) * 1000; // ~300 prompt + ~60 completion tokens per row
++    console.log(`${model.padEnd(42)} pass ${String(pass).padStart(2)}/${total}  avg ${Math.round(ms / total)}ms  ~$${per1k.toFixed(4)} per 1000 rows`);
++    if (fails.length) console.log(`   fails: ${[...new Set(fails)].slice(0, 4).join(' | ')}`);
++    if (sample) console.log(`   e.g. ${sample}`);
++  }
++
++}
++main().catch((e) => { console.error(String(e).replace(/sk-[A-Za-z0-9_-]+/g, '<redacted>')); process.exit(1); });
+diff --git a/ANUClaw/src/api/posture-llm.test.ts b/ANUClaw/src/api/posture-llm.test.ts
+new file mode 100644
+index 0000000..d124abc
+--- /dev/null
++++ b/ANUClaw/src/api/posture-llm.test.ts
+@@ -0,0 +1,61 @@
++import { describe, it, expect } from 'vitest';
++import { createOpenRouterPostureProvider } from './posture-llm';
++import { explainPostureRow } from '../cds/posture-explanation';
++import type { PostureVerdict } from '../cds/posture-explanation';
++
++const verdict: PostureVerdict = {
++  rowId: 'r1', metricKey: 'static.shoulder_line_tilt', label: 'Shoulder-line tilt', tier: 'proxy', unit: 'deg', side: null,
++  position: 'above', estimate: { value: 9.3, uncertainty: 1.1 },
++  reference: { kind: 'geometric', label: '0-5 deg', min: 0, max: 5, status: 'draft' },
++};
++const reply = (content: string, ok = true) =>
++  (async () => ({ ok, status: ok ? 200 : 503, json: async () => ({ choices: [{ message: { content } }] }) })) as unknown as typeof fetch;
++const provider = (f: typeof fetch) => createOpenRouterPostureProvider({ apiKey: 'sk-or-test-key', model: 'm/x', fetchImpl: f });
++
++describe('openrouter posture narrator', () => {
++  it('accepts a faithful sentence and keeps the structured fields from the verdict', async () => {
++    const f = reply(JSON.stringify({ text: 'Shoulder-line tilt: 9.3° ± 1.1°; above the 0-5 deg reference by about 4.3°.' }));
++    const r = await explainPostureRow(verdict, { provider: provider(f) });
++    expect(r.status).toBe('llm');
++    expect(r.source).toBe('openrouter:m/x');
++  });
++  it('escalates when the model invents a number', async () => {
++    const f = reply(JSON.stringify({ text: 'Shoulder-line tilt: 9.3° ± 1.1°; above the 0-5 deg reference, about 20° off.' }));
++    const r = await explainPostureRow(verdict, { provider: provider(f), maxAttempts: 2 });
++    expect(r.status).toBe('escalated');
++    expect(r.text).toBeNull();
++  });
++  it('escalates when the model uses causal or grading words', async () => {
++    const f = reply(JSON.stringify({ text: 'Shoulder-line tilt: 9.3° ± 1.1°; above the 0-5 deg reference due to desk work.' }));
++    expect((await explainPostureRow(verdict, { provider: provider(f), maxAttempts: 1 })).status).toBe('escalated');
++  });
++  it('falls back to the template when the API errors or returns junk', async () => {
++    expect((await explainPostureRow(verdict, { provider: provider(reply('', false)) })).status).toBe('template_fallback');
++    expect((await explainPostureRow(verdict, { provider: provider(reply('not json at all')) })).status).toBe('template_fallback');
++  });
++  it('never puts the key in an error or audit trail', async () => {
++    const r = await explainPostureRow(verdict, { provider: provider(reply('', false)) });
++    expect(JSON.stringify(r)).not.toContain('sk-or-test-key');
++  });
++});
++
++import { postureProviderFromEnv, DEFAULT_POSTURE_MODEL } from './posture-llm';
++
++describe('postureProviderFromEnv', () => {
++  it('returns undefined (deterministic template only) when no key is configured', () => {
++    expect(postureProviderFromEnv({})).toBeUndefined();
++    expect(postureProviderFromEnv({ OPENROUTER_API_KEY: '   ' })).toBeUndefined();
++  });
++  it('uses the benchmarked default model', () => {
++    const p = postureProviderFromEnv({ OPENROUTER_API_KEY: 'k' });
++    expect(DEFAULT_POSTURE_MODEL).toBe('mistralai/mistral-small-3.2-24b-instruct');
++    expect(p?.name).toBe(`openrouter:${DEFAULT_POSTURE_MODEL}`);
++  });
++  it('prefers POSTURE_LLM_API_KEY and honours POSTURE_LLM_MODEL', () => {
++    const p = postureProviderFromEnv({ POSTURE_LLM_API_KEY: 'a', OPENROUTER_API_KEY: 'b', POSTURE_LLM_MODEL: 'x/y' });
++    expect(p?.name).toBe('openrouter:x/y');
++  });
++  it('can be switched off even when a key is present', () => {
++    expect(postureProviderFromEnv({ OPENROUTER_API_KEY: 'k', POSTURE_LLM_DISABLED: '1' })).toBeUndefined();
++  });
++});
+diff --git a/ANUClaw/src/api/posture-llm.ts b/ANUClaw/src/api/posture-llm.ts
+new file mode 100644
+index 0000000..2dde9e7
+--- /dev/null
++++ b/ANUClaw/src/api/posture-llm.ts
+@@ -0,0 +1,73 @@
++/**
++ * Model-backed narrator for POST /v1/posture/explain, via OpenRouter. Lives outside
++ * src/cds so the decision core stays model-free. The model supplies ONLY the sentence;
++ * the structured assertions come from the verdict itself, and the sentence is then
++ * checked by the consistency guard (banned phrases, numbers the row does not own,
++ * direction vs. position). A failure here never changes a number or a classification.
++ * The API key is read from the environment by the caller and never logged.
++ */
++import { renderPostureTemplate } from '../cds/posture-explanation/template-provider';
++import type { PostureProvider } from '../cds/posture-explanation/types';
++
++export interface OpenRouterPostureOptions {
++  apiKey: string;
++  model: string;
++  baseUrl?: string;
++  timeoutMs?: number;
++  fetchImpl?: typeof fetch;
++}
++
++export function createOpenRouterPostureProvider(opts: OpenRouterPostureOptions): PostureProvider {
++  const doFetch = opts.fetchImpl ?? fetch;
++  const url = `${opts.baseUrl ?? 'https://openrouter.ai/api/v1'}/chat/completions`;
++  return {
++    name: `openrouter:${opts.model}`,
++    async generate({ prompt, verdict }) {
++      const res = await doFetch(url, {
++        method: 'POST',
++        headers: {
++          Authorization: `Bearer ${opts.apiKey}`,
++          'Content-Type': 'application/json',
++          'X-Title': 'beAIve posture explain',
++        },
++        body: JSON.stringify({
++          model: opts.model,
++          temperature: 0,
++          max_tokens: 300,
++          response_format: { type: 'json_object' },
++          messages: [{ role: 'user', content: prompt }],
++        }),
++        signal: AbortSignal.timeout(opts.timeoutMs ?? 15000),
++      });
++      if (!res.ok) throw new Error(`openrouter HTTP ${res.status}`);
++      const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
++      const content = body.choices?.[0]?.message?.content ?? '';
++      const start = content.indexOf('{');
++      const end = content.lastIndexOf('}');
++      let text: unknown;
++      try {
++        text = JSON.parse(content.slice(start, end + 1)).text;
++      } catch {
++        throw new Error('openrouter response was not JSON');
++      }
++      if (typeof text !== 'string' || !text.trim()) throw new Error('openrouter response had no text');
++      return { text: text.trim(), assertions: renderPostureTemplate(verdict).assertions };
++    },
++  };
++}
++
++/**
++ * Chosen by scripts/posture-model-bench.ts on synthetic rows through the real consistency
++ * guard (30/30 faithful sentences, ~1 s, about $0.035 per 1,000 rows). No medical-tuned model
++ * is listed on OpenRouter; for one-sentence measurement wording a medical model adds nothing
++ * and the guard, not the model, is what keeps the text safe.
++ */
++export const DEFAULT_POSTURE_MODEL = 'mistralai/mistral-small-3.2-24b-instruct';
++
++/** undefined means: use the deterministic template only (no key, or switched off). */
++export function postureProviderFromEnv(env: Record<string, string | undefined>): PostureProvider | undefined {
++  if (env.POSTURE_LLM_DISABLED === '1') return undefined;
++  const apiKey = (env.POSTURE_LLM_API_KEY ?? env.OPENROUTER_API_KEY ?? '').trim();
++  if (!apiKey) return undefined;
++  return createOpenRouterPostureProvider({ apiKey, model: (env.POSTURE_LLM_MODEL ?? '').trim() || DEFAULT_POSTURE_MODEL });
++}
+diff --git a/ANUClaw/src/api/routes/posture.ts b/ANUClaw/src/api/routes/posture.ts
+index 1895e2d..e721aa5 100644
+--- a/ANUClaw/src/api/routes/posture.ts
++++ b/ANUClaw/src/api/routes/posture.ts
+@@ -9,13 +9,17 @@
+ import { Router, Request, Response } from 'express';
+ import { handleExplainRequest } from '../../cds/posture-explanation';
+ import { logger } from '../../logger';
++import { postureProviderFromEnv } from '../posture-llm';
++import type { PostureProvider } from '../../cds/posture-explanation';
+ 
+-export function createPostureRouter(): Router {
++export function createPostureRouter(deps: { provider?: PostureProvider } = {}): Router {
+   const router = Router();
++  // Model narrator only when a key is configured; every sentence still passes the guard.
++  const provider = deps.provider ?? postureProviderFromEnv(process.env);
+ 
+   router.post('/explain', async (req: Request, res: Response) => {
+     try {
+-      const { status, body } = await handleExplainRequest(req.body);
++      const { status, body } = await handleExplainRequest(req.body, { provider });
+       res.status(status).json(body);
+     } catch (err) {
+       // Fail closed: no sentence is better than a guessed one; the caller has its own fixed text.
+diff --git a/ANUClaw/src/cds/posture-explanation/README.md b/ANUClaw/src/cds/posture-explanation/README.md
+index 42630f6..2f4e285 100644
+--- a/ANUClaw/src/cds/posture-explanation/README.md
++++ b/ANUClaw/src/cds/posture-explanation/README.md
+@@ -17,3 +17,12 @@ decided upstream; this layer only describes; the consistency guard rejects any s
+ with a banned phrase, a number the row does not own, or a direction that contradicts the
+ position. No model is wired in: the deterministic template is the default narrator, and a
+ `PostureProvider` can be injected (outside `src/cds`) later.
++
++## Model narrator (optional)
++
++Set `OPENROUTER_API_KEY` (or `POSTURE_LLM_API_KEY`) in the server environment and the endpoint asks a model for the
++sentence; `POSTURE_LLM_MODEL` overrides the default `mistralai/mistral-small-3.2-24b-instruct`, and
++`POSTURE_LLM_DISABLED=1` forces the deterministic template. With no key, only the template is used. The model
++supplies only the text - structured fields come from the row - and every sentence still goes through the guard;
++failures escalate to the caller's own fixed sentence. Model choice: `scripts/posture-model-bench.ts`
++(`OPENROUTER_API_KEY=... npx tsx scripts/posture-model-bench.ts [model ...]`).
+diff --git a/ANUClaw/src/cds/posture-explanation/consistency-guard.ts b/ANUClaw/src/cds/posture-explanation/consistency-guard.ts
+index 095de90..4c595b0 100644
+--- a/ANUClaw/src/cds/posture-explanation/consistency-guard.ts
++++ b/ANUClaw/src/cds/posture-explanation/consistency-guard.ts
+@@ -33,9 +33,9 @@ export function checkPostureConsistency(v: PostureVerdict, draft: PostureDraft):
+   if (a.position !== v.position) out.push(`position mismatch: narrative asserts '${a.position}' but row is '${v.position}'`);
+   if ((a.side ?? null) !== (v.side ?? null)) out.push(`side mismatch: '${a.side}' vs '${v.side}'`);
+   const expectedValue = e ? round1(e.value) : undefined;
+-  if (a.value !== expectedValue) out.push(`value mismatch: '${a.value}' vs '${expectedValue}'`);
++  if ((a.value ?? undefined) !== expectedValue) out.push(`value mismatch: '${a.value}' vs '${expectedValue}'`);
+   const expectedDev = deviationFrom(v.position, e, ref);
+-  if (a.deviation !== expectedDev) out.push(`deviation mismatch: '${a.deviation}' vs '${expectedDev}'`);
++  if ((a.deviation ?? undefined) !== expectedDev) out.push(`deviation mismatch: '${a.deviation}' vs '${expectedDev}'`);
+ 
+   // ── Layer B ───────────────────────────────────────────────────────────────
+   const allowed: number[] = [];
+diff --git a/ANUClaw/src/cds/posture-explanation/prompt.ts b/ANUClaw/src/cds/posture-explanation/prompt.ts
+index 2111db3..570348d 100644
+--- a/ANUClaw/src/cds/posture-explanation/prompt.ts
++++ b/ANUClaw/src/cds/posture-explanation/prompt.ts
+@@ -26,7 +26,9 @@ export function buildPosturePrompt(v: PostureVerdict): string {
+     'Use only the numbers below. Do not add any other number. Do not name any condition.',
+     'Say whether the value is within, above or below the reference, or that its uncertainty overlaps it,',
+     'or that no reference is set, or that it was not measured - exactly as the position states.',
+-    'Return STRICT JSON: { "text": string, "assertions": { "rowId", "metricKey", "position", "side", "value", "deviation" } }.',
++    'Do not explain why, do not use words like "due to", "because" or "indicates", and do not name any condition.',
++    'Name the measurement using the label exactly as given. Write the numbers exactly as given.',
++    'Return STRICT JSON with a single key: { "text": string }. Nothing else.',
+     '',
+     'ROW FACTS (authoritative - do not alter):',
+     JSON.stringify(facts, null, 2),
+-- 
+2.53.0
+

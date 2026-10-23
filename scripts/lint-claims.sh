@@ -12,6 +12,7 @@ BANNED_PATTERN='diagnos|clinically validated|medically safe|cures|prevents injur
 EXCLUDE_DIRS=(
   "./docs"
   "./.git"
+  "./.claude"
   "./node_modules"
   "*/node_modules/*"
   "./services/*/node_modules"

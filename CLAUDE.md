@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> **Active work in progress:** read `docs/HANDOFF.md` first — current state, remaining tasks in order, server/TestFlight facts and gotchas.
+
 Guidance for Claude Code (or any agent) working in this repository.
 
 ## What this repo is
