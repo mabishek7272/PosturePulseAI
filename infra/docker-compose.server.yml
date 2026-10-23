@@ -2,7 +2,9 @@
 # The host's own nginx terminates TLS for posture.beaive.com and proxies to
 # backend-api on 127.0.0.1:3100. Nothing else is published; other projects on
 # the host keep their ports. Secrets come from infra/.env (root/owner-only):
-#   POSTGRES_PASSWORD=...   JWT_SECRET=...
+#   POSTGRES_PASSWORD=...   JWT_SECRET=...   PATIENT_DATA_KEY=...
+# PATIENT_DATA_KEY is 32 random bytes, base64 (openssl rand -base64 32). Back it up
+# separately from the database: without it the patient register cannot be read.
 #
 #   docker compose -f infra/docker-compose.yml -f infra/docker-compose.server.yml \
 #     --env-file infra/.env up -d --build
@@ -35,6 +37,7 @@ services:
     environment:
       DATABASE_URL: postgresql://beaive:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}@postgres:5432/beaive
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in infra/.env}
+      PATIENT_DATA_KEY: ${PATIENT_DATA_KEY:?set PATIENT_DATA_KEY in infra/.env}
     restart: unless-stopped
     deploy:
       resources:
