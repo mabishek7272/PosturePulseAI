@@ -1,13 +1,16 @@
 # iOS "neon shell" redesign — design
 
-Status: approved (brainstormed interactively with visual-companion mockups) · 2026-10-23
+Status: approved (brainstormed interactively with visual-companion mockups) · 2026-10-23, amended same day to
+add §9 (report screen)
 
 ## 1. Goal
 
 The owner's reaction to the current "clinical instrument on paper" look (`Sources/DesignSystem/Theme.swift`)
 on a real device was that it feels flat and unexciting. This spec adds an energetic, animated, "neon" visual
-layer to the **app shell** — splash, mode chooser, and the live capture screen — while leaving the report
-screens exactly as they are.
+layer to the **app shell** — splash, mode chooser, and the live capture screen — while leaving the report's
+own *measurements and wording* exactly as they are. §9 (added after seeing competitor reference screenshots)
+extends a **constrained, branded dark treatment** to the report screen's chrome — still never touching a
+measured value, a position judgement, or any copy string.
 
 ## 2. Scope
 
@@ -19,10 +22,15 @@ screens exactly as they are.
   gains an animated 13-joint neon skeleton overlay traced over the camera preview during a hold.
 
 **Explicitly out of scope** — these do not change:
-- `Sources/Report/*` (the patient-facing report view) and anything under `apps/clinician-web/src/report/` —
-  CLAUDE.md rule 1 / `docs/claims-and-scope.md` require these stay neutral, never gamified, never implying a
-  graded score. The skeleton overlay is decoration for the *capture* screen only; it never appears once a
-  measurement exists.
+- `apps/clinician-web/src/report/` (the clinician dashboard) — web is a separate audience/brainstorm, see §5.
+- Inside `Sources/Report/*` (amended by §9): the *wording* (every copy string in `AssessmentReport.swift`'s
+  `introCopy`/`notMeasurableCopy`/`draftReferenceCopy`/`proxyCopy`/`percentCopy`/`notMeasuredCopy` and every
+  row's `analysis.text`, all server-authored and already passed through the backend's `assertClean()` banned-
+  phrase check), `ReferenceGauge`'s colour-neutral behavior, `TierChip`, the "not measured" presentation, and
+  every existing accessibility label are all **unchanged verbatim**. §9 restyles the screen's chrome (header,
+  background, branding, row interaction, a PDF export action) — CLAUDE.md rule 1 / `docs/claims-and-scope.md`
+  still rule out anything that grades a value or implies a score, and nothing in §9 does that. The skeleton
+  overlay from §3/§4.5 stays capture-screen-only; it never appears once a measurement exists.
 - The ML/measurement pipeline, `services/ml-service`, `packages/schemas`, ADR-018's scope decision
   (MediaPipe 2D, single camera, server-side). No AR framework, no PoseNet, no 3D pipeline, no new measurement
   source. The on-device `VisionPoseDetector` this overlay reads from is already guidance-only and already
@@ -135,15 +143,21 @@ for the overlay only.
 
 ## 5. What does NOT change
 
-- `AssessmentReportView` and all of `Sources/Report/` — no neon theme, no skeleton, no splash.
+- No neon *skeleton* or splash-style pulsing ring ever appears on the report screen — §9's dark treatment is
+  calmer and static/slow by design (see §9.4), distinct from the capture screen's energy.
 - The ML pipeline, `MetricResult`, `assessment-report` schema, `measurementMethod`/provenance work from this
-  session, the Study A agreement harness — nothing here touches any of that.
+  session, the Study A agreement harness — nothing here touches any of that. The report screen renders
+  whatever `AssessmentReport` the backend already sends; §9 changes no decoding, no model type beyond adding
+  a view-only "row expanded" UI state.
 - `services/backend-api`, `apps/clinician-web` — clinician dashboard keeps its existing look; this spec is
-  iOS-shell-only. (If the owner wants the same energy on the web dashboard later, that's a separate
-  brainstorm — web and iOS target different audiences: clinicians reviewing data vs. a patient starting a
-  session.)
+  iOS-only. (If the owner wants the same energy on the web dashboard later, that's a separate brainstorm — web
+  and iOS target different audiences: clinicians reviewing data vs. a patient reading their own report.)
 - Camera permission flow, consent flow, symptom-stop button, Keychain/token handling — all unrelated to this
   visual layer and untouched.
+- A thermal-asymmetry section, "Excellent"/"Textbook perfect"-style grading wording, and colour-coded
+  good/bad values were all shown as reference screenshots from a different app and explicitly **rejected** —
+  see §9.1. This product has no thermal/IR sensor (confirmed earlier in the project) and would be fabricating
+  a measurement by showing one; the grading wording is exactly what `docs/claims-and-scope.md` bans.
 
 ## 6. Animation & accessibility notes
 
@@ -173,7 +187,86 @@ for the overlay only.
   session — glow/blur performance on a 2018 iPhone XR is worth checking specifically since it's the oldest
   device in reach.
 
-## 8. Order of work
+## 9. Report screen — branded dark chrome, interactive rows, PDF export
+
+Added after reviewing the existing code: `Sources/Report/AssessmentReportView.swift` already renders each
+battery section as a dark "readout" panel (`Theme.readout`/`readoutRaised`), and `Sources/Report/ReferenceGauge.swift`
+already draws a colour-neutral estimate-vs-reference bar with a reveal animation that respects Reduce Motion —
+i.e. the "interactive position bar" from the brainstorm mockup **already exists** and needs no reinvention.
+What's actually missing against the mockups: the screen's outer background/header is still light paper with no
+brand mark, rows aren't individually collapsible, and there's no export action. This section is additive to
+the existing view, not a rewrite.
+
+### 9.1 What was rejected from the reference screenshots
+
+The owner shared three screenshots from a different app as inspiration. Two things from them are **not**
+going into this product and must not reappear in a later iteration without this being revisited explicitly:
+
+- A "Thermal Asymmetry" section (Trapezius ΔT, Lumbar ΔT) — this app has no thermal/IR sensor; showing one
+  would be fabricating a measurement (CLAUDE.md rule 3).
+- Wording like "Excellent", "Textbook perfect", "mathematically perfect neutral posture", "Typical for
+  screen-heavy workflows", "Worth monitoring if paired with unilateral back stiffness" — grading, causal and
+  prognosis language `docs/claims-and-scope.md` bans. The real report builder's `assertClean()`
+  (`services/backend-api/src/reports/report-builder.ts`) already refuses to build a report containing banned
+  wording, so this was never reachable through the real pipeline regardless.
+
+What *is* adopted from the reference: the clean 4-column conceptual layout (metric / your value / reference /
+analysis — already how `ReadoutRow` is organized today, just restyled) and the idea of a stronger, more
+confident visual presentation.
+
+### 9.2 Visual changes
+
+| Element | Today | New |
+|---|---|---|
+| Outer background | `paperBackground()` (light ivory) | Dark, matching `NeonTheme.bgDeep`/`bgGlow` family — but **no pulsing/glow animation**, a static radial gradient only (see §9.4). |
+| Header | `Eyebrow` + plain `Text` title, no logo | Adds `BrandHeader()` (already exists, used elsewhere, just not here) above the title, in its dark-background variant. |
+| Section readout panels | Already dark (`Theme.readout`) | Unchanged — they already read correctly against a dark outer background; today they sit awkwardly on light paper. |
+| `ReferenceGauge` | Already colour-neutral bar + marker + reveal animation | **Unchanged.** This is the "position bar" from the mockup. |
+| Row interaction | Analysis text always visible | Each `ReadoutRow` becomes tappable: collapsed by default shows metric/value/reference/position only; expanding reveals the analysis sentence and the `ReferenceGauge` detail, with a `.animation(reduceMotion ? nil : .easeInOut(duration: 0.2))` height transition. A chevron indicates state, mirroring the mockup. |
+| Export | None | A toolbar/footer "Share as PDF" action (§9.3). |
+
+`TierChip`, the "not measured" card, `notMeasurableList`, `footnote`, and every copy string are unchanged.
+
+### 9.3 PDF export (pulls forward a slice of M5)
+
+`docs/HANDOFF.md` §5 lists "PDF export is planned for M5 and is not built yet" as a standing decision — this
+adds a minimal version now, scoped to *exporting the screen the patient is already looking at*, not a
+separate print-layout engine:
+
+- A `ShareLink` (iOS 16+, already the project's deployment target) wrapping a `Transferable` that renders
+  `AssessmentReportView`'s content to a single tall PDF page via `UIGraphicsPDFRenderer` driving a
+  `UIHostingController`'s layer (`view.layer.render(in: context.cgContext)`), sized to the view's measured
+  content height (not the screen height) so nothing is cropped.
+- The rendered PDF uses the *current* on-screen state (no separate "print theme") — if all rows are
+  collapsed, the PDF is compact; if a patient wants the full detail in the PDF, they expand the rows first.
+  This keeps the exporter dead simple (one render path, not two) and is explicitly good-enough-for-v1; a
+  "always expand everything in the PDF" toggle is a reasonable follow-up if it turns out to matter in practice.
+- No server involvement — this is a client-side render of data the phone already fetched and already
+  displays. No new backend route, no new schema.
+
+### 9.4 Animation — report screen is deliberately calmer than the shell
+
+Unlike the splash/chooser/capture screens (§3's "Neon Clinical" energy — pulsing marks, drifting orbs,
+traveling light), the report screen's background gradient is **static**: no pulse, no drift. The only
+animations here are the existing `ReferenceGauge` reveal-on-appear and the new row-expand/collapse transition,
+both already short, purposeful, and Reduce-Motion-aware. This is a deliberate choice, not an oversight: a
+report a patient and clinician both rely on should feel steady, not like the capture screen's "exciting"
+energy — the dark/branded treatment is about confidence and polish, not spectacle.
+
+### 9.5 Testing
+
+- Existing `AssessmentReportView`/`ReferenceGauge`/report-related snapshot or behavior tests (wherever they
+  live in the iOS test target) must stay green — no copy string, no gauge math, no tier/position logic
+  changes.
+- New: a test that a collapsed row hides the analysis text and an expanded row shows it (state-level, not
+  pixel-level, matching this project's existing test style).
+- New: a test that the PDF `Transferable` produces non-empty PDF data for the `.sample` report fixture
+  (content-presence check, not a rendered-pixel comparison — brittle pixel tests for PDF output aren't worth
+  it here).
+- Add a `-designPreview report-dark` (or similar) case so the restyled screen can be eyeballed without a full
+  session, alongside the existing `report`/`report-movement` cases.
+
+## 10. Order of work
 
 1. `NeonTheme.swift` (pure tokens, no behavior).
 2. `SplashView.swift` + wire into `RootView`/`BeAIveApp`.
@@ -183,5 +276,8 @@ for the overlay only.
 5. `ModeChooserView.swift` rework (the biggest single change — touches the vertical-pager technique, the
    footer bar, and the dot indicator).
 6. Add the two new `-designPreview` cases.
-7. Build to the connected device; iterate on glow/blur performance if needed.
-8. Full `xcodebuild ... test` run before calling it done.
+7. §9: restyle `AssessmentReportView`'s background/header, add row expand/collapse, add the PDF `ShareLink`,
+   test-first for the new row-state and PDF-data-presence behavior.
+8. Add the `report-dark` `-designPreview` case.
+9. Build to the connected device; iterate on glow/blur performance if needed.
+10. Full `xcodebuild ... test` run before calling it done.
