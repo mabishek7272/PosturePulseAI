@@ -5,7 +5,10 @@ import { LogoutButton } from "./components/LogoutButton";
 import { AdverseEventsPage } from "./pages/AdverseEventsPage";
 import { AuditLogPage } from "./pages/AuditLogPage";
 import { LoginPage } from "./pages/LoginPage";
+import { PatientRegisterPage } from "./pages/PatientRegisterPage";
 import { PilotMetricsPage } from "./pages/PilotMetricsPage";
+import { ReportReviewPage } from "./pages/ReportReviewPage";
+import { ReviewQueuePage } from "./pages/ReviewQueuePage";
 import { SessionDetailPage } from "./pages/SessionDetailPage";
 import { SessionQueuePage } from "./pages/SessionQueuePage";
 
@@ -15,6 +18,8 @@ function HeaderNav() {
   return (
     <nav className="app-shell__nav">
       <Link to="/">Sessions</Link>
+      <Link to="/reports">Reports</Link>
+      <Link to="/patients">Patients</Link>
       <Link to="/pilot-metrics">Pilot monitoring</Link>
       <Link to="/adverse-events">Adverse events</Link>
       <Link to="/audit-log">Audit log</Link>
@@ -57,6 +62,30 @@ export function App() {
               element={
                 <RequireAuth>
                   <SessionDetailPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <RequireAuth>
+                  <ReviewQueuePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports/:reportId"
+              element={
+                <RequireAuth>
+                  <ReportReviewPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/patients"
+              element={
+                <RequireAuth>
+                  <PatientRegisterPage />
                 </RequireAuth>
               }
             />

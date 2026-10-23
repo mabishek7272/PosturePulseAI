@@ -14,7 +14,7 @@ const linkedSession: SessionRecord = {
   subjectPseudoId: "subj-9",
   protocolId: "static-battery",
   protocolVersion: "v0-draft",
-  deploymentContext: "clinic",
+  deploymentContext: "clinic_supervised",
   consentRecordId: "c1",
   calibrationRef: null,
   subjectHeightMeters: null,
