@@ -11,6 +11,23 @@ POSE_LANDMARKER_MODEL_PATH = Path(
     )
 )
 
+# Full (not lite) PoseLandmarker, used for clip analysis in VIDEO mode
+# (POST /internal/clips/analyze). Fetched by scripts/fetch-pose-model.sh.
+POSE_LANDMARKER_FULL_MODEL_PATH = Path(
+    os.environ.get(
+        "POSE_LANDMARKER_FULL_MODEL_PATH",
+        str(Path(__file__).resolve().parent.parent / ".models" / "pose_landmarker_full.task"),
+    )
+)
+
+
+def get_clip_dir() -> Path:
+    """Shared volume holding uploaded clips (written by backend-api) and the
+    landmark series this service stores under `landmarks/`. Read per call so
+    tests and deployments can point it elsewhere without a reload."""
+    return Path(os.environ.get("CLIP_DIR", "/data/clips"))
+
+
 # 0..1 per-landmark visibility*presence below this is treated as not observed.
 # Placeholder threshold - not clinically or empirically derived; revisit once
 # Study A (docs/study-charter-skeleton.md) produces real accuracy data.

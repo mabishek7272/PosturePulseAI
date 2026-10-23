@@ -35,6 +35,23 @@ Tests that need the real model (`test_mediapipe_adapter.py`,
 `test_internal_routes.py`) skip themselves with a clear reason if
 `scripts/fetch-pose-model.sh` hasn't been run yet, rather than failing opaquely.
 
+## Clip analysis (M1 static battery, ADR-013)
+
+- `POST /internal/clips/analyze` - request `{sessionId, clipId, stepId, clipPath, sidecar, metricKeys, minFps,
+  levelToleranceDegrees}`; `clipPath` is a file under `CLIP_DIR` (default `/data/clips`, relative paths resolve
+  against it). Response `{results: MetricResult[], landmarkSeries: {path, sha256}, frameQuality: {usable, total,
+  reasons}}`. Every requested key yields exactly one result per side (estimate or `unsupported`); undecodable video
+  comes back as `unsupported` with `insufficient_frames`, never as an error. `frameQuality.total` counts the frames
+  of the hold (after the first second, which is skipped).
+- `GET /internal/metrics/catalog` - the metric registry with sign conventions, plus the not-measurable list.
+  Catalog `side`: `null` (one result), `left_and_right` (one result per leg), `near_side` (the side facing the camera).
+- Pipeline: PyAV decode -> MediaPipe PoseLandmarker **full** model in VIDEO mode (sidecar timestamps) -> pixel
+  coordinates -> roll correction from sidecar gravity -> frame/step quality (`app/quality/clip_quality.py`) ->
+  metrics (`app/metrics/static_metrics.py`) -> landmark series stored as `CLIP_DIR/landmarks/<clipId>.json.gz` (keyed by clip only: re-analysing a clip replaces the file, so callers must not re-analyse across model or metrics version changes without keeping the newly returned sha256).
+- Thresholds and the uncertainty model are DRAFT engineering defaults (documented in code), not derived from data.
+- `scripts/fetch-pose-model.sh` fetches both the lite and the full model; `POSE_LANDMARKER_FULL_MODEL_PATH`
+  overrides the full model location.
+
 ## What's real vs. stubbed in this phase
 
 - **Real**: MediaPipe Tasks PoseLandmarker inference, landmark-to-canonical-joint

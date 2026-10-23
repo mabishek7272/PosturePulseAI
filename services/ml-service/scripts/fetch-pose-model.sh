@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
-# Downloads the MediaPipe Tasks Pose Landmarker (lite) model bundle used by
-# app/pose/mediapipe_adapter.py. Not committed to the repo - it's a ~5.6MB
-# binary asset with its own Google license, not source code.
+# Downloads the MediaPipe Tasks Pose Landmarker model bundles:
+#   - lite: app/pose/mediapipe_adapter.py (per-frame /internal/frames)
+#   - full: app/clips/pose_video.py (clip analysis, /internal/clips/analyze)
+# Not committed to the repo - they are multi-MB binary assets with their own
+# Google license, not source code.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 OUT_DIR=".models"
-OUT_FILE="$OUT_DIR/pose_landmarker_lite.task"
-URL="https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+BASE_URL="https://storage.googleapis.com/mediapipe-models/pose_landmarker"
 
 mkdir -p "$OUT_DIR"
-if [ -f "$OUT_FILE" ]; then
-  echo "Already present: $OUT_FILE"
-  exit 0
-fi
 
-curl -sS -o "$OUT_FILE" --max-time 120 "$URL"
-echo "Downloaded pose landmarker model to $OUT_FILE"
+fetch() {
+  local variant="$1"
+  local out_file="$OUT_DIR/pose_landmarker_${variant}.task"
+  local url="$BASE_URL/pose_landmarker_${variant}/float16/latest/pose_landmarker_${variant}.task"
+  if [ -f "$out_file" ]; then
+    echo "Already present: $out_file"
+    return 0
+  fi
+  curl -sSf -o "$out_file.part" --max-time 300 "$url"
+  mv "$out_file.part" "$out_file"
+  echo "Downloaded pose landmarker ($variant) model to $out_file"
+}
+
+fetch lite
+fetch full
