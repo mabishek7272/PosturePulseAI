@@ -131,3 +131,142 @@ export interface PilotMetricsSummary {
   symptomReports: { totalSymptomReports: number; ratePerSession: number | null };
   adverseEvents: { totalAdverseEvents: number; seriousAdverseEvents: number; ratePerSession: number | null };
 }
+
+// ---------------------------------------------------------------------------
+// M1 static battery: assessment reports and the patient register
+// (docs/superpowers/specs/2026-10-23-m1-static-battery.md, slices B and D).
+// ---------------------------------------------------------------------------
+
+/** quality-gate-flag.schema.json#/$defs/reason */
+export type QualityReason =
+  | "insufficient_landmarks"
+  | "insufficient_scale"
+  | "identity_uncertain"
+  | "anchor_drift"
+  | "low_confidence"
+  | "occlusion"
+  | "wrong_view"
+  | "out_of_frame"
+  | "camera_not_level"
+  | "insufficient_frame_rate"
+  | "insufficient_frames"
+  | "subject_moving";
+
+/** metric-result.schema.json `tier` */
+export type MetricTier = "estimate" | "proxy" | "entered" | "annotated" | "not_measurable";
+
+/** assessment-report.schema.json rows[].position */
+export type ReportPosition = "below" | "within" | "above" | "indeterminate" | "no_reference" | "not_applicable";
+
+export type ReportSide = "left" | "right" | "bilateral" | null;
+
+/** common.schema.json#/$defs/provenance */
+export interface Provenance {
+  schemaVersion: string;
+  modelVersion: string;
+  adapterVersion?: string;
+  calibrationVersion: string;
+  producedAt: string;
+  metricsVersion?: string;
+  referenceFileVersion?: string;
+  clipSha256?: string;
+}
+
+/** assessment-report.schema.json rows[] */
+export interface ReportRow {
+  metricKey: string;
+  resultId?: string | null;
+  /**
+   * Not in the v0 row schema (which allows extra properties): the backend
+   * report builder keys rows by (metricKey, side, stepId) and the exclude
+   * route needs it, so rows are expected to carry it. Rows without it are
+   * grouped under "Step not recorded".
+   */
+  stepId?: string | null;
+  label: string;
+  module: "static" | "functional" | "gait" | "workstation" | "ergonomic";
+  tier: MetricTier;
+  unit: string;
+  side: ReportSide;
+  estimate?: { value: number; uncertainty: number } | null;
+  unsupportedReasons?: QualityReason[];
+  reference?: {
+    kind: "geometric" | "literature";
+    label: string;
+    sourceCitation: string;
+    status: "draft" | "approved";
+  } | null;
+  position: ReportPosition;
+  analysis: { text: string; source: "fixed_template"; templateId?: string };
+  excluded: { reason: string; clinicianId: string } | null;
+}
+
+export interface NotMeasurableItem {
+  metricKey: string;
+  label: string;
+  reason: string;
+  whatWouldBeNeeded: string;
+}
+
+export type ReportStatus = "draft" | "released" | "rejected";
+
+/** assessment-report.schema.json (the report body) */
+export interface AssessmentReportBody {
+  reportId: string;
+  sessionId: string;
+  reportVersion: number;
+  supersedesReportId?: string | null;
+  status: ReportStatus;
+  rows: ReportRow[];
+  notMeasurable: NotMeasurableItem[];
+  clinicianAssessment: { text: string; clinicianId: string } | null;
+  signOff: { clinicianId: string; signedAt: string; contentSha256: string } | null;
+  provenance: Provenance;
+}
+
+/** Prisma `AssessmentReport` model (spec slice B) as returned by GET /reports and GET /reports/:id. */
+export interface AssessmentReportRecord {
+  id: string;
+  sessionId: string;
+  reportVersion: number;
+  status: ReportStatus;
+  body: AssessmentReportBody;
+  signedBy: string | null;
+  signedAt: string | null;
+  contentSha256: string | null;
+  createdAt: string;
+}
+
+/** POST /reports/:id/rows/exclude body */
+export interface RowExclusion {
+  metricKey: string;
+  side: ReportSide;
+  stepId: string | null;
+  reason: string;
+}
+
+/** assessment-battery.schema.json - only the fields this app reads. */
+export interface AssessmentBattery {
+  version: string;
+  status: "draft" | "approved";
+  steps: Array<{ stepId: string; title: string; view?: string; metricKeys?: string[] }>;
+}
+
+/**
+ * Patient register entry (ADR-017), already decrypted by backend-api. These
+ * identifiers are shown only on the register page and never written to the
+ * event log, browser storage or any other record.
+ */
+export interface PatientRecord {
+  id: string;
+  name: string;
+  dateOfBirth: string;
+  contact?: string | null;
+  createdAt?: string;
+}
+
+export interface NewPatient {
+  name: string;
+  dateOfBirth: string;
+  contact?: string;
+}
