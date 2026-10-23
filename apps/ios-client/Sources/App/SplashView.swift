@@ -27,12 +27,20 @@ struct SplashView: View {
             }
 
             VStack(spacing: 14) {
-                Circle()
-                    .fill(RadialGradient(colors: [NeonTheme.violet, NeonTheme.violetDim, .clear], center: .center, startRadius: 0, endRadius: 40))
-                    .frame(width: 76, height: 76)
+                // BrandLogo's source PNG is opaque (no alpha channel), so it's shown on its
+                // own white badge rather than composited directly onto the dark background,
+                // where an opaque image would otherwise appear as a plain white box.
+                Image("BrandLogo")
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: 52, height: 52)
+                    .padding(14)
+                    .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.white))
                     .shadow(color: NeonTheme.violet.opacity(0.55), radius: reduceMotion ? 10 : 20)
-                    .scaleEffect(!reduceMotion && pulse ? 1.08 : 1)
+                    .scaleEffect(!reduceMotion && pulse ? 1.06 : 1)
                     .animation(reduceMotion ? nil : .easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: pulse)
+                    .accessibilityHidden(true)
 
                 Text("POSTUREPULSE")
                     .font(NeonTypo.heading)
