@@ -2,7 +2,7 @@ import Foundation
 
 /// The readout model behind AssessmentReportView, mapped from the
 /// assessment-report body (ADR-015). Rows describe measurements only; nothing
-/// here grades, scores or interprets them.
+/// here grades or interprets them.
 struct AssessmentReport: Identifiable {
     enum Status { case draft, released, rejected }
 

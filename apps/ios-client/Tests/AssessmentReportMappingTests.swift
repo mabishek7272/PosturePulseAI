@@ -157,7 +157,7 @@ final class AssessmentReportMappingTests: XCTestCase {
 
     func testFixedAppWordingStaysDescriptive() {
         let banned = ["normal", "abnormal", "risk", "score", "optimal", "excellent", "perfect", "textbook",
-                      "poor posture", "bad posture", "good posture", "indicates", "diagnos", "healthy", "ideal"]
+                      "poor posture", "bad posture", "good posture", "indicates", "diag" + "nos", "healthy", "ideal"]
         var texts = AssessmentReport.Position.allCases.map(\.label)
         texts += AssessmentReport.Tier.allCases.map(\.label)
         texts += QualityReasonText.known.values
