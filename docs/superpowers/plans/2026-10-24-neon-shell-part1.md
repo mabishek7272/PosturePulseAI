@@ -126,7 +126,7 @@ class, after `testEveryGuidanceJointHasAVisionName`):
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PostureAnalysisClientTests/VisionJointMappingTests test
+cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PosturePulseTests/VisionJointMappingTests test
 ```
 Expected: **compile failure** — `.leftElbow` etc. don't exist on `BodyPose2D.Joint` yet. A compile error here
 is the expected "red" state for this kind of change in a strongly-typed language.
@@ -195,7 +195,7 @@ to:
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PostureAnalysisClientTests/VisionJointMappingTests test
+cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PosturePulseTests/VisionJointMappingTests test
 ```
 Expected: `** TEST SUCCEEDED **`, both `testEveryGuidanceJointHasAVisionName` and
 `testElbowAndWristJointsAreMappedForTheSkeletonOverlay` pass.
@@ -203,7 +203,7 @@ Expected: `** TEST SUCCEEDED **`, both `testEveryGuidanceJointHasAVisionName` an
 - [ ] **Step 6: Run the full guidance-related suite to confirm nothing else broke**
 
 ```bash
-cd apps/ios-client && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PostureAnalysisClientTests/GuidanceEngineTests test
+cd apps/ios-client && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PosturePulseTests/GuidanceEngineTests test
 ```
 Expected: `** TEST SUCCEEDED **` — `GuidanceEngineTests`'s existing pose fixtures don't reference the new
 joints, so adding cases to an already-`CaseIterable` enum doesn't change any existing dictionary literal's
@@ -288,7 +288,7 @@ final class SkeletonOverlayTests: XCTestCase {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PostureAnalysisClientTests/SkeletonOverlayTests test
+cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PosturePulseTests/SkeletonOverlayTests test
 ```
 Expected: **compile failure** — `visibleBoneJoints`, `visibleJoints`, `drawnJoints`, and `curvedBone` don't
 exist yet on `SkeletonOverlay`.
@@ -430,7 +430,7 @@ struct SkeletonOverlay: View {
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PostureAnalysisClientTests/SkeletonOverlayTests test
+cd apps/ios-client && xcodegen generate && xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=55079423-C12B-40F0-979D-A182A2BD94E6' -only-testing:PosturePulseTests/SkeletonOverlayTests test
 ```
 Expected: `** TEST SUCCEEDED **`, all 5 tests pass.
 
