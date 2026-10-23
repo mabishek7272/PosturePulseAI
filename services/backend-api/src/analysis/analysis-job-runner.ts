@@ -9,7 +9,8 @@ import { EventsService } from "../events/events.service";
 import { MlClientService } from "../ml-integration/ml-client.service";
 
 export const MAX_ATTEMPTS = 3;
-const STALE_RUNNING_MINUTES = 15;
+// The stale-job window (15 minutes) is written into the SQL as INTERVAL '15 minutes':
+// a bound parameter multiplied by an interval does not type-check in Postgres.
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_POLL_MS = 1000;
 
@@ -94,7 +95,7 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Claims the oldest pending job (or a job left "running" by a worker that
-   * stopped more than STALE_RUNNING_MINUTES ago and still has attempts left).
+   * stopped more than 15 minutes ago and still has attempts left).
    */
   async claimNext(): Promise<ClaimedJob | null> {
     const rows = await this.prisma.$queryRaw<ClaimedJob[]>`
@@ -104,7 +105,7 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
         SELECT id FROM "AnalysisJob"
         WHERE attempts < ${MAX_ATTEMPTS}
           AND (status = 'pending'
-               OR (status = 'running' AND "lockedAt" < NOW() - ${STALE_RUNNING_MINUTES} * INTERVAL '1 minute'))
+               OR (status = 'running' AND "lockedAt" < NOW() - INTERVAL '15 minutes'))
         ORDER BY "createdAt"
         LIMIT 1
         FOR UPDATE SKIP LOCKED
@@ -120,7 +121,7 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
       SET status = 'failed', "lockedAt" = NULL, "lastError" = 'The worker stopped before the last attempt finished.'
       WHERE status = 'running'
         AND attempts >= ${MAX_ATTEMPTS}
-        AND "lockedAt" < NOW() - ${STALE_RUNNING_MINUTES} * INTERVAL '1 minute'
+        AND "lockedAt" < NOW() - INTERVAL '15 minutes'
       RETURNING "clipId"`;
     if (rows.length > 0) {
       await this.prisma.clip.updateMany({ where: { id: { in: rows.map((r) => r.clipId) } }, data: { status: "failed" } });

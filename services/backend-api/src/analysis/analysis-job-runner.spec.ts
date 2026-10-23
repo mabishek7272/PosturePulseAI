@@ -82,6 +82,7 @@ describe("AnalysisJobRunner.claimNext", () => {
     expect(strings).toMatch(/LIMIT 1/);
     expect(strings).toMatch(/status = 'running'/);
     expect(strings).toMatch(/attempts = "?attempts"? \+ 1/);
+    expect(strings).toMatch(/INTERVAL '15 minutes'/);
   });
 
   it("returns null when nothing is pending", async () => {

@@ -12,6 +12,7 @@ import { ExposureModule } from "./exposure/exposure.module";
 import { HealthModule } from "./health/health.module";
 import { MlIntegrationModule } from "./ml-integration/ml-integration.module";
 import { MovementModule } from "./movement/movement.module";
+import { PatientsModule } from "./patients/patients.module";
 import { PolicyModule } from "./policy/policy.module";
 import { PilotMetricsModule } from "./pilot-metrics/pilot-metrics.module";
 import { ProtocolsModule } from "./protocols/protocols.module";
@@ -32,6 +33,7 @@ import { WsModule } from "./ws/ws.module";
     ClipsModule,
     AnalysisModule,
     ReportsModule,
+    PatientsModule,
     ProtocolsModule,
     SessionsModule,
     EventsModule,
