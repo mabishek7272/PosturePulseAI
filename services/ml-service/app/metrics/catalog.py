@@ -87,6 +87,9 @@ def _entry(d: MetricDef) -> dict:
         "side": _SIDE_LABEL[d.sides],
         "signConvention": d.sign_convention,
         "description": d.description,
+        # Only implemented method this phase (ADR-018); the catalog states what
+        # produces a result for this metric today, not what could in principle.
+        "measurementMethod": "mediapipe_2d_image_plane",
     }
 
 

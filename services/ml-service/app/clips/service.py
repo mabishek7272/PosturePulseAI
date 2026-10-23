@@ -95,6 +95,7 @@ def _record(req: AnalyzeRequest, m: MetricOutcome, *, clip_sha: str, series_sha:
             "producedAt": now,
             "metricsVersion": METRICS_VERSION,
             "clipSha256": clip_sha,
+            "measurementMethod": "mediapipe_2d_image_plane",
         },
     }
     if m.reasons is None:

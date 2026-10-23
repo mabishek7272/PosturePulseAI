@@ -66,6 +66,7 @@ def test_every_requested_key_gets_one_schema_valid_result_with_provenance(env):
         assert prov["metricsVersion"] == METRICS_VERSION
         assert prov["clipSha256"] == sha
         assert prov["calibrationVersion"] == "none/v0"
+        assert prov["measurementMethod"] == "mediapipe_2d_image_plane"
         assert r["evidence"]["landmarkSeriesSha256"] == body["landmarkSeries"]["sha256"]
     assert len({r["resultId"] for r in results}) == len(results)
     assert body["frameQuality"] == {"usable": 30, "total": 30, "reasons": []}

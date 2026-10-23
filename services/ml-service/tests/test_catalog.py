@@ -20,7 +20,11 @@ def test_catalog_lists_every_registry_metric_with_its_convention():
     by_key = {m["metricKey"]: m for m in body["metrics"]}
     assert set(by_key) == set(STATIC_METRICS)
     for key, m in by_key.items():
-        assert set(m) == {"metricKey", "label", "module", "tier", "unit", "side", "signConvention", "description"}
+        assert set(m) == {
+            "metricKey", "label", "module", "tier", "unit", "side", "signConvention", "description",
+            "measurementMethod",
+        }
+        assert m["measurementMethod"] == "mediapipe_2d_image_plane"
         assert m["module"] == "static"
         assert m["tier"] in ("estimate", "proxy")
         assert m["signConvention"] and m["description"] and m["label"]
