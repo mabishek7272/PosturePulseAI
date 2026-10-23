@@ -71,3 +71,10 @@ TLS in transit, encryption at rest, least-privilege roles, tenant isolation. Thi
 phase's `infra/docker-compose.yml` is a local development setup and does not
 implement production TLS/encryption-at-rest — that is explicitly out of scope here
 and must be addressed before any real subject data is processed.
+
+## Research export and clinician free text (M1)
+
+The de-identified research export (`research_data_export` consent) leaves out
+the `report_rejected` events. They hold the clinician's free-text reason for
+withdrawing a draft report, which could contain an identifier. The patient's
+released-report route omits rows the clinician excluded.

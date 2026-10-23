@@ -59,6 +59,23 @@ password, sets status `released`, and stores `contentSha256`: the sha256 of the
 canonical JSON (sorted keys) of the released body without the digest field
 itself, so anyone can recompute it. Releasing, rejecting and every edit are
 limited to drafts; a new build creates version N+1 that supersedes the old one.
+Reasons for excluding a row or rejecting a draft are capped at 1000 characters.
+Sign-off allows 5 wrong passwords per clinician in 15 minutes (in memory, one
+backend instance); after that it answers 429 until the window passes. Rejecting
+a draft logs a `report_rejected` bookkeeping event with its own schema id
+`report-rejection/v0` and a provenance block. It carries clinician free text, so
+the research export never includes it. A failure to write that event is logged
+and does not undo the rejection.
+
+**Checks on text and references**: every row's label and analysis text, and
+every not-measurable entry from the ml-service catalog, is scanned against
+`references/banned-phrases.json` when the report is built; a hit fails the build
+(422). The reference set is validated against the catalog (unknown metric, unit
+mismatch, literature reference for a proxy) on every build and once in the
+background at startup. This is later than "at load" in the spec because the tier
+and unit come from the ml-service catalog, which is not available at boot; if
+ml-service is down at startup the check is skipped with a warning and happens at
+the first build.
 
 **Patient access**: the patient's device receives a 180-day `report_reader` token
 for one session and can read only that session's latest released report; until
@@ -67,7 +84,11 @@ then the route answers 404 `{"status": "pending_review"}`.
 ## Consequences
 - A report can show a value outside its reference without any wording about what
   that means; interpretation is the clinician's.
-- Excluded rows remain in the released body (and in its hash); clients decide
-  how to present them.
+- Excluded rows remain in the stored released body and in its hash, and the
+  clinician's `GET /reports/:id` serves that body whole. The patient route
+  `GET /sessions/:id/released-report` returns the same body with the excluded
+  rows removed, so a withdrawn measurement never reaches the patient. The
+  `contentSha256` it carries is the hash of the whole stored body, so it
+  verifies against the clinician copy and not against the patient projection.
 - Changing a template means changing reviewed code and re-running the
   banned-phrase test.
