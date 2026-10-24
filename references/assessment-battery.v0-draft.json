@@ -11,7 +11,7 @@
       "kind": "hold",
       "durationSeconds": 15,
       "minFps": 24,
-      "levelToleranceDegrees": 3,
+      "levelToleranceDegrees": 6,
       "modes": ["clinic", "patient"],
       "metricKeys": [
         "static.head_lateral_tilt",
@@ -31,7 +31,7 @@
       "kind": "hold",
       "durationSeconds": 5,
       "minFps": 24,
-      "levelToleranceDegrees": 3,
+      "levelToleranceDegrees": 6,
       "modes": ["clinic", "patient"],
       "metricKeys": [
         "static.plumb_offset_ear",
@@ -52,7 +52,7 @@
       "kind": "hold",
       "durationSeconds": 5,
       "minFps": 24,
-      "levelToleranceDegrees": 3,
+      "levelToleranceDegrees": 6,
       "modes": ["clinic", "patient"],
       "metricKeys": [
         "static.plumb_offset_ear",
@@ -73,7 +73,7 @@
       "kind": "hold",
       "durationSeconds": 5,
       "minFps": 24,
-      "levelToleranceDegrees": 3,
+      "levelToleranceDegrees": 6,
       "modes": ["clinic", "patient"],
       "metricKeys": [
         "static.head_lateral_tilt",

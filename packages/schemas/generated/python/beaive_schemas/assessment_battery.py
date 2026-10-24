@@ -54,7 +54,7 @@ class Step(BaseModel):
         None, description='Required when kind=reps or passes.'
     )
     minFps: PositiveFloat
-    levelToleranceDegrees: PositiveFloat | None = 3
+    levelToleranceDegrees: PositiveFloat | None = 6
     modes: list[Mode] = Field(..., min_length=1)
     metricKeys: list[str]
 

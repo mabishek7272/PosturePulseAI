@@ -60,7 +60,7 @@ struct AssessmentBattery: Decodable, Equatable {
             durationSeconds = try c.decodeIfPresent(Double.self, forKey: .durationSeconds)
             reps = try c.decodeIfPresent(Int.self, forKey: .reps)
             minFps = try c.decode(Double.self, forKey: .minFps)
-            levelToleranceDegrees = try c.decodeIfPresent(Double.self, forKey: .levelToleranceDegrees) ?? 3
+            levelToleranceDegrees = try c.decodeIfPresent(Double.self, forKey: .levelToleranceDegrees) ?? 6
             // Unknown modes from a newer battery are ignored rather than failing the whole battery.
             modes = try c.decode([String].self, forKey: .modes).compactMap(SessionMode.init(rawValue:))
             metricKeys = try c.decode([String].self, forKey: .metricKeys)
@@ -68,7 +68,7 @@ struct AssessmentBattery: Decodable, Equatable {
 
         #if DEBUG
         init(stepId: String, title: String, instruction: String, view: StepView, durationSeconds: Double,
-             minFps: Double = 24, levelToleranceDegrees: Double = 3, modes: [SessionMode] = [.clinic, .patient],
+             minFps: Double = 24, levelToleranceDegrees: Double = 6, modes: [SessionMode] = [.clinic, .patient],
              metricKeys: [String] = []) {
             self.stepId = stepId
             self.module = "static"
