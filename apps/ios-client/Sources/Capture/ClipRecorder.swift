@@ -275,6 +275,12 @@ extension ClipRecorder: AVCaptureVideoDataOutputSampleBufferDelegate {
                 // depth delegate's captureQueue hop below) rather than reading
                 // it unsynchronized from visionQueue.
                 let distance = self.latestDistanceMeters
+                // Dispatching to main from inside this closure (rather than
+                // directly from visionQueue, as before this read was added)
+                // lets us capture `distance` synchronously without a second
+                // hop. This ties guidance-sample delivery to captureQueue's
+                // queue depth, which is negligible next to the ~33ms frame
+                // interval.
                 DispatchQueue.main.async {
                     self.imageSize = size
                     self.onGuidanceSample?(GuidanceSample(time: time, pose: pose, cameraGravity: cameraGravity, distanceMeters: distance))
@@ -297,6 +303,9 @@ extension ClipRecorder: AVCaptureDepthDataOutputDelegate {
         let height = CVPixelBufferGetHeight(pixelBuffer)
         guard width > 0, height > 0 else { return }
         let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        // bytesPerRow already accounts for any row-stride padding, so
+        // advancing by whole rows in bytes before rebinding to Float32 and
+        // indexing by width/2 lands exactly on the center pixel.
         let centerRow = base.advanced(by: (height / 2) * bytesPerRow).assumingMemoryBound(to: Float32.self)
         let centerDistance = centerRow[width / 2]
         guard centerDistance.isFinite, centerDistance > 0 else { return }
