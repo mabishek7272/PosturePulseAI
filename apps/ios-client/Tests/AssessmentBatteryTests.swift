@@ -22,19 +22,19 @@ final class AssessmentBatteryTests: XCTestCase {
         XCTAssertEqual(anterior.kind, .hold)
         XCTAssertEqual(anterior.durationSeconds, 15)
         XCTAssertEqual(anterior.minFps, 24)
-        XCTAssertEqual(anterior.levelToleranceDegrees, 3)
+        XCTAssertEqual(anterior.levelToleranceDegrees, 6)
         XCTAssertEqual(anterior.modes, [.clinic, .patient])
         XCTAssertTrue(anterior.metricKeys.contains("static.knee_frontal_alignment"))
         XCTAssertEqual(battery.steps[1].view, .leftLateral)
     }
 
-    func testLevelToleranceDefaultsToThreeDegrees() throws {
+    func testLevelToleranceDefaultsToSixDegrees() throws {
         let json = """
         {"version":"b/1","status":"approved","steps":[{"stepId":"s","module":"static","title":"T","instruction":"I",
           "view":"posterior","kind":"hold","durationSeconds":5,"minFps":24,"modes":["clinic"],"metricKeys":[]}]}
         """
         let battery = try JSONDecoder().decode(AssessmentBattery.self, from: Data(json.utf8))
-        XCTAssertEqual(battery.steps[0].levelToleranceDegrees, 3)
+        XCTAssertEqual(battery.steps[0].levelToleranceDegrees, 6)
         XCTAssertFalse(battery.isDraft)
     }
 
