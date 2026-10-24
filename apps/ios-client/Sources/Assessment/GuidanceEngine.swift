@@ -142,19 +142,21 @@ final class GuidanceEngine {
             && pitch.map { $0 <= levelToleranceDegrees } == true
         if !isLevel { issues.append(.cameraNotLevel) }
 
+        let visiblePose = sample.pose.flatMap { pose in
+            pose.joints.values.filter { $0.confidence >= minConfidence }.count >= 4 ? pose : nil
+        }
+        let framed = visiblePose.map(isFramed)
+
+        if visiblePose != nil, framed == false { issues.append(.outOfFrame) }
+        if framed != true { hipHistory = [] }
+
         if isTooFar(sample) { issues.append(.tooFar) }
 
-        if let pose = sample.pose, pose.joints.values.filter({ $0.confidence >= minConfidence }).count >= 4 {
-            if !isFramed(pose) {
-                issues.append(.outOfFrame)
-                hipHistory = []
-            } else {
-                if !matchesView(pose) { issues.append(.wrongView) }
-                if !isStill(pose, at: sample.time) { issues.append(.moving) }
-            }
-        } else {
+        if let pose = visiblePose, framed == true {
+            if !matchesView(pose) { issues.append(.wrongView) }
+            if !isStill(pose, at: sample.time) { issues.append(.moving) }
+        } else if visiblePose == nil {
             issues.append(.noPerson)
-            hipHistory = []
         }
 
         var progress = 0.0

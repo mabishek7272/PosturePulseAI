@@ -212,6 +212,32 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertEqual(GuidanceIssue.allCases.firstIndex(of: .tooFar), 2)
     }
 
+    func testOutOfFrameOutranksTooFarWhenBothApply() {
+        // Small head-to-ankle span triggers isTooFar's frame-fill fallback, and
+        // pushing a joint past the edge margin also triggers !isFramed - .outOfFrame
+        // must win since framing problems matter more than distance.
+        var pose = distantPose(span: 0.2)
+        pose.joints[.leftAnkle] = .init(x: 0.001, y: 0.6, confidence: 0.9)
+        let s = feed(engine(.anterior), pose, to: 1)
+        XCTAssertEqual(s.issues.first, .outOfFrame)
+        XCTAssertTrue(s.issues.contains(.tooFar))
+        XCTAssertFalse(s.shouldStartRecording)
+    }
+
+    func testTooFarOutranksNoPersonWhenLiDARDetectsDistanceWithNoPose() {
+        // LiDAR can report distance even when no pose was detected at all; .tooFar
+        // must still outrank .noPerson in that case.
+        let e = engine(.anterior)
+        var status = e.update(.init(time: 0, pose: nil, cameraGravity: level, distanceMeters: 5))
+        var t = 0.1
+        while t <= 1 + 1e-9 {
+            status = e.update(.init(time: t, pose: nil, cameraGravity: level, distanceMeters: 5))
+            t += 0.1
+        }
+        XCTAssertEqual(status.issues.first, .tooFar)
+        XCTAssertTrue(status.issues.contains(.noPerson))
+    }
+
     func testPromptsNeverContainANumber() {
         for view in StepView.allCases {
             for issue in GuidanceIssue.allCases {
