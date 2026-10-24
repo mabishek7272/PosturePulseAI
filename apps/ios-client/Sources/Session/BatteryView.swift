@@ -97,6 +97,7 @@ struct BatteryView: View {
         let step = runner.currentStep
         let recording = runner.phase == .recording
         let toast = recording ? nil : runner.guidance.flatMap { CaptureToast.forStatus($0, view: step?.view ?? .anterior) }
+        let canStart = !recording && runner.canStartRecording
         return GuidedCaptureView(
             steps: stepTitles,
             state: .init(
@@ -107,7 +108,8 @@ struct BatteryView: View {
                 holdProgress: recording ? runner.holdProgress : (toast == nil ? runner.holdProgress : nil),
                 repCount: nil,
                 repTarget: nil,
-                recordingPrompt: recording ? "Recording - hold still" : nil
+                recordingPrompt: recording ? "Recording - hold still" : nil,
+                canStart: canStart
             ),
             stage: {
                 ZStack {
@@ -116,7 +118,8 @@ struct BatteryView: View {
                     TorchButton(torch: torch)
                 }
             },
-            stop: { stopButton }
+            stop: { stopButton },
+            onStart: runner.startRecording
         )
     }
 

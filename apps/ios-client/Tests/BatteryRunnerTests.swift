@@ -137,13 +137,14 @@ final class BatteryRunnerTests: XCTestCase {
         return p
     }
 
-    /// Feeds ready samples until the runner leaves .guiding.
+    /// Feeds ready samples until the runner is ready to record, then taps Start.
     private func becomeReady(_ r: BatteryRunner, pose: BodyPose2D? = nil, from t0: Double = 0) {
         var t = t0
-        while r.phase == .guiding, t < t0 + 5 {
+        while !r.canStartRecording, t < t0 + 5 {
             recorder.onGuidanceSample?(GuidanceSample(time: t, pose: pose ?? facingPose(), cameraGravity: [0, 1, 0]))
             t += 0.1
         }
+        r.startRecording()
     }
 
     private func analysed(_ step: String, usable: Bool, reasons: [String] = [], clipId: String? = nil) -> [StepStatus] {
@@ -346,5 +347,38 @@ final class BatteryRunnerTests: XCTestCase {
         recorder.onGuidanceSample?(GuidanceSample(time: 0, pose: facingPose(), cameraGravity: [0, 1, 0]))
         XCTAssertEqual(r.pose, facingPose())
         XCTAssertEqual(r.imageSize, CGSize(width: 1080, height: 1920))
+    }
+
+    func testReadyGuidanceDoesNotAutoStartAndStartRecordingNoOpsUntilTapped() async {
+        let r = runner()
+        r.start()
+        var t = 0.0
+        while !r.canStartRecording, t < 5 {
+            recorder.onGuidanceSample?(GuidanceSample(time: t, pose: facingPose(), cameraGravity: [0, 1, 0]))
+            t += 0.1
+        }
+        XCTAssertTrue(r.canStartRecording)
+        // Guidance clearing and holding no longer auto-starts recording.
+        XCTAssertEqual(r.phase, .guiding)
+        XCTAssertTrue(recorder.recordCalls.isEmpty)
+
+        r.startRecording()
+        XCTAssertEqual(r.phase, .recording)
+        XCTAssertFalse(r.canStartRecording)
+        for _ in 0..<100 where recorder.recordCalls.isEmpty { await Task.yield() }
+        XCTAssertEqual(recorder.recordCalls.count, 1)
+
+        // A second tap once already recording is a no-op.
+        r.startRecording()
+        XCTAssertEqual(recorder.recordCalls.count, 1)
+    }
+
+    func testStartRecordingIsANoOpBeforeGuidanceIsReady() {
+        let r = runner()
+        r.start()
+        XCTAssertFalse(r.canStartRecording)
+        r.startRecording()
+        XCTAssertEqual(r.phase, .guiding)
+        XCTAssertTrue(recorder.recordCalls.isEmpty)
     }
 }

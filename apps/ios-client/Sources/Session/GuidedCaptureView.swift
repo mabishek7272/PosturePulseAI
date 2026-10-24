@@ -23,6 +23,9 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
         /// Shown only while actually recording (separate from `toast`, which is
         /// pre-recording guidance only).
         var recordingPrompt: String?
+        /// Guidance is clear and has held long enough; show the Start button so
+        /// the person can begin recording explicitly.
+        var canStart: Bool = false
     }
 
     /// Short step titles for the step track.
@@ -30,6 +33,8 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
     let state: CaptureState
     @ViewBuilder let stage: () -> Stage
     @ViewBuilder let stop: () -> Stop
+    /// Called when the person taps the Start button.
+    let onStart: () -> Void
 
 
     var body: some View {
@@ -87,6 +92,15 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .animation(.easeOut(duration: 0.25), value: state.toast)
             .animation(.easeOut(duration: 0.25), value: state.recordingPrompt)
+
+            if state.canStart {
+                Button(action: onStart) {
+                    Label("Start recording", systemImage: "record.circle")
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.primary)
+                .accessibilityHint("Starts recording this step")
+            }
 
             stop()
         }

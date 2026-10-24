@@ -53,6 +53,8 @@ final class BatteryRunner: ObservableObject {
     @Published private(set) var holdProgress: Double = 0
     /// Latest on-device guidance pose, for the framing overlay only.
     @Published private(set) var pose: BodyPose2D?
+    /// Guidance is clear and has held long enough; the person can now tap Start.
+    @Published private(set) var canStartRecording = false
 
     var onFinished: (() -> Void)?
     var onStopped: (() -> Void)?
@@ -132,6 +134,7 @@ final class BatteryRunner: ObservableObject {
         guidance = nil
         pose = nil
         holdProgress = 0
+        canStartRecording = false
         lastSpoken = nil
         phase = .guiding
         if mode == .patient { speaker?.speak(step.instruction) }
@@ -152,10 +155,17 @@ final class BatteryRunner: ObservableObject {
                 lastSpoken = (issue, sample.time)
             }
         }
-        if status.shouldStartRecording { beginRecording(step) }
+        canStartRecording = status.shouldStartRecording
+    }
+
+    /// Called when the person taps the Start button once guidance is ready.
+    func startRecording() {
+        guard phase == .guiding, canStartRecording, let step = currentStep else { return }
+        beginRecording(step)
     }
 
     private func beginRecording(_ step: AssessmentBattery.Step) {
+        canStartRecording = false
         phase = .recording
         holdProgress = 0
         if mode == .patient { speaker?.speak("Recording. Hold still.") }

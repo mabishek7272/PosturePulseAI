@@ -55,10 +55,12 @@ private enum DesignPreview: String {
                     holdProgress: 0.62,
                     repCount: nil,
                     repTarget: nil,
-                    recordingPrompt: "Recording - hold still"
+                    recordingPrompt: "Recording - hold still",
+                    canStart: false
                 ),
                 stage: { SilhouetteStage() },
-                stop: { StopControlPreview() }
+                stop: { StopControlPreview() },
+                onStart: {}
             )
         case .reps:
             GuidedCaptureView(
@@ -71,10 +73,12 @@ private enum DesignPreview: String {
                     holdProgress: nil,
                     repCount: 3,
                     repTarget: 5,
-                    recordingPrompt: nil
+                    recordingPrompt: nil,
+                    canStart: true
                 ),
                 stage: { SilhouetteStage() },
-                stop: { StopControlPreview() }
+                stop: { StopControlPreview() },
+                onStart: {}
             )
         case .patients:
             PatientPickerView(clinicianToken: "preview", onPicked: { _ in }, onBack: {})
