@@ -96,10 +96,8 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
             if state.canStart {
                 Button(action: onStart) {
                     Label("Start recording", systemImage: "record.circle")
-                        .frame(maxWidth: .infinity, minHeight: 48)
                 }
                 .buttonStyle(.primary)
-                .accessibilityHint("Starts recording this step")
             }
 
             stop()

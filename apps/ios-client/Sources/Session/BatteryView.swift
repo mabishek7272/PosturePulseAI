@@ -98,6 +98,10 @@ struct BatteryView: View {
         let recording = runner.phase == .recording
         let toast = recording ? nil : runner.guidance.flatMap { CaptureToast.forStatus($0, view: step?.view ?? .anterior) }
         let canStart = !recording && runner.canStartRecording
+        // Once canStart is true the Start button is the call to action; the
+        // ring would otherwise keep reading "Hold still, 100%" right next to
+        // it, telling the person two contradictory things at once.
+        let holdProgress: Double? = recording ? runner.holdProgress : (toast == nil && !canStart ? runner.holdProgress : nil)
         return GuidedCaptureView(
             steps: stepTitles,
             state: .init(
@@ -105,7 +109,7 @@ struct BatteryView: View {
                 instruction: step?.title ?? "",
                 detail: step?.instruction ?? "",
                 toast: toast,
-                holdProgress: recording ? runner.holdProgress : (toast == nil ? runner.holdProgress : nil),
+                holdProgress: holdProgress,
                 repCount: nil,
                 repTarget: nil,
                 recordingPrompt: recording ? "Recording - hold still" : nil,

@@ -86,15 +86,18 @@ struct GuidanceStatus: Equatable {
     /// tilt toast; CaptureToast.forStatus doesn't read it yet - this slice
     /// only handles the roll (left/right) direction.
     var pitchDegrees: Double?
-    /// 0...1 progress through the ready hold before recording starts.
+    /// 0...1 progress through the ready hold before the Start button is offered.
     var readyProgress: Double
+    /// True once all four conditions below have held for `readyHold` seconds.
+    /// Despite the name, this no longer auto-starts recording - BatteryRunner
+    /// surfaces it as `canStartRecording` and waits for an explicit tap.
     var shouldStartRecording: Bool
 }
 
 /// On-device guidance rules for a battery step (2D versions of the analysis's
 /// quality rules, M1 spec slice A): the phone is level, the whole body is in
 /// frame, the body faces the way the step asks, and the hips are still.
-/// Recording starts after `readyHold` seconds of all four.
+/// The person taps Start once all four hold for `readyHold` seconds.
 final class GuidanceEngine {
     let view: StepView
     let levelToleranceDegrees: Double
