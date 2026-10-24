@@ -4,7 +4,9 @@ import SwiftUI
 /// hold ring / rep counter and quality prompts. Steps come from the battery
 /// (data-driven). The camera feed and the stop control are injected, so the
 /// local-first SymptomStopButton stays the only stop implementation. Never
-/// shows a measured number - the level shows a bubble and a word only.
+/// shows a measured number - the level is a quiet status dot (`statusRow`),
+/// with a non-blocking toast banner surfacing the single most important
+/// guidance issue when something needs correcting.
 struct GuidedCaptureView<Stage: View, Stop: View>: View {
     struct CaptureState: Equatable {
         var stepIndex: Int

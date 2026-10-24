@@ -331,11 +331,11 @@ final class BatteryRunnerTests: XCTestCase {
         XCTAssertTrue(speaker.spoken.isEmpty)
     }
 
-    func testGuidancePromptIsPublishedWithoutNumbers() {
+    func testGuidanceSampleWithNoPersonIsPublished() {
         let r = runner()
         r.start()
         recorder.onGuidanceSample?(GuidanceSample(time: 0, pose: nil, cameraGravity: [0, 1, 0]))
-        XCTAssertEqual(r.prompt, "Step into the frame")
+        XCTAssertEqual(r.guidance?.issues, [.noPerson])
         XCTAssertEqual(r.guidance?.isLevel, true)
         XCTAssertNil(r.pose)
     }

@@ -50,7 +50,6 @@ final class BatteryRunner: ObservableObject {
     @Published private(set) var phase: Phase = .guiding
     @Published private(set) var stepIndex = 0
     @Published private(set) var guidance: GuidanceStatus?
-    @Published private(set) var prompt: String?
     @Published private(set) var holdProgress: Double = 0
     /// Latest on-device guidance pose, for the framing overlay only.
     @Published private(set) var pose: BodyPose2D?
@@ -131,7 +130,6 @@ final class BatteryRunner: ObservableObject {
         stepIndex = index
         engine = GuidanceEngine(view: step.view, levelToleranceDegrees: step.levelToleranceDegrees, imageSize: recorder.imageSize)
         guidance = nil
-        prompt = nil
         pose = nil
         holdProgress = 0
         lastSpoken = nil
@@ -144,8 +142,8 @@ final class BatteryRunner: ObservableObject {
         let status = engine.update(sample)
         guidance = status
         pose = sample.pose
+        holdProgress = status.issues.isEmpty ? status.readyProgress : 0
         let issue = status.issues.first
-        prompt = issue?.prompt(for: step.view)
         // Patient mode speaks a changed prompt (at most every 3 s) and repeats an unchanged one every 6 s.
         if mode == .patient, let issue {
             let since = lastSpoken.map { sample.time - $0.time } ?? .infinity

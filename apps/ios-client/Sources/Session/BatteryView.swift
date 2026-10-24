@@ -104,7 +104,7 @@ struct BatteryView: View {
                 instruction: step?.title ?? "",
                 detail: step?.instruction ?? "",
                 toast: toast,
-                holdProgress: recording ? runner.holdProgress : nil,
+                holdProgress: recording ? runner.holdProgress : (toast == nil ? runner.holdProgress : nil),
                 repCount: nil,
                 repTarget: nil,
                 recordingPrompt: recording ? "Recording - hold still" : nil
