@@ -171,6 +171,47 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertFalse(s.shouldStartRecording)
     }
 
+    func testPitchDegreesIsExposedOnStatus() {
+        let pitched = CameraGravity.normalised([0, cos(2 * Double.pi / 180), sin(2 * Double.pi / 180)])!
+        let s = feed(engine(.anterior), facingPose(), gravity: pitched, to: 0.3)
+        XCTAssertNotNil(s.pitchDegrees)
+    }
+
+    /// A person who fills only a small fraction of the frame (head-to-ankle span
+    /// well under half the image height) but is still fully inside the margins.
+    private func distantPose(span: Double = 0.2) -> BodyPose2D {
+        let top = 0.4, bottom = top + span
+        return BodyPose2D(joints: [
+            .nose: .init(x: 0.50, y: top, confidence: 0.9),
+            .leftEar: .init(x: 0.51, y: top + 0.01, confidence: 0.9),
+            .rightEar: .init(x: 0.49, y: top + 0.01, confidence: 0.9),
+            .leftShoulder: .init(x: 0.53, y: top + span * 0.18, confidence: 0.9),
+            .rightShoulder: .init(x: 0.47, y: top + span * 0.18, confidence: 0.9),
+            .leftHip: .init(x: 0.52, y: top + span * 0.5, confidence: 0.9),
+            .rightHip: .init(x: 0.48, y: top + span * 0.5, confidence: 0.9),
+            .leftKnee: .init(x: 0.52, y: top + span * 0.72, confidence: 0.9),
+            .rightKnee: .init(x: 0.48, y: top + span * 0.72, confidence: 0.9),
+            .leftAnkle: .init(x: 0.52, y: bottom, confidence: 0.9),
+            .rightAnkle: .init(x: 0.48, y: bottom, confidence: 0.9),
+        ])
+    }
+
+    func testAPersonTooFarAwayIsFlaggedEvenThoughFullyFramed() {
+        let s = feed(engine(.anterior), distantPose(span: 0.2), to: 1)
+        XCTAssertEqual(s.issues.first, .tooFar)
+        XCTAssertFalse(s.shouldStartRecording)
+    }
+
+    func testANormallyFramedPersonIsNotFlaggedAsTooFar() {
+        // facingPose() spans y 0.15...0.88, well above the too-far threshold.
+        let s = feed(engine(.anterior), facingPose(), to: 0.8)
+        XCTAssertFalse(s.issues.contains(.tooFar))
+    }
+
+    func testTooFarOutranksViewAndStillnessButNotFramingOrLevel() {
+        XCTAssertEqual(GuidanceIssue.allCases.firstIndex(of: .tooFar), 2)
+    }
+
     func testPromptsNeverContainANumber() {
         for view in StepView.allCases {
             for issue in GuidanceIssue.allCases {

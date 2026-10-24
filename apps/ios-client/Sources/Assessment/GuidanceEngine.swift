@@ -27,13 +27,33 @@ struct GuidanceSample {
     let pose: BodyPose2D?
     /// Unit gravity in the camera frame of the oriented image; nil when motion is unavailable.
     let cameraGravity: [Double]?
+    /// LiDAR-derived distance to the subject in metres, when the device has a
+    /// LiDAR sensor and a reading was available for this frame; nil otherwise,
+    /// in which case GuidanceEngine falls back to a frame-fill estimate.
+    let distanceMeters: Double?
+
+    init(time: TimeInterval, pose: BodyPose2D?, cameraGravity: [Double]?, distanceMeters: Double? = nil) {
+        self.time = time
+        self.pose = pose
+        self.cameraGravity = cameraGravity
+        self.distanceMeters = distanceMeters
+    }
 }
 
 /// What stops a step from recording, most important first.
+///
+/// NOTE on ordering: `.tooFar` sits after `.cameraNotLevel` and `.outOfFrame`
+/// (level and framing outrank it) but before `.noPerson`, `.wrongView` and
+/// `.moving` (it outranks view/stillness) - see
+/// `testTooFarOutranksViewAndStillnessButNotFramingOrLevel`. This is purely
+/// the declaration order consumed via `allCases`; the actual runtime
+/// precedence of which issues get surfaced is driven by the check order in
+/// `update(_:)`, not by this enum's case order.
 enum GuidanceIssue: CaseIterable, Equatable {
     case cameraNotLevel
-    case noPerson
     case outOfFrame
+    case tooFar
+    case noPerson
     case wrongView
     case moving
 
@@ -41,8 +61,9 @@ enum GuidanceIssue: CaseIterable, Equatable {
     func prompt(for view: StepView) -> String {
         switch self {
         case .cameraNotLevel: return "Level the phone"
-        case .noPerson: return "Step into the frame"
         case .outOfFrame: return "Step back so your whole body is in view"
+        case .tooFar: return "Come a bit closer"
+        case .noPerson: return "Step into the frame"
         case .wrongView:
             switch view {
             case .anterior: return "Face the camera"
@@ -60,6 +81,8 @@ struct GuidanceStatus: Equatable {
     var isLevel: Bool
     /// Image roll against true vertical, for the bubble level only.
     var rollDegrees: Double?
+    /// Image pitch against true vertical, for the tilt toast only.
+    var pitchDegrees: Double?
     /// 0...1 progress through the ready hold before recording starts.
     var readyProgress: Double
     var shouldStartRecording: Bool
@@ -85,6 +108,12 @@ final class GuidanceEngine {
     let maxHipSDFraction: Double = 0.02
     /// Lateral view: shoulder width under this fraction of shoulder-to-hip height.
     let lateralWidthFraction: Double = 0.35
+    /// Head-to-ankle span under this fraction of the frame height reads as "too
+    /// far" when no LiDAR distance reading is available. Guidance-only, not a
+    /// measurement threshold - tune freely without touching the analysis pipeline.
+    let tooFarSpanFraction: Double = 0.35
+    /// LiDAR-only: distance beyond this reads as "too far".
+    let tooFarDistanceMeters: Double = 3.0
 
     private var hipHistory: [(t: TimeInterval, x: Double, y: Double, height: Double)] = []
     private var readySince: TimeInterval?
@@ -113,6 +142,8 @@ final class GuidanceEngine {
             && pitch.map { $0 <= levelToleranceDegrees } == true
         if !isLevel { issues.append(.cameraNotLevel) }
 
+        if isTooFar(sample) { issues.append(.tooFar) }
+
         if let pose = sample.pose, pose.joints.values.filter({ $0.confidence >= minConfidence }).count >= 4 {
             if !isFramed(pose) {
                 issues.append(.outOfFrame)
@@ -136,7 +167,7 @@ final class GuidanceEngine {
         } else {
             readySince = nil
         }
-        return GuidanceStatus(issues: issues, isLevel: isLevel, rollDegrees: roll, readyProgress: progress, shouldStartRecording: start)
+        return GuidanceStatus(issues: issues, isLevel: isLevel, rollDegrees: roll, pitchDegrees: pitch, readyProgress: progress, shouldStartRecording: start)
     }
 
     // MARK: - Rules
@@ -173,6 +204,19 @@ final class GuidanceEngine {
     private func isFramed(_ pose: BodyPose2D) -> Bool {
         guard let head = head(pose), inside(head) else { return false }
         return requiredJoints().allSatisfy { joint in ok(pose.joints[joint]).map(inside) ?? false }
+    }
+
+    /// LiDAR distance when available (more precise); otherwise a frame-fill
+    /// estimate from the pose's head-to-ankle span. Never flags "too far" when
+    /// there's no pose at all - that's .noPerson's job, not this one's.
+    private func isTooFar(_ sample: GuidanceSample) -> Bool {
+        if let distance = sample.distanceMeters { return distance > tooFarDistanceMeters }
+        guard let pose = sample.pose, let head = head(pose) else { return false }
+        let ankles = [ok(pose.joints[.leftAnkle]), ok(pose.joints[.rightAnkle])].compactMap { $0 }
+        guard !ankles.isEmpty else { return false }
+        let ankleY = ankles.map(\.y).reduce(0, +) / Double(ankles.count)
+        let span = abs(ankleY - head.y)
+        return span < tooFarSpanFraction
     }
 
     private func px(_ p: BodyPose2D.Point) -> (x: Double, y: Double) {
