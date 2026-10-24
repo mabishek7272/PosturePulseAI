@@ -16,9 +16,11 @@ final class ClipRecorder: NSObject, ClipRecording, @unchecked Sendable {
 
     let session = AVCaptureSession()
     private let output = AVCaptureVideoDataOutput()
+    private let depthOutput = AVCaptureDepthDataOutput()
     private let sessionQueue = DispatchQueue(label: "com.beaive.clip.session")
     private let captureQueue = DispatchQueue(label: "com.beaive.clip.capture")
     private let visionQueue = DispatchQueue(label: "com.beaive.clip.vision")
+    private let depthQueue = DispatchQueue(label: "com.beaive.clip.depth")
     private let motion: MotionSource
     private let poseDetector: PoseDetecting
     private let orientation: ClipOrientation = .portrait
@@ -29,6 +31,11 @@ final class ClipRecorder: NSObject, ClipRecording, @unchecked Sendable {
     private var frameIndex = 0
     private var visionBusy = false
     private var recording: Recording?
+    /// Smoothed by taking the latest sample only. Written on captureQueue (the
+    /// depth delegate callback hops from depthQueue to captureQueue to write
+    /// it); also read on captureQueue to keep all access confined there per
+    /// this class's threading discipline.
+    private var latestDistanceMeters: Double?
 
     private final class Recording {
         let writer: AVAssetWriter
@@ -122,6 +129,18 @@ final class ClipRecorder: NSObject, ClipRecording, @unchecked Sendable {
             } else if connection.isVideoOrientationSupported {
                 connection.videoOrientation = .portrait
             }
+        }
+
+        // LiDAR depth, best-effort: only on Pro-model devices that have it. Every
+        // step is guarded so a failure here never affects the video/recording path
+        // already configured above.
+        if let depthDevice = AVCaptureDevice.default(.builtInLiDARDepthCamera, for: .depthData, position: .back),
+           let depthInput = try? AVCaptureDeviceInput(device: depthDevice),
+           session.canAddInput(depthInput), session.canAddOutput(depthOutput) {
+            session.addInput(depthInput)
+            session.addOutput(depthOutput)
+            depthOutput.isFilteringEnabled = true
+            depthOutput.setDelegate(self, callbackQueue: depthQueue)
         }
     }
 
@@ -248,11 +267,39 @@ extension ClipRecorder: AVCaptureVideoDataOutputSampleBufferDelegate {
         visionQueue.async { [weak self] in
             guard let self else { return }
             let pose = self.poseDetector.detect(in: pixels)
-            self.captureQueue.async { self.visionBusy = false }
-            DispatchQueue.main.async {
-                self.imageSize = size
-                self.onGuidanceSample?(GuidanceSample(time: time, pose: pose, cameraGravity: cameraGravity))
+            self.captureQueue.async { [weak self] in
+                guard let self else { return }
+                self.visionBusy = false
+                // Read latestDistanceMeters here, on captureQueue, to keep all
+                // access to it confined to this queue (it's written from the
+                // depth delegate's captureQueue hop below) rather than reading
+                // it unsynchronized from visionQueue.
+                let distance = self.latestDistanceMeters
+                DispatchQueue.main.async {
+                    self.imageSize = size
+                    self.onGuidanceSample?(GuidanceSample(time: time, pose: pose, cameraGravity: cameraGravity, distanceMeters: distance))
+                }
             }
         }
+    }
+}
+
+extension ClipRecorder: AVCaptureDepthDataOutputDelegate {
+    func depthDataOutput(_ output: AVCaptureDepthDataOutput, didOutput depthData: AVDepthData, timestamp: CMTime, connection: AVCaptureConnection) {
+        let converted = depthData.depthDataType == kCVPixelFormatType_DepthFloat32
+            ? depthData
+            : depthData.converting(toDepthDataType: kCVPixelFormatType_DepthFloat32)
+        let pixelBuffer = converted.depthDataMap
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+        guard let base = CVPixelBufferGetBaseAddress(pixelBuffer) else { return }
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        guard width > 0, height > 0 else { return }
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let centerRow = base.advanced(by: (height / 2) * bytesPerRow).assumingMemoryBound(to: Float32.self)
+        let centerDistance = centerRow[width / 2]
+        guard centerDistance.isFinite, centerDistance > 0 else { return }
+        captureQueue.async { [weak self] in self?.latestDistanceMeters = Double(centerDistance) }
     }
 }
