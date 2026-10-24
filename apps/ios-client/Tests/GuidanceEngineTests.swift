@@ -208,7 +208,12 @@ final class GuidanceEngineTests: XCTestCase {
         XCTAssertFalse(s.issues.contains(.tooFar))
     }
 
-    func testTooFarOutranksViewAndStillnessButNotFramingOrLevel() {
+    /// GuidanceIssue's declaration order only - NOT a precedence guarantee
+    /// (update(_:)'s check order drives runtime precedence; see the enum's
+    /// doc comment). The actual precedence is covered by
+    /// testOutOfFrameOutranksTooFarWhenBothApply and
+    /// testTooFarOutranksNoPersonWhenLiDARDetectsDistanceWithNoPose below.
+    func testTooFarIsDeclaredBetweenOutOfFrameAndNoPerson() {
         XCTAssertEqual(GuidanceIssue.allCases.firstIndex(of: .tooFar), 2)
     }
 

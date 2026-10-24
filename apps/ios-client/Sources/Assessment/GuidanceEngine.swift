@@ -112,7 +112,9 @@ final class GuidanceEngine {
     /// far" when no LiDAR distance reading is available. Guidance-only, not a
     /// measurement threshold - tune freely without touching the analysis pipeline.
     let tooFarSpanFraction: Double = 0.35
-    /// LiDAR-only: distance beyond this reads as "too far".
+    /// LiDAR-only: distance beyond this reads as "too far". Guidance-only,
+    /// not a measurement threshold - tune freely without touching the
+    /// analysis pipeline.
     let tooFarDistanceMeters: Double = 3.0
 
     private var hipHistory: [(t: TimeInterval, x: Double, y: Double, height: Double)] = []
@@ -145,11 +147,15 @@ final class GuidanceEngine {
         let visiblePose = sample.pose.flatMap { pose in
             pose.joints.values.filter { $0.confidence >= minConfidence }.count >= 4 ? pose : nil
         }
+        // nil: no usable pose (-> .noPerson below). false: pose seen but not
+        // framed (-> .outOfFrame). true: framed, eligible for wrongView/moving.
         let framed = visiblePose.map(isFramed)
 
-        if visiblePose != nil, framed == false { issues.append(.outOfFrame) }
+        if framed == false { issues.append(.outOfFrame) }
         if framed != true { hipHistory = [] }
 
+        // Framing (above) outranks distance, which outranks noPerson/wrongView/
+        // moving (below) - see the precedence note on GuidanceIssue.
         if isTooFar(sample) { issues.append(.tooFar) }
 
         if let pose = visiblePose, framed == true {
@@ -208,9 +214,10 @@ final class GuidanceEngine {
         return requiredJoints().allSatisfy { joint in ok(pose.joints[joint]).map(inside) ?? false }
     }
 
-    /// LiDAR distance when available (more precise); otherwise a frame-fill
-    /// estimate from the pose's head-to-ankle span. Never flags "too far" when
-    /// there's no pose at all - that's .noPerson's job, not this one's.
+    /// LiDAR distance when available (more precise, and can fire with no pose
+    /// at all - .tooFar still outranks .noPerson in that case, see update(_:)
+    /// below); otherwise a frame-fill estimate from the pose's head-to-ankle
+    /// span, which does require a pose and returns false without one.
     private func isTooFar(_ sample: GuidanceSample) -> Bool {
         if let distance = sample.distanceMeters { return distance > tooFarDistanceMeters }
         guard let pose = sample.pose, let head = head(pose) else { return false }
