@@ -51,12 +51,11 @@ private enum DesignPreview: String {
                     stepIndex: 0,
                     instruction: "Front view",
                     detail: "Face the camera. Stand tall and relaxed, feet hip-width apart, arms by your sides. Hold still.",
-                    tiltDegrees: 1.2,
-                    isLevel: true,
+                    toast: nil,
                     holdProgress: 0.62,
                     repCount: nil,
                     repTarget: nil,
-                    qualityPrompt: "Recording - hold still"
+                    recordingPrompt: "Recording - hold still"
                 ),
                 stage: { SilhouetteStage() },
                 stop: { StopControlPreview() }
@@ -68,12 +67,11 @@ private enum DesignPreview: String {
                     stepIndex: 2,
                     instruction: "Squat, then stand tall",
                     detail: "Turn side-on. Lower as far as is comfortable, at your own pace.",
-                    tiltDegrees: -5,
-                    isLevel: false,
+                    toast: CaptureToast(icon: "iphone.gen3", text: "Level the phone"),
                     holdProgress: nil,
                     repCount: 3,
                     repTarget: 5,
-                    qualityPrompt: "Level the phone"
+                    recordingPrompt: nil
                 ),
                 stage: { SilhouetteStage() },
                 stop: { StopControlPreview() }

@@ -10,16 +10,17 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
         var stepIndex: Int
         var instruction: String
         var detail: String
-        /// Image roll against true vertical, degrees; drives the bubble only. nil when unknown.
-        var tiltDegrees: Double?
-        /// Level within the step's tolerance (roll and pitch); nil when unknown.
-        var isLevel: Bool?
+        /// The single most important guidance message right now, or nil when
+        /// nothing needs correcting. Shown as a non-blocking top banner, never
+        /// a full-screen block.
+        var toast: CaptureToast?
         /// 0...1 progress of the current hold; nil for rep-based steps.
         var holdProgress: Double?
         var repCount: Int?
         var repTarget: Int?
-        /// Quality-gate prompt, e.g. "Step back — feet not visible".
-        var qualityPrompt: String?
+        /// Shown only while actually recording (separate from `toast`, which is
+        /// pre-recording guidance only).
+        var recordingPrompt: String?
     }
 
     /// Short step titles for the step track.
@@ -44,36 +45,46 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            ZStack {
-                stage()
-                FramingBrackets()
-                    .stroke(Theme.readoutText.opacity(0.85), style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .padding(12)
+            GeometryReader { geo in
+                ZStack {
+                    stage()
+                    FramingBrackets()
+                        .stroke(Theme.readoutText.opacity(0.85), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .padding(12)
 
-                VStack {
-                    HStack {
-                        LevelIndicator(tilt: state.tiltDegrees, isLevel: state.isLevel)
+                    VStack {
+                        HStack {
+                            statusRow
+                            Spacer()
+                            progressBadge
+                        }
+                        if let toast = state.toast {
+                            CaptureGuidanceToast(toast: toast)
+                                .padding(.top, 10)
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                        }
                         Spacer()
-                        progressBadge
+                        if let prompt = state.recordingPrompt {
+                            Label(prompt, systemImage: "record.circle")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(Theme.ink)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(Capsule().fill(.white))
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
-                    Spacer()
-                    if let prompt = state.qualityPrompt {
-                        Label(prompt, systemImage: "viewfinder")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(Theme.ink)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Capsule().fill(.white))
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
+                    .padding(16)
                 }
-                .padding(28)
+                .frame(width: geo.size.width, height: geo.size.height)
             }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(3 / 4, contentMode: .fit)
+            // Nothing is ever cropped from what the pipeline sees - the frame just
+            // fills nearly all available space instead of a boxed 4:5 rectangle.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.readout)
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .animation(.easeOut(duration: 0.25), value: state.qualityPrompt)
+            .animation(.easeOut(duration: 0.25), value: state.toast)
+            .animation(.easeOut(duration: 0.25), value: state.recordingPrompt)
 
             stop()
         }
@@ -82,6 +93,17 @@ struct GuidedCaptureView<Stage: View, Stop: View>: View {
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .paperBackground()
+    }
+
+    private var statusRow: some View {
+        // Replaces the old LevelIndicator bubble: a quiet status dot, no text
+        // duplicating what the toast already says when something's wrong.
+        Circle()
+            .fill(state.toast == nil ? Theme.readoutText : Theme.readoutAccent)
+            .frame(width: 10, height: 10)
+            .padding(10)
+            .background(Capsule().fill(Theme.readout.opacity(0.75)))
+            .accessibilityLabel(state.toast == nil ? "Ready" : "Needs adjustment")
     }
 
     @ViewBuilder
@@ -124,30 +146,19 @@ private struct FramingBrackets: Shape {
     }
 }
 
-/// Bubble level: the bubble drifts with tilt and snaps to centre when within tolerance.
-private struct LevelIndicator: View {
-    let tilt: Double?
-    let isLevel: Bool?
+/// Non-blocking top banner for the single most important guidance issue.
+/// Never covers the skeleton or the hold-ring.
+private struct CaptureGuidanceToast: View {
+    let toast: CaptureToast
 
     var body: some View {
-        HStack(spacing: 8) {
-            ZStack {
-                Capsule().strokeBorder(Theme.readoutText.opacity(0.6), lineWidth: 1.5).frame(width: 54, height: 16)
-                Rectangle().fill(Theme.readoutText.opacity(0.6)).frame(width: 1, height: 16)
-                Circle()
-                    .fill(isLevel == true ? Theme.readoutText : Theme.readoutAccent)
-                    .frame(width: 10, height: 10)
-                    .offset(x: CGFloat(max(min(tilt ?? 0, 10), -10)) * 2)
-                    .animation(.spring(response: 0.3), value: tilt)
-            }
-            Text(isLevel == nil ? "Level?" : isLevel! ? "Level" : "Tilted")
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundColor(Theme.readoutText)
-        }
-        .padding(.horizontal, 10).padding(.vertical, 7)
-        .background(Capsule().fill(Theme.readout.opacity(0.75)))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isLevel == nil ? "Phone level unknown" : isLevel! ? "Phone is level" : "Phone is not level")
+        Label(toast.text, systemImage: toast.icon)
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Capsule().fill(Color.black.opacity(0.55)))
+            .accessibilityElement(children: .combine)
     }
 }
 
