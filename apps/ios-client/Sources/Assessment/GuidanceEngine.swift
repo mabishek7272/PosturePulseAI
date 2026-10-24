@@ -284,3 +284,33 @@ final class GuidanceEngine {
         return variance.squareRoot() <= maxHipSDFraction * medianHeight
     }
 }
+
+/// A single non-blocking HUD message: one SF Symbol + one short phrase.
+/// Pure and SwiftUI-free so it's directly testable.
+struct CaptureToast: Equatable {
+    let icon: String
+    let text: String
+
+    /// The single most important issue's toast, or nil when there's nothing to say.
+    static func forStatus(_ status: GuidanceStatus, view: StepView) -> CaptureToast? {
+        guard let issue = status.issues.first else { return nil }
+        if issue == .cameraNotLevel, let roll = status.rollDegrees, abs(roll) > 0.01 {
+            // Vision/image-frame roll: positive rolls the top toward image-right,
+            // so the correction is "tilt left" to bring it back level.
+            let direction = roll > 0 ? "left" : "right"
+            return CaptureToast(icon: "iphone.gen3", text: "Tilt \(direction) a little")
+        }
+        return CaptureToast(icon: icon(for: issue), text: issue.prompt(for: view))
+    }
+
+    private static func icon(for issue: GuidanceIssue) -> String {
+        switch issue {
+        case .cameraNotLevel: return "iphone.gen3"
+        case .tooFar: return "arrow.down.right.and.arrow.up.left"
+        case .noPerson: return "person.fill.viewfinder"
+        case .outOfFrame: return "arrow.up.left.and.arrow.down.right"
+        case .wrongView: return "arrow.triangle.2.circlepath"
+        case .moving: return "hand.raised.fill"
+        }
+    }
+}

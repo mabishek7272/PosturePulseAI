@@ -252,4 +252,41 @@ final class GuidanceEngineTests: XCTestCase {
             }
         }
     }
+
+    func testNoToastWhenThereAreNoIssues() {
+        let status = GuidanceStatus(issues: [], isLevel: true, rollDegrees: 0, pitchDegrees: 0, readyProgress: 0.5, shouldStartRecording: false)
+        XCTAssertNil(CaptureToast.forStatus(status, view: .anterior))
+    }
+
+    func testLevelToastPointsInTheDirectionOfRoll() {
+        let rolledRight = GuidanceStatus(issues: [.cameraNotLevel], isLevel: false, rollDegrees: 8, pitchDegrees: 0, readyProgress: 0, shouldStartRecording: false)
+        let toast = try! XCTUnwrap(CaptureToast.forStatus(rolledRight, view: .anterior))
+        XCTAssertTrue(toast.text.lowercased().contains("left"), toast.text)
+
+        let rolledLeft = GuidanceStatus(issues: [.cameraNotLevel], isLevel: false, rollDegrees: -8, pitchDegrees: 0, readyProgress: 0, shouldStartRecording: false)
+        let toast2 = try! XCTUnwrap(CaptureToast.forStatus(rolledLeft, view: .anterior))
+        XCTAssertTrue(toast2.text.lowercased().contains("right"), toast2.text)
+    }
+
+    func testLevelToastFallsBackToGenericTextWhenRollIsUnknown() {
+        let status = GuidanceStatus(issues: [.cameraNotLevel], isLevel: false, rollDegrees: nil, pitchDegrees: nil, readyProgress: 0, shouldStartRecording: false)
+        let toast = try! XCTUnwrap(CaptureToast.forStatus(status, view: .anterior))
+        XCTAssertEqual(toast.text, GuidanceIssue.cameraNotLevel.prompt(for: .anterior))
+    }
+
+    func testNonLevelIssuesUseTheirPlainPrompt() {
+        for issue: GuidanceIssue in [.tooFar, .noPerson, .outOfFrame, .moving] {
+            let status = GuidanceStatus(issues: [issue], isLevel: true, rollDegrees: 0, pitchDegrees: 0, readyProgress: 0, shouldStartRecording: false)
+            let toast = try! XCTUnwrap(CaptureToast.forStatus(status, view: .anterior))
+            XCTAssertEqual(toast.text, issue.prompt(for: .anterior))
+        }
+    }
+
+    func testEveryToastHasANonEmptyIcon() {
+        for issue in GuidanceIssue.allCases {
+            let status = GuidanceStatus(issues: [issue], isLevel: issue != .cameraNotLevel, rollDegrees: 5, pitchDegrees: 0, readyProgress: 0, shouldStartRecording: false)
+            let toast = try! XCTUnwrap(CaptureToast.forStatus(status, view: .anterior))
+            XCTAssertFalse(toast.icon.isEmpty)
+        }
+    }
 }
