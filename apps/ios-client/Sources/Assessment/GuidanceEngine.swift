@@ -79,9 +79,12 @@ enum GuidanceIssue: CaseIterable, Equatable {
 struct GuidanceStatus: Equatable {
     var issues: [GuidanceIssue]
     var isLevel: Bool
-    /// Image roll against true vertical, for the bubble level only.
+    /// Image roll against true vertical. CaptureToast.forStatus uses this for
+    /// the left/right tilt-direction text.
     var rollDegrees: Double?
-    /// Image pitch against true vertical, for the tilt toast only.
+    /// Image pitch against true vertical. Exposed for a future forward/back
+    /// tilt toast; CaptureToast.forStatus doesn't read it yet - this slice
+    /// only handles the roll (left/right) direction.
     var pitchDegrees: Double?
     /// 0...1 progress through the ready hold before recording starts.
     var readyProgress: Double
@@ -291,14 +294,17 @@ struct CaptureToast: Equatable {
     let icon: String
     let text: String
 
+    /// Below this, a roll reading is noise, not a direction worth naming.
+    private static let rollDeadZoneDegrees = 0.01
+
     /// The single most important issue's toast, or nil when there's nothing to say.
     static func forStatus(_ status: GuidanceStatus, view: StepView) -> CaptureToast? {
         guard let issue = status.issues.first else { return nil }
-        if issue == .cameraNotLevel, let roll = status.rollDegrees, abs(roll) > 0.01 {
+        if issue == .cameraNotLevel, let roll = status.rollDegrees, abs(roll) > rollDeadZoneDegrees {
             // Vision/image-frame roll: positive rolls the top toward image-right,
             // so the correction is "tilt left" to bring it back level.
             let direction = roll > 0 ? "left" : "right"
-            return CaptureToast(icon: "iphone.gen3", text: "Tilt \(direction) a little")
+            return CaptureToast(icon: icon(for: issue), text: "Tilt \(direction) a little")
         }
         return CaptureToast(icon: icon(for: issue), text: issue.prompt(for: view))
     }
