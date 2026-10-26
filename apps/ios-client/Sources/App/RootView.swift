@@ -9,7 +9,8 @@ import SwiftUI
 struct RootView: View {
     private enum Step {
         case splash
-        case chooseMode
+        case chooseAccount
+        case patientAuth
         case clinicianSignIn
         case pickPatient
         case consent
@@ -26,10 +27,13 @@ struct RootView: View {
     @State private var patient: PatientSummary?
     @State private var visitSubjectId = UUID().uuidString.lowercased()
     @State private var visitConsentRecordId: String?
+    @State private var patientToken: String?
     private let identity: SubjectIdentityStore
+    private let patientSession = PatientSessionStore()
 
     init(identity: SubjectIdentityStore = SubjectIdentityStore()) {
         self.identity = identity
+        _patientToken = State(initialValue: PatientSessionStore().token)
     }
 
     private var subjectPseudoId: String {
@@ -43,35 +47,49 @@ struct RootView: View {
     var body: some View {
         switch step {
         case .splash:
-            SplashView(onFinished: { step = .chooseMode })
-        case .chooseMode:
-            ModeChooserView(
-                onChoose: { chosen in
-                    mode = chosen
+            SplashView(onFinished: { step = .chooseAccount })
+        case .chooseAccount:
+            AccountChooserView(
+                onChoosePatient: {
+                    mode = .patient
+                    if patientToken != nil {
+                        // Returning patient: skip straight into the existing flow this
+                        // part doesn't yet change (Part 2 wires the account in further).
+                        step = afterPatient
+                    } else {
+                        step = .patientAuth
+                    }
+                },
+                onChooseClinic: {
+                    mode = .clinic
                     visitSubjectId = UUID().uuidString.lowercased()
                     visitConsentRecordId = nil
                     patient = nil
-                    if chosen.requiresClinicianSignIn {
-                        step = clinicianToken == nil ? .clinicianSignIn : .pickPatient
-                    } else {
-                        step = afterPatient
-                    }
+                    step = clinicianToken == nil ? .clinicianSignIn : .pickPatient
+                }
+            )
+        case .patientAuth:
+            PatientAuthView(
+                onSignedIn: { token in
+                    patientToken = token
+                    patientSession.save(token: token)
+                    step = afterPatient
                 },
-                onViewResults: ReportAccessStore().all().isEmpty ? nil : { step = .results }
+                onBack: { step = .chooseAccount }
             )
         case .clinicianSignIn:
             ClinicianSignInView(onSignedIn: { token in
                 clinicianToken = token
                 step = .pickPatient
-            }, onBack: { step = .chooseMode })
+            }, onBack: { step = .chooseAccount })
         case .pickPatient:
             if let clinicianToken {
                 PatientPickerView(clinicianToken: clinicianToken, onPicked: { picked in
                     patient = picked
                     step = afterPatient
-                }, onBack: { step = .chooseMode })
+                }, onBack: { step = .chooseAccount })
             } else {
-                ClinicianSignInView(onSignedIn: { token in clinicianToken = token }, onBack: { step = .chooseMode })
+                ClinicianSignInView(onSignedIn: { token in clinicianToken = token }, onBack: { step = .chooseAccount })
             }
         case .consent:
             ConsentView(subjectPseudoId: subjectPseudoId) { consentRecordId in
@@ -93,7 +111,7 @@ struct RootView: View {
                         if mode == .clinic { visitConsentRecordId = nil } else { identity.clearConsentRecordId() }
                         step = .consent
                     },
-                    onBack: { step = .chooseMode }
+                    onBack: { step = .chooseAccount }
                 )
             } else {
                 ConsentView(subjectPseudoId: subjectPseudoId) { id in
@@ -119,10 +137,10 @@ struct RootView: View {
                 context: doneContext(credentials),
                 completed: completed,
                 onViewResults: { step = .results },
-                onDone: { step = .chooseMode }
+                onDone: { step = .chooseAccount }
             )
         case .results:
-            ResultsView(onBack: { step = .chooseMode })
+            ResultsView(onBack: { step = .chooseAccount })
         }
     }
 

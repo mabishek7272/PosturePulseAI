@@ -26,12 +26,13 @@ struct BeAIveApp: App {
 
 #if DEBUG
 /// Debug-only design previews with sample data: launch with
-/// `-designPreview report|report-movement|capture|reps|setup|patients|results|splash|mode-chooser`.
+/// `-designPreview report|report-movement|capture|reps|setup|patients|results|splash|mode-chooser|account-chooser`.
 private enum DesignPreview: String {
     case report, capture, reps, setup, patients, results
     case reportMovement = "report-movement"
     case splash
     case modeChooser = "mode-chooser"
+    case accountChooser = "account-chooser"
 
     static func fromLaunchArguments() -> DesignPreview? {
         UserDefaults.standard.string(forKey: "designPreview").flatMap(DesignPreview.init(rawValue:))
@@ -90,6 +91,8 @@ private enum DesignPreview: String {
             SplashView(onFinished: {})
         case .modeChooser:
             ModeChooserView(onChoose: { _ in }, onViewResults: {})
+        case .accountChooser:
+            AccountChooserView(onChoosePatient: {}, onChooseClinic: {})
         }
     }
 }
