@@ -33,6 +33,10 @@ export interface LinkedSession {
  * never written to the event log, the session, a consent record or a report;
  * the only bridge to measurements is the pseudonymous subjectPseudoId in
  * PatientSubjectLink.
+ *
+ * The Patient table also holds self-signup rows (email/passwordHash,
+ * ADR-019) - this service never operates on those; open() explicitly skips
+ * any row without a register-style nameEnc/dobEnc.
  */
 @Injectable()
 export class PatientsService {

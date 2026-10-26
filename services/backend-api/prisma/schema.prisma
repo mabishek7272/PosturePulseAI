@@ -192,17 +192,23 @@ model AssessmentReport {
   @@index([status, createdAt])
 }
 
-// Clinician-only patient register (docs/adr/017-patient-register.md). Every
-// identifying field is AES-256-GCM ciphertext (PATIENT_DATA_KEY); none of it
-// ever enters Event, Session, ConsentRecord or a report body.
+// Two row shapes share this table. Clinician-register rows
+// (docs/adr/017-patient-register.md): every identifying field is
+// AES-256-GCM ciphertext (PATIENT_DATA_KEY); none of it ever enters Event,
+// Session, ConsentRecord or a report body. Self-signup rows
+// (docs/adr/019-patient-self-signup.md): identified by email/passwordHash
+// instead, with the ciphertext fields left null - PatientsService only
+// ever operates on the register shape (see its own doc comment).
 model Patient {
   id           String               @id @default(uuid())
-  email        String?              @unique
-  passwordHash String?
   nameEnc      String?
   dobEnc       String?
   contactEnc   String?
   createdBy    String?
+  // Self-signup auth (docs/adr/019-patient-self-signup.md) - null for
+  // clinician-register rows created via PatientsService.create.
+  email        String?              @unique
+  passwordHash String?
   createdAt    DateTime             @default(now())
   links        PatientSubjectLink[]
 }
