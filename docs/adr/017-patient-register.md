@@ -35,4 +35,11 @@ events, reports) is pseudonymous by design and must stay so.
 - Search scans the whole register in memory. That is fine for one clinic; a
   blind index would be needed for a large register.
 - A database dump alone does not reveal patients; a dump plus the key does.
-- Patient mode (no clinician) never touches the register.
+- Patient mode (no clinician) never touches the register. **Note (ADR-019):**
+  self-signup patient accounts (email + password, `"patient"` JWT role) are a
+  separate, parallel identity from the clinician-only register this ADR
+  describes. A self-signup patient has no register entry - `nameEnc`/`dobEnc`
+  are null on that row - unless a clinician separately adds one; `open()`
+  explicitly excludes null-`nameEnc`/`dobEnc` rows from `search()`, so a
+  self-signup patient cannot be found through the register. See
+  `docs/adr/019-patient-self-signup.md`.

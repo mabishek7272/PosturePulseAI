@@ -34,6 +34,15 @@ never be a direct identifier (name, national ID, email). Do not add a `name` or
 similarly identifying field to any canonical record (sessions, consent records,
 events, metric results, reports).
 
+**Note (ADR-019):** the "must stay pseudonymous" requirement above governs the
+existing `subjectPseudoId`/consent-record/session flow and is unchanged.
+`docs/adr/019-patient-self-signup.md` adds a separate, persistent patient-login
+identity (email + bcrypt-hashed password, `"patient"` JWT role) alongside it,
+not a replacement for it - the pseudonymous flow keeps working exactly as
+described here, and self-signup patients are not yet linked to sessions,
+consent records, or a `subjectPseudoId` (that linkage is a later part of the
+same redesign, not this ADR).
+
 Real-world identity lives in exactly one place: the clinician-only **patient
 register** (`docs/adr/017-patient-register.md`). Its name, date of birth and
 contact fields are stored only as AES-256-GCM ciphertext under `PATIENT_DATA_KEY`

@@ -1,7 +1,12 @@
 # ADR-012: Session-scoped subject tokens
 
 ## Status
-Accepted (resolves the first "Still open" item of ADR-010)
+Accepted (resolves the first "Still open" item of ADR-010). **Superseded in
+part by [ADR-019](019-patient-self-signup.md):** patients may now create a
+persistent self-signup account (email + bcrypt-hashed password, `"patient"`
+JWT role); see ADR-019 for what changed and what didn't. The pseudonymous
+`subjectPseudoId`/`"subject"`-role flow this ADR describes below is otherwise
+unchanged and still in force.
 
 ## Context
 ADR-010 secured the clinician REST surface but left every device/subject-facing
