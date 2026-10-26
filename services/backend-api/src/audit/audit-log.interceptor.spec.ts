@@ -72,4 +72,16 @@ describe("AuditLogInterceptor", () => {
 
     expect(auditLog.record).not.toHaveBeenCalled();
   });
+
+  it("skips the write rather than recording a placeholder actor when the token has no username", async () => {
+    const reflector = { getAllAndOverride: jest.fn().mockReturnValue("list_sessions") };
+    const auditLog = { record: jest.fn() };
+    const interceptor = new AuditLogInterceptor(reflector as unknown as Reflector, auditLog as never);
+
+    await lastValueFrom(
+      interceptor.intercept(buildContext({ sub: "p1", role: "patient" }, {}), handlerReturning([]))
+    );
+
+    expect(auditLog.record).not.toHaveBeenCalled();
+  });
 });

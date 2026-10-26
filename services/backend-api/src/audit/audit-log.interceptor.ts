@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from "@nestjs/common";
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { Observable, tap } from "rxjs";
 import type { JwtPayload } from "../auth/auth.service";
@@ -14,6 +14,8 @@ import { AuditLogService } from "./audit-log.service";
  */
 @Injectable()
 export class AuditLogInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditLogInterceptor.name);
+
   constructor(
     private readonly reflector: Reflector,
     private readonly auditLog: AuditLogService
@@ -33,12 +35,21 @@ export class AuditLogInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(() => {
         if (!user) return; // Shouldn't happen behind JwtAuthGuard, but never audit-log a phantom actor.
-        // Every route behind @AuditAction is @Roles("clinician")-gated, so `username` is
-        // always set on tokens that reach here; the fallback only guards the broadened
-        // (now-optional) JwtPayload type and should never be hit in practice.
+        // Every route behind @AuditAction is @Roles("clinician")-gated, so `username`
+        // is always set on tokens that reach here today. If that ever stops being
+        // true (a guard misconfigured, a new role added to an audited route), a
+        // corrupted/ambiguous audit row is worse than a loud failure - skip the
+        // write and log it, the same way a missing `user` is skipped above, rather
+        // than silently recording a placeholder actor.
+        if (!user.username) {
+          this.logger.error(
+            `Audit action "${action}" reached with no username on the token (sub=${user.sub}, role=${user.role}) - skipping the write.`
+          );
+          return;
+        }
         void this.auditLog.record({
           clinicianId: user.sub,
-          clinicianUsername: user.username ?? "unknown",
+          clinicianUsername: user.username,
           action,
           sessionId: sessionId ?? null,
         });

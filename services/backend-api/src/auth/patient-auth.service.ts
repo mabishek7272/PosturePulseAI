@@ -6,6 +6,8 @@ import type { JwtPayload } from "./auth.service";
 
 const BCRYPT_SALT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 12;
+// A deliberately liberal syntax check (allows +tags etc.), not a
+// deliverability check - there's no verification-email flow yet.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
