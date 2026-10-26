@@ -1,6 +1,6 @@
 import { SetMetadata } from "@nestjs/common";
 
-export type Role = "clinician" | "subject";
+export type Role = "clinician" | "subject" | "patient";
 
 export const ROLES_KEY = "roles";
 

@@ -8,8 +8,11 @@ const BCRYPT_SALT_ROUNDS = 12;
 
 export interface JwtPayload {
   sub: string;
-  username: string;
   role: Role;
+  /** Clinician tokens. */
+  username?: string;
+  /** Patient tokens. */
+  email?: string;
 }
 
 /**

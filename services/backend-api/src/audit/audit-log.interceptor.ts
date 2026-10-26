@@ -33,9 +33,12 @@ export class AuditLogInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(() => {
         if (!user) return; // Shouldn't happen behind JwtAuthGuard, but never audit-log a phantom actor.
+        // Every route behind @AuditAction is @Roles("clinician")-gated, so `username` is
+        // always set on tokens that reach here; the fallback only guards the broadened
+        // (now-optional) JwtPayload type and should never be hit in practice.
         void this.auditLog.record({
           clinicianId: user.sub,
-          clinicianUsername: user.username,
+          clinicianUsername: user.username ?? "unknown",
           action,
           sessionId: sessionId ?? null,
         });

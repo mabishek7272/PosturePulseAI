@@ -4,6 +4,8 @@ import { PrismaService } from "../common/prisma.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { PatientAuthController } from "./patient-auth.controller";
+import { PatientAuthService } from "./patient-auth.service";
 import { RolesGuard } from "./roles.guard";
 import { SubjectAuthService } from "./subject-auth.service";
 
@@ -31,8 +33,8 @@ function resolveJwtSecret(): string {
       signOptions: { expiresIn: "8h" },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, PrismaService, JwtAuthGuard, RolesGuard, SubjectAuthService],
+  controllers: [AuthController, PatientAuthController],
+  providers: [AuthService, PatientAuthService, PrismaService, JwtAuthGuard, RolesGuard, SubjectAuthService],
   exports: [JwtAuthGuard, RolesGuard, SubjectAuthService],
 })
 export class AuthModule {}
