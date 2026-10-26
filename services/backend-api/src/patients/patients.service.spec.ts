@@ -107,6 +107,14 @@ describe("PatientsService.search", () => {
     patients.push({ id: "bad", createdAt: new Date(), createdBy: "c", nameEnc: "garbage", dobEnc: "garbage", contactEnc: null });
     expect((await service.search("")).map((p) => p.name)).toEqual(["Ada"]);
   });
+
+  it("silently excludes a self-signup patient (no clinician-entered name/DOB yet) from results", async () => {
+    const { service, patients } = setup();
+    await service.create({ name: "Ada", dateOfBirth: "1980-01-01" }, "c");
+    patients.push({ id: "selfsignup", createdAt: new Date(), createdBy: null, nameEnc: null, dobEnc: null, contactEnc: null, email: "ada@self.test", passwordHash: "hash" });
+    await expect(service.search("")).resolves.not.toThrow();
+    expect((await service.search("")).map((p) => p.name)).toEqual(["Ada"]);
+  });
 });
 
 describe("PatientsService.link", () => {

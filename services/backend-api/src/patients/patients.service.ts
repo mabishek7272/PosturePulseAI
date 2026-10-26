@@ -112,7 +112,11 @@ export class PatientsService {
     }));
   }
 
-  private open(row: { id: string; nameEnc: string; dobEnc: string; contactEnc: string | null; createdAt: Date }): PatientRecord | null {
+  private open(row: { id: string; nameEnc: string | null; dobEnc: string | null; contactEnc: string | null; createdAt: Date }): PatientRecord | null {
+    // A self-signup patient (Part 1 of the accounts redesign) has no
+    // clinician-entered name/DOB yet - it isn't a clinician-register entry,
+    // so it's correctly excluded from search results, not an error.
+    if (row.nameEnc === null || row.dobEnc === null) return null;
     try {
       return {
         id: row.id,

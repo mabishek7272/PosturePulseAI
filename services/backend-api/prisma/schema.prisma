@@ -196,13 +196,15 @@ model AssessmentReport {
 // identifying field is AES-256-GCM ciphertext (PATIENT_DATA_KEY); none of it
 // ever enters Event, Session, ConsentRecord or a report body.
 model Patient {
-  id         String               @id @default(uuid())
-  nameEnc    String
-  dobEnc     String
-  contactEnc String?
-  createdBy  String
-  createdAt  DateTime             @default(now())
-  links      PatientSubjectLink[]
+  id           String               @id @default(uuid())
+  email        String?              @unique
+  passwordHash String?
+  nameEnc      String?
+  dobEnc       String?
+  contactEnc   String?
+  createdBy    String?
+  createdAt    DateTime             @default(now())
+  links        PatientSubjectLink[]
 }
 
 // Patient -> pseudonymous subjectPseudoId. A subjectPseudoId belongs to at most
