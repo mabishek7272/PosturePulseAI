@@ -1,11 +1,14 @@
 import SwiftUI
 
-/// Mode -> (clinic: clinician sign-in -> patient register) -> consent ->
+/// Splash -> chooseAccount (patient: sign up/in with a persistent account,
+/// ADR-019; clinic: clinician sign-in -> patient register) -> consent ->
 /// battery + session -> setup -> battery -> done (patient: report access;
 /// clinic: link the visit to the patient). Patient mode uses this device's
 /// pseudonymous id and its saved consent. Clinic mode runs on a shared device,
 /// so every visit gets a fresh pseudonymous id and its own consent
-/// (docs/adr/012).
+/// (docs/adr/012). The persistent patientToken (ADR-019) only gates entry
+/// into this same pseudonymous-identity flow for now - it isn't wired any
+/// further into session creation yet.
 struct RootView: View {
     private enum Step {
         case splash
@@ -33,7 +36,7 @@ struct RootView: View {
 
     init(identity: SubjectIdentityStore = SubjectIdentityStore()) {
         self.identity = identity
-        _patientToken = State(initialValue: PatientSessionStore().token)
+        _patientToken = State(initialValue: patientSession.token)
     }
 
     private var subjectPseudoId: String {
@@ -66,7 +69,8 @@ struct RootView: View {
                     visitConsentRecordId = nil
                     patient = nil
                     step = clinicianToken == nil ? .clinicianSignIn : .pickPatient
-                }
+                },
+                onViewResults: ReportAccessStore().all().isEmpty ? nil : { step = .results }
             )
         case .patientAuth:
             PatientAuthView(

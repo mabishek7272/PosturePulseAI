@@ -24,6 +24,13 @@ struct PatientAuthView: View {
                 .foregroundColor(NeonTheme.textPrimary)
                 .padding(.top, 8)
 
+                VStack(alignment: .leading, spacing: 8) {
+                    Eyebrow("Patient", color: NeonTheme.violet)
+                    Text(mode == .signUp ? "Create your account" : "Welcome back")
+                        .font(NeonTypo.heading)
+                        .foregroundColor(NeonTheme.textPrimary)
+                }
+
                 Picker("Mode", selection: $mode) {
                     Text("Sign up").tag(Mode.signUp)
                     Text("Sign in").tag(Mode.signIn)
@@ -50,7 +57,7 @@ struct PatientAuthView: View {
                         .foregroundColor(NeonTheme.textPrimary)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(NeonTheme.violetDim.opacity(0.3)))
+                        .background(RoundedRectangle(cornerRadius: 12).fill(NeonTheme.caution.opacity(0.25)))
                 }
 
                 Button(action: submit) {

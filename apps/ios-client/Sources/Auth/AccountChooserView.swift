@@ -6,6 +6,10 @@ import SwiftUI
 struct AccountChooserView: View {
     let onChoosePatient: () -> Void
     let onChooseClinic: () -> Void
+    /// Set when this phone holds access to at least one assessment's results
+    /// (carried over from the old ModeChooserView's footer, ReportAccessStore-gated
+    /// and independent of patient/clinician login).
+    var onViewResults: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 24) {
@@ -20,12 +24,23 @@ struct AccountChooserView: View {
             }
             .padding(.horizontal, 28)
             Spacer()
-            Text("Results are camera-based estimates that a clinician reviews.")
-                .font(.footnote)
-                .foregroundColor(NeonTheme.textDim)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 28)
-                .padding(.bottom, 18)
+            VStack(spacing: 10) {
+                if let onViewResults {
+                    Button(action: onViewResults) {
+                        Label("Your results", systemImage: "doc.text.magnifyingglass")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(NeonTheme.textPrimary)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .accessibilityHint("Shows assessments your clinician has released")
+                }
+                Text("Results are camera-based estimates that a clinician reviews.")
+                    .font(.footnote)
+                    .foregroundColor(NeonTheme.textDim)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 28)
+            .padding(.bottom, 18)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(NeonTheme.bgDeep.ignoresSafeArea())

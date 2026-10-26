@@ -15,6 +15,9 @@ enum NeonTheme {
     static let mint = Color(hex: 0x39ffc4)
     static let textPrimary = Color(hex: 0xefeaf6)
     static let textDim = Color(hex: 0x9d93ae)
+    /// Error/caution banners - deliberately outside the violet brand family
+    /// so a problem reads as visually distinct from ordinary chrome.
+    static let caution = Color(hex: 0xff6b6b)
 }
 
 /// Bold rounded sans for shell headings - distinct from Typo's serif/mono
