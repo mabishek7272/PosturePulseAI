@@ -43,7 +43,14 @@ describe("PatientsService.create", () => {
   it("stores every identifying field as ciphertext and returns the plain record", async () => {
     const { service, patients, crypto } = setup();
     const created = await service.create(input, "clin1");
-    expect(created).toEqual({ id: "p1", name: "Ada Example", dateOfBirth: "1980-02-29", contact: "ada@example.test", createdAt: expect.any(Date) });
+    expect(created).toEqual({
+      id: "p1",
+      name: "Ada Example",
+      dateOfBirth: "1980-02-29",
+      contact: "ada@example.test",
+      intake: null,
+      createdAt: expect.any(Date),
+    });
 
     const row = patients[0];
     expect(row.createdBy).toBe("clin1");
@@ -73,6 +80,64 @@ describe("PatientsService.create", () => {
     const { service, prisma } = setup();
     await expect(service.create(body as never, "clin1")).rejects.toThrow(BadRequestException);
     expect(prisma.patient.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("PatientsService.create - intake", () => {
+  const intake = {
+    heightCm: 172,
+    weightKg: 68,
+    smoking: "former" as const,
+    alcohol: "occasional" as const,
+    physicalActivityLevel: "moderate" as const,
+    physicalProblems: "Lower back ache for 2 weeks",
+    recentAccident: true,
+    recentAccidentDetails: "Slipped on stairs, no fracture",
+  };
+
+  it("stores intake as ciphertext and round-trips it exactly", async () => {
+    const { service, patients, crypto } = setup();
+    const created = await service.create({ ...input, intake }, "clin1");
+    expect(created.intake).toEqual(intake);
+
+    const row = patients[0];
+    expect(JSON.stringify(row)).not.toMatch(/Slipped|back ache/);
+    expect(JSON.parse(crypto.decrypt("intake", row.intakeEnc))).toEqual(intake);
+  });
+
+  it("is entirely optional - omitting it stores no ciphertext", async () => {
+    const { service, patients } = setup();
+    await service.create(input, "clin1");
+    expect(patients[0].intakeEnc).toBeNull();
+  });
+
+  it("accepts a partial intake, keeping only the fields actually given", async () => {
+    const { service } = setup();
+    const created = await service.create({ ...input, intake: { heightCm: 180 } }, "clin1");
+    expect(created.intake).toEqual({ heightCm: 180 });
+  });
+
+  it.each([
+    ["height too low", { heightCm: 10 }],
+    ["height too high", { heightCm: 300 }],
+    ["weight not a number", { weightKg: "heavy" }],
+    ["smoking not one of the allowed values", { smoking: "sometimes" }],
+    ["alcohol not one of the allowed values", { alcohol: "lots" }],
+    ["activity level not one of the allowed values", { physicalActivityLevel: "extreme" }],
+    ["recentAccident not a boolean", { recentAccident: "yes" }],
+  ])("rejects %s", async (_label, badIntake) => {
+    const { service, prisma } = setup();
+    await expect(service.create({ ...input, intake: badIntake as never }, "clin1")).rejects.toThrow(BadRequestException);
+    expect(prisma.patient.create).not.toHaveBeenCalled();
+  });
+
+  it("truncates an over-long free-text note rather than rejecting the whole patient", async () => {
+    const { service } = setup();
+    const created = await service.create(
+      { ...input, intake: { physicalProblems: "x".repeat(1000) } },
+      "clin1"
+    );
+    expect(created.intake?.physicalProblems).toHaveLength(500);
   });
 });
 

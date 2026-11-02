@@ -209,6 +209,12 @@ model Patient {
   // clinician-register rows created via PatientsService.create.
   email        String?              @unique
   passwordHash String?
+  // Optional clinical intake (height, weight, lifestyle, presenting problem),
+  // stored as one AES-256-GCM-sealed JSON blob rather than a column per
+  // field, since the question set is expected to keep growing. Documentary
+  // only: nothing in the pipeline computes against it (no stratified
+  // reference ranges without clinical-lead sign-off, CLAUDE.md).
+  intakeEnc    String?
   createdAt    DateTime             @default(now())
   links        PatientSubjectLink[]
 }

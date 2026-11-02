@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
-export type PatientField = "name" | "dob" | "contact";
+export type PatientField = "name" | "dob" | "contact" | "intake";
 
 const FORMAT = "v1";
 const KEY_BYTES = 32;
