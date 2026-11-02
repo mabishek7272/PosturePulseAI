@@ -15,7 +15,7 @@
 ## Before you start
 
 1. Read the design spec's substitution table once. The five things that must never appear in any screen built here: a bare composite score, a diagnostic label used as plain metadata, an AI card asserting a cross-patient or causal pattern, an AI card recommending a specific intervention with a one-tap accept, and any claim that analysis happens "on-device."
-2. `npx jest`, `npx tsc --noEmit`, and `bash scripts/lint-claims.sh` (from the repo root) must be clean before and after every task. 38 tests pass today; each task's step lists the new expected count where it changes.
+2. `npx jest`, `npx tsc --noEmit`, and `bash scripts/lint-claims.sh` (from the repo root) must be clean before and after every task. 39 tests pass today (corrected during execution - Task 1 found the plan's original baseline of 38 was off by one); each task's step lists the new expected count where it changes.
 3. These are visual-only changes to proven screens — no new automated tests are written for pure layout. Where a task adds real logic (the History API call, idle-lock), it gets a real test.
 
 ---
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 38 tests passing, clean typecheck, claims lint passes.
+Expected: 39 tests passing, clean typecheck, claims lint passes.
 
 - [ ] **Step 3: Commit**
 
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 38 tests passing, clean typecheck, claims lint passes.
+Expected: 39 tests passing, clean typecheck, claims lint passes.
 
 - [ ] **Step 3: Commit**
 
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 38 tests passing, clean typecheck (the `/history` route reference typechecks fine before the route exists, same as Task 2's forward references), claims lint passes.
+Expected: 39 tests passing, clean typecheck (the `/history` route reference typechecks fine before the route exists, same as Task 2's forward references), claims lint passes.
 
 - [ ] **Step 3: Commit**
 
@@ -706,7 +706,7 @@ return (
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 38 tests passing (this file's own tests live in `patients.test.ts` / `patients.service.spec.ts`, unaffected by a UI-only change), clean typecheck, claims lint passes.
+Expected: 39 tests passing (this file's own tests live in `patients.test.ts` / `patients.service.spec.ts`, unaffected by a UI-only change), clean typecheck, claims lint passes.
 
 - [ ] **Step 5: Commit**
 
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 38 tests passing, clean typecheck, claims lint passes.
+Expected: 39 tests passing, clean typecheck, claims lint passes.
 
 - [ ] **Step 3: Commit**
 
@@ -834,7 +834,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 38 tests passing, clean typecheck, claims lint passes.
+Expected: 39 tests passing, clean typecheck, claims lint passes.
 
 - [ ] **Step 3: Commit**
 
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 38 tests passing, clean typecheck, claims lint passes.
+Expected: 39 tests passing, clean typecheck, claims lint passes.
 
 - [ ] **Step 4: Commit**
 
@@ -958,7 +958,7 @@ Add `View` to the `react-native` import if not already present.
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 38 tests passing, clean typecheck, claims lint passes.
+Expected: 39 tests passing, clean typecheck, claims lint passes.
 
 - [ ] **Step 3: Commit**
 
@@ -1147,7 +1147,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 41 tests passing (38 + 3 new), clean typecheck (Home's `/history` link from Task 5 now resolves to a real route), claims lint passes.
+Expected: 42 tests passing (39 + 3 new), clean typecheck (Home's `/history` link from Task 5 now resolves to a real route), claims lint passes.
 
 - [ ] **Step 7: Commit**
 
@@ -1205,7 +1205,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 41 tests passing, clean typecheck, claims lint passes.
+Expected: 42 tests passing, clean typecheck, claims lint passes.
 
 - [ ] **Step 3: Commit**
 
@@ -1314,7 +1314,7 @@ const styles = StyleSheet.create({
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 41 tests passing, clean typecheck, claims lint passes.
+Expected: 42 tests passing, clean typecheck, claims lint passes.
 
 - [ ] **Step 3: Commit**
 
@@ -1500,7 +1500,7 @@ In `apps/mobile/src/app/login.tsx`, add the subtitle line back now that it is ac
 cd apps/mobile && npx jest && npx tsc --noEmit
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1 && bash scripts/lint-claims.sh
 ```
-Expected: 45 tests passing (41 + 4 new), clean typecheck, claims lint passes.
+Expected: 46 tests passing (42 + 4 new), clean typecheck, claims lint passes.
 
 - [ ] **Step 8: Commit**
 
@@ -1523,7 +1523,7 @@ This reskin has not been run on hardware. Before considering it done:
 
 ## Done when
 
-- `cd apps/mobile && npx jest` — 45 tests passing.
+- `cd apps/mobile && npx jest` — 46 tests passing.
 - `cd apps/mobile && npx tsc --noEmit` — clean.
 - `bash scripts/lint-claims.sh` — clean.
 - Every item in the Device verification section above confirmed on a physical device.
