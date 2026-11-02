@@ -88,4 +88,24 @@ describe("buildSidecar", () => {
       })
     ).toThrow(MissingGravityError);
   });
+
+  it("interpolates correctly even when samples arrive out of order", () => {
+    // Date.now() can step backwards under an NTP adjustment, so arrival order
+    // is not guaranteed to be time order.
+    const shuffled = buildSidecar({
+      ...base, durationSeconds: 2, fps: 2,
+      gravitySamples: [
+        { t: 2, g: [1, 0, 0] },
+        { t: 0, g: [0, 1, 0] },
+      ],
+    });
+    const inOrder = buildSidecar({
+      ...base, durationSeconds: 2, fps: 2,
+      gravitySamples: [
+        { t: 0, g: [0, 1, 0] },
+        { t: 2, g: [1, 0, 0] },
+      ],
+    });
+    expect(shuffled.frames.map((f) => f.gravity)).toEqual(inOrder.frames.map((f) => f.gravity));
+  });
 });
