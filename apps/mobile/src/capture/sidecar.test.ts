@@ -64,7 +64,7 @@ describe("buildSidecar", () => {
 
   it("carries a provenance block with every required field", () => {
     const sidecar = buildSidecar({
-      ...base, gravitySamples: [{ t: 0, g: [0, 1, 0] }],
+      ...base, gravitySamples: [{ t: 0, g: [0, 1, 0] }, { t: 2, g: [0, 1, 0] }],
     });
     expect(sidecar.provenance.schemaVersion).toBe("clip-capture/v0");
     expect(sidecar.provenance.modelVersion).toContain("beaive-mobile");
@@ -78,5 +78,14 @@ describe("buildSidecar", () => {
       gravitySamples: [{ t: 0, g: [0, 1, 0] }],
     });
     expect(sidecar.frames.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("rejects a clip whose gravity samples cover only a fraction of the recording", () => {
+    expect(() =>
+      buildSidecar({
+        ...base, durationSeconds: 3, fps: 30,
+        gravitySamples: [{ t: 0, g: [0, 1, 0] }, { t: 0.2, g: [0, 1, 0] }],
+      })
+    ).toThrow(MissingGravityError);
   });
 });

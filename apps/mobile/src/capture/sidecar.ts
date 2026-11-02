@@ -10,8 +10,10 @@ const MODEL_VERSION = `beaive-mobile/${APP_VERSION}`;
  * angle - so the upload must fail loudly instead.
  */
 export class MissingGravityError extends Error {
-  constructor() {
-    super("No gravity readings were captured for this clip; it cannot be uploaded.");
+  constructor(
+    message = "No gravity readings were captured for this clip; it cannot be uploaded.",
+  ) {
+    super(message);
   }
 }
 
@@ -75,15 +77,36 @@ function gravityAt(samples: GravitySample[], t: number): Vector3 {
   return normalise(last.g);
 }
 
+/** Clips longer than this must have gravity samples covering most of the recording. */
+const COVERAGE_CHECK_MIN_DURATION_S = 1.5;
+const MIN_COVERAGE_FRACTION = 0.5;
+
 export function buildSidecar(input: BuildSidecarInput): ClipCapture {
   if (input.gravitySamples.length === 0) throw new MissingGravityError();
+
+  // Sort a copy by time. gravityAt assumes ascending t; out-of-order samples
+  // (e.g. Date.now() stepping backwards under an NTP adjustment) would
+  // otherwise interpolate against the wrong neighbour and produce a
+  // plausible-looking but wrong gravity vector.
+  const samples = [...input.gravitySamples].sort((a, b) => a.t - b.t);
+
+  // One sample (or a burst covering a sliver of the clip) held across the whole
+  // recording would be fabricated per-frame data (CLAUDE.md rule 3).
+  if (input.durationSeconds > COVERAGE_CHECK_MIN_DURATION_S) {
+    const span = samples[samples.length - 1].t - samples[0].t;
+    if (samples.length < 2 || span < input.durationSeconds * MIN_COVERAGE_FRACTION) {
+      throw new MissingGravityError(
+        `Gravity readings cover only ${span.toFixed(2)}s of a ${input.durationSeconds.toFixed(2)}s clip; it cannot be uploaded.`,
+      );
+    }
+  }
 
   // Frame count comes from the clip's real duration and frame rate - never a
   // fixed assumption, because recordings are rarely exactly the requested length.
   const frameCount = Math.max(1, Math.round(input.durationSeconds * input.fps));
   const frames = Array.from({ length: frameCount }, (_unused, index) => {
     const t = index / input.fps;
-    return { index, t, gravity: gravityAt(input.gravitySamples, t) };
+    return { index, t, gravity: gravityAt(samples, t) };
   });
 
   return {
