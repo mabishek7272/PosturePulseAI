@@ -207,8 +207,11 @@ because describing computation is not describing health.
 
 ## Error handling
 
-- **Network loss mid-capture** — clips are written to local storage first and
-  uploaded with retry. A half-finished session is resumable rather than lost.
+- **Network loss mid-capture** — the failing pose reports the server's reason
+  and can be re-recorded immediately; poses already accepted are not re-uploaded.
+  Resuming a session after the app is quit is **not** in P1 — a scan is a
+  three-minute, in-the-room activity, so re-recording one pose is cheaper than
+  building durable upload queueing. Revisit in P2 if it bites in practice.
 - **Upload rejected** (`ClipUploadStateGuard`) — surface the server's reason;
   never silently drop a capture.
 - **Analysis incomplete or quality-gated** — a metric returned as `unsupported`
