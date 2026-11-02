@@ -12,6 +12,7 @@ export default function PatientPickerScreen() {
   useEffect(() => {
     if (query.trim().length < 2) {
       setResults([]);
+      setError(null);
       return;
     }
     let cancelled = false;
