@@ -16,17 +16,22 @@ import { startGravitySampling } from "../capture/gravity";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
 import { buildSidecar } from "../capture/sidecar";
 
-// 1080x1920 - portrait, so the preview fills a tall phone screen and what is
-// framed is what is recorded. A subject boxed into a letterboxed preview looks
-// like a toy and gets framed wrong.
+// 1440x1920 - portrait 4:3, because iPad is the primary device and iPad and
+// iPhone rear cameras are natively 4:3.
+//
+// 4:3 uses the whole sensor. Asking for 16:9 crops the sides off it, giving
+// the same 1920 height but only 1080 of width - less room for a standing
+// subject with feet apart and arms at their sides, and so more out-of-frame
+// failures. 4:3 also matches an iPad screen, so the full-bleed preview really
+// does show what is being recorded rather than a crop of it.
 //
 // The sidecar reports this target, not the resolution the pipeline selected.
 // That is deliberate and safe: vision-camera prioritises the target's aspect
 // ratio over pixel count when it cannot be met exactly, and the server-side
 // angles depend on aspect ratio, not absolute scale (ml-service passes
-// width/height into analyze_observations). A 720x1280 recording described as
-// 1080x1920 yields identical angles. Do not "fix" this to the selected size.
-const TARGET_RESOLUTION = CommonResolutions.FHD_16_9;
+// width/height into analyze_observations). A 1080x1440 recording described as
+// 1440x1920 yields identical angles. Do not "fix" this to the selected size.
+const TARGET_RESOLUTION = CommonResolutions.FHD_4_3;
 const TARGET_FPS = 30;
 
 export default function CaptureScreen() {
