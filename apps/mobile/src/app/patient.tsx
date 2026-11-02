@@ -299,7 +299,7 @@ function NewPatientForm({
 
       {localError && <Text style={styles.error}>{localError}</Text>}
       <Pressable style={styles.button} onPress={submit} disabled={busy}>
-        {busy ? <ActivityIndicator color="#0e0a16" /> : <Text style={styles.buttonText}>Create and select</Text>}
+        {busy ? <ActivityIndicator color={colors.textOnDark} /> : <Text style={styles.buttonText}>Create and select</Text>}
       </Pressable>
       <Pressable onPress={() => setOpen(false)} disabled={busy}>
         <Text style={styles.cancel}>Cancel</Text>
