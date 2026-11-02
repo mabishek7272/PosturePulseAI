@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
+import { colors } from "../theme/colors";
 
 /**
  * Six stages, each literally true of the server pipeline: upload, frame
@@ -52,9 +53,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 7 },
   tick: {
     width: 20, height: 20, borderRadius: 10, borderWidth: 1.6,
-    borderColor: "#6e3fc9", marginRight: 12, alignItems: "center", justifyContent: "center",
+    borderColor: colors.accent700, marginRight: 12, alignItems: "center", justifyContent: "center",
   },
-  tickOn: { borderColor: "#39ffc4", backgroundColor: "rgba(57,255,196,0.16)" },
-  tickText: { color: "#39ffc4", fontSize: 11, fontWeight: "800" },
-  label: { color: "#efeaf6", fontSize: 14 },
+  tickOn: { borderColor: colors.accent400, backgroundColor: "rgba(181,171,252,0.16)" },
+  tickText: { color: colors.accent400, fontSize: 11, fontWeight: "800" },
+  label: { color: colors.textOnDark, fontSize: 14 },
 });

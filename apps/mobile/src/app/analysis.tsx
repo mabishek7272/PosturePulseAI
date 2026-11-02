@@ -6,6 +6,7 @@ import { UnauthorizedError } from "../api/http";
 import { getClinicianToken } from "../auth/tokenStore";
 import { AnalysisStages, STAGES } from "../components/AnalysisStages";
 import { Screen } from "../components/Screen";
+import { colors } from "../theme/colors";
 
 const POLL_MS = 2000;
 const GIVE_UP_MS = 120000;
@@ -70,7 +71,7 @@ export default function AnalysisScreen() {
   }, [sessionId]);
 
   return (
-    <Screen center>
+    <Screen center style={{ backgroundColor: colors.bgDark }}>
       <Text style={styles.eyebrow}>ANALYSING</Text>
       <AnalysisStages activeStage={stage} />
       {error && <Text style={styles.error}>{error}</Text>}
@@ -79,6 +80,6 @@ export default function AnalysisScreen() {
 }
 
 const styles = StyleSheet.create({
-  eyebrow: { color: "#9d93ae", fontSize: 11, fontWeight: "800", letterSpacing: 2 },
-  error: { color: "#ff6b6b", marginTop: 24, lineHeight: 20 },
+  eyebrow: { color: colors.accent600, fontSize: 11, fontWeight: "800", letterSpacing: 2 },
+  error: { color: colors.caution, marginTop: 24, lineHeight: 20 },
 });
