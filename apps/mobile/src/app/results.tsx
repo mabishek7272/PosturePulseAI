@@ -4,6 +4,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { listMetricResults, MetricResult } from "../api/events";
 import { getClinicianToken } from "../auth/tokenStore";
 import { Screen, useResponsive } from "../components/Screen";
+import { colors } from "../theme/colors";
 
 function formatResult(result: MetricResult): string {
   const unitSuffix = result.unit === "deg" ? "°" : result.unit ? ` ${result.unit}` : "";
@@ -42,42 +43,47 @@ export default function ResultsScreen() {
   }, [sessionId]);
 
   return (
-    <Screen style={styles.screen}>
-      <Text style={[styles.title, { fontSize: titleSize }]}>Measurements</Text>
-      {error && <Text style={styles.error}>{error}</Text>}
-      <FlatList
-        data={results}
-        keyExtractor={(r, i) => `${r.metricKey}-${r.side ?? ""}-${i}`}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <Text style={styles.metric}>
-              {item.metricKey}
-              {item.side ? ` (${item.side})` : ""}
-            </Text>
-            <Text style={[styles.value, { fontSize: bodySize + 2 }]}>{formatResult(item)}</Text>
-          </View>
-        )}
-        ListEmptyComponent={!error ? <Text style={styles.empty}>No measurements returned.</Text> : undefined}
-      />
-      <Text style={styles.caption}>
-        Camera-based estimates. Not a substitute for clinical examination.
-      </Text>
-      <Pressable style={styles.button} onPress={() => router.replace("/home")}>
-        <Text style={styles.buttonText}>Done</Text>
-      </Pressable>
-    </Screen>
+    <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
+      <Screen style={styles.screen}>
+        <Text style={[styles.title, { fontSize: titleSize }]}>Measurements</Text>
+        {error && <Text style={styles.error}>{error}</Text>}
+        <FlatList
+          data={results}
+          keyExtractor={(r, i) => `${r.metricKey}-${r.side ?? ""}-${i}`}
+          renderItem={({ item }) => (
+            <View style={styles.row}>
+              <Text style={styles.metric}>
+                {item.metricKey}
+                {item.side ? ` (${item.side})` : ""}
+              </Text>
+              <Text style={[styles.value, { fontSize: bodySize + 2 }]}>{formatResult(item)}</Text>
+            </View>
+          )}
+          ListEmptyComponent={!error ? <Text style={styles.empty}>No measurements returned.</Text> : undefined}
+        />
+        <Text style={styles.caption}>
+          Camera-based estimates. Not a substitute for clinical examination.
+        </Text>
+        <Pressable style={styles.button} onPress={() => router.replace("/home")}>
+          <Text style={styles.buttonText}>Done</Text>
+        </Pressable>
+      </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingTop: 60 },
-  title: { color: "#efeaf6", fontSize: 26, fontWeight: "800", marginBottom: 16 },
-  error: { color: "#ff6b6b", marginBottom: 12 },
-  row: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
-  metric: { color: "#9d93ae", fontSize: 12 },
-  value: { color: "#efeaf6", fontSize: 17, fontWeight: "600", marginTop: 3 },
-  empty: { color: "#9d93ae", marginTop: 20 },
-  caption: { color: "#9d93ae", fontSize: 11, marginTop: 14, textAlign: "center" },
-  button: { backgroundColor: "#b98cff", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 14 },
-  buttonText: { color: "#0e0a16", fontWeight: "700", fontSize: 16 },
+  screen: { paddingTop: 58, paddingBottom: 24 },
+  title: { color: colors.text, fontWeight: "600", marginBottom: 16 },
+  error: { color: colors.caution, marginBottom: 12 },
+  row: {
+    paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8, borderRadius: 14,
+    backgroundColor: colors.surfaceSolid, borderWidth: 1, borderColor: colors.hairline,
+  },
+  metric: { color: colors.textMuted, fontSize: 12 },
+  value: { color: colors.text, fontWeight: "600", marginTop: 3 },
+  empty: { color: colors.textFaint, marginTop: 20 },
+  caption: { color: colors.textFaint, fontSize: 11, marginTop: 14, textAlign: "center" },
+  button: { backgroundColor: colors.accent700, borderRadius: 13, padding: 16, alignItems: "center", marginTop: 14 },
+  buttonText: { color: colors.textOnDark, fontWeight: "700", fontSize: 16 },
 });
