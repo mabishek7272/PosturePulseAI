@@ -99,7 +99,7 @@ Visual-only changes. No change to navigation, API calls, validation, or business
 
 ### History — buildable now, real data
 
-`GET /patients/:patientId/sessions` already returns `{id, state, createdAt, deploymentContext, protocolId}` — enough for a real timeline. Each row: date, protocol, state badge (reusing the existing `SafetyStateBadge`-equivalent pattern from clinician-web if one exists, else a simple state chip), and — where that session has a released report — a Position-based one-line summary ("1 of 9 metrics outside reference"), fetched via the existing `listMetricResults`. No score, no diagnostic label. "Export full record (PDF)" button from the source design is **not** built — no PDF export exists anywhere in this stack; cut rather than stubbed with a dead button.
+**Corrected during planning:** the source design reaches History from the bottom tab bar, not by drilling into one patient — it's a clinician-wide feed, matching clinician-web's own `SessionQueuePage`. Built on `GET /sessions?limit=` (clinician-only, already used by clinician-web), not the per-patient `GET /patients/:id/sessions` this spec originally named. Each row: date, protocol, state chip. No score, no diagnostic label. "Export full record (PDF)" from the source design is **not** built — no PDF export exists anywhere in this stack; cut rather than stubbed with a dead button.
 
 ### Trends — deferred, not built this pass
 
