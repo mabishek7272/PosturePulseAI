@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet, useWindowDimensions, View, type ViewStyle } from "react-native";
+import { colors } from "../theme/colors";
 
 /** Width at or above which we treat the device as a tablet. */
 const TABLET_BREAKPOINT = 768;
@@ -57,7 +58,7 @@ export function Screen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0e0a16" },
+  root: { flex: 1, backgroundColor: colors.bgDeep },
   column: { flex: 1, width: "100%", maxWidth: MAX_CONTENT_WIDTH, alignSelf: "center" },
   centered: { justifyContent: "center" },
 });
