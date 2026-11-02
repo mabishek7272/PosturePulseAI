@@ -9,6 +9,7 @@ import {
   usePreviewOutput,
   useVideoOutput,
   type CameraSessionConfig,
+  type Recorder,
 } from "react-native-vision-camera";
 import { uploadClip } from "../api/clips";
 import { startGravitySampling } from "../capture/gravity";
@@ -49,11 +50,15 @@ export default function CaptureScreen() {
   const inFlight = useRef(false);
   // Held in refs so the unmount cleanup can reach the live sampler and ticker.
   const activeStop = useRef<(() => unknown) | null>(null);
-  const activeRecorder = useRef<{ cancelRecording(): Promise<void> } | null>(null);
+  const activeRecorder = useRef<Recorder | null>(null);
+  const isMounted = useRef(true);
   const activeTicker = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // Set again on mount so a dev-mode remount does not stay marked unmounted.
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
       if (activeTicker.current) clearInterval(activeTicker.current);
       activeTicker.current = null;
       activeStop.current?.();
@@ -62,9 +67,8 @@ export default function CaptureScreen() {
       // rejection here - the screen is already gone.
       activeRecorder.current?.cancelRecording().catch(() => {});
       activeRecorder.current = null;
-    },
-    []
-  );
+    };
+  }, []);
 
   const pose = POSES[poseIndex];
 
@@ -103,6 +107,9 @@ export default function CaptureScreen() {
 
       await recorder.startRecording(
         async (filePath) => {
+          // The screen was left, so the clip is abandoned regardless of which
+          // callback the recorder delivers after cancelRecording().
+          if (!isMounted.current) return;
           cleanUp();
           const gravitySamples = stopSampling();
           try {
@@ -128,6 +135,8 @@ export default function CaptureScreen() {
           }
         },
         (err) => {
+          // Screen left: abandoned, nothing to report (see onFinished).
+          if (!isMounted.current) return;
           cleanUp();
           stopSampling();
           setError(err.message);
