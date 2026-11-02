@@ -37,7 +37,7 @@ export default function ConsentScreen() {
       if (!credentialsRef.current) {
         const battery = await getAssessmentBattery();
         if (!consentRecordIdRef.current) {
-          consentRecordIdRef.current = (await createConsentRecord(subjectPseudoId)).consentRecordId;
+          consentRecordIdRef.current = (await createConsentRecord(subjectPseudoId)).id;
         }
         credentialsRef.current = await createSession({
           subjectPseudoId,
