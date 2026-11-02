@@ -110,4 +110,12 @@ describe("buildSidecar", () => {
     });
     expect(shuffled.frames.map((f) => f.gravity)).toEqual(inOrder.frames.map((f) => f.gravity));
   });
+
+  it("refuses to build a sidecar when the recording length is unknown", () => {
+    for (const durationSeconds of [0, Number.NaN]) {
+      expect(() =>
+        buildSidecar({ ...base, durationSeconds, gravitySamples: [{ t: 0, g: [0, 1, 0] }] })
+      ).toThrow(MissingGravityError);
+    }
+  });
 });

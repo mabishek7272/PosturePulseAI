@@ -84,6 +84,14 @@ const MIN_COVERAGE_FRACTION = 0.5;
 export function buildSidecar(input: BuildSidecarInput): ClipCapture {
   if (input.gravitySamples.length === 0) throw new MissingGravityError();
 
+  // A zero or non-finite duration would yield a one-frame or empty sidecar that
+  // still passes schema validation while misdescribing the recording.
+  if (!Number.isFinite(input.durationSeconds) || input.durationSeconds <= 0) {
+    throw new MissingGravityError(
+      `Clip duration was ${input.durationSeconds}; the recording length is unknown, so per-frame gravity cannot be built.`,
+    );
+  }
+
   // Sort a copy by time. gravityAt assumes ascending t; out-of-order samples
   // (e.g. Date.now() stepping backwards under an NTP adjustment) would
   // otherwise interpolate against the wrong neighbour and produce a
