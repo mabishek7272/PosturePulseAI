@@ -2362,13 +2362,19 @@ Open the same session at `http://localhost:5173/reports` (clinician-web pointed 
 
 Expected: identical numbers. A mismatch means the app is reading the wrong events.
 
-- [ ] **Step 6: Test interruption recovery**
+- [ ] **Step 6: Confirm an abandoned recording uploads nothing**
+
+Start a pose, and navigate back while it is still recording.
+
+Expected: no clip for that step reaches the server. The screen calls `cancelRecording()` (which deletes the file) and ignores any recorder callback that arrives after unmount — but whether `cancelRecording()` also delivers `onFinished` is not guaranteed by the API, so verify the outcome rather than the mechanism. Check the session's clips on the server, or re-open the session in the dashboard and confirm that step has no clip.
+
+- [ ] **Step 7: Test interruption recovery**
 
 Enable airplane mode immediately after the first pose records. Confirm the app shows the upload failure with the server's reason, not a silent continue or a crash. Turn airplane mode off and press Start again.
 
 Expected: the pose re-records and uploads, and the run completes normally. P1 recovers by re-recording, not by resuming a queued upload.
 
-- [ ] **Step 7: Run the claims lint**
+- [ ] **Step 8: Run the claims lint**
 
 ```bash
 cd /Users/reainmaker/Downloads/posture-analysis-claude-kind-galileo-qcm0y1
@@ -2376,7 +2382,7 @@ npm run lint:claims
 ```
 Expected: pass. If it fails on the new app, the offending copy must be reworded — not excluded from the lint.
 
-- [ ] **Step 8: Commit any fixes**
+- [ ] **Step 9: Commit any fixes**
 
 ```bash
 git add apps/mobile
