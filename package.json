@@ -6,7 +6,8 @@
   "workspaces": [
     "packages/schemas",
     "services/backend-api",
-    "apps/clinician-web"
+    "apps/clinician-web",
+    "apps/mobile"
   ],
   "scripts": {
     "schemas:generate": "npm run generate --workspace packages/schemas",
