@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { countMetricResults } from "../api/events";
 import { UnauthorizedError } from "../api/http";
 import { getClinicianToken } from "../auth/tokenStore";
 import { AnalysisStages, STAGES } from "../components/AnalysisStages";
+import { Screen } from "../components/Screen";
 
 const POLL_MS = 2000;
 const GIVE_UP_MS = 120000;
@@ -69,16 +70,15 @@ export default function AnalysisScreen() {
   }, [sessionId]);
 
   return (
-    <View style={styles.screen}>
+    <Screen center>
       <Text style={styles.eyebrow}>ANALYSING</Text>
       <AnalysisStages activeStage={stage} />
       {error && <Text style={styles.error}>{error}</Text>}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0e0a16", padding: 32, justifyContent: "center" },
   eyebrow: { color: "#9d93ae", fontSize: 11, fontWeight: "800", letterSpacing: 2 },
   error: { color: "#ff6b6b", marginTop: 24, lineHeight: 20 },
 });

@@ -1,12 +1,14 @@
 import { router } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { clearClinicianToken } from "../auth/tokenStore";
+import { Screen, useResponsive } from "../components/Screen";
 
 export default function HomeScreen() {
+  const { titleSize, bodySize } = useResponsive();
   return (
-    <View style={styles.screen}>
-      <Text style={styles.title}>beAIve</Text>
-      <Text style={styles.subtitle}>Clinic assessment</Text>
+    <Screen center>
+      <Text style={[styles.title, { fontSize: titleSize }]}>beAIve</Text>
+      <Text style={[styles.subtitle, { fontSize: bodySize }]}>Clinic assessment</Text>
 
       <Pressable style={styles.button} onPress={() => router.push("/patient")}>
         <Text style={styles.buttonText}>New scan</Text>
@@ -20,12 +22,11 @@ export default function HomeScreen() {
       >
         <Text style={styles.signOut}>Sign out</Text>
       </Pressable>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0e0a16", padding: 28, justifyContent: "center" },
   title: { color: "#efeaf6", fontSize: 34, fontWeight: "800" },
   subtitle: { color: "#9d93ae", fontSize: 15, marginBottom: 32 },
   button: { backgroundColor: "#b98cff", borderRadius: 12, padding: 18, alignItems: "center" },

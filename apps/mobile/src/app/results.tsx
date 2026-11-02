@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { listMetricResults, MetricResult } from "../api/events";
 import { getClinicianToken } from "../auth/tokenStore";
+import { Screen, useResponsive } from "../components/Screen";
 
 function formatResult(result: MetricResult): string {
   const unitSuffix = result.unit === "deg" ? "°" : result.unit ? ` ${result.unit}` : "";
@@ -18,6 +19,7 @@ function formatResult(result: MetricResult): string {
 }
 
 export default function ResultsScreen() {
+  const { titleSize, bodySize } = useResponsive();
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const [results, setResults] = useState<MetricResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +42,8 @@ export default function ResultsScreen() {
   }, [sessionId]);
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.title}>Measurements</Text>
+    <Screen style={styles.screen}>
+      <Text style={[styles.title, { fontSize: titleSize }]}>Measurements</Text>
       {error && <Text style={styles.error}>{error}</Text>}
       <FlatList
         data={results}
@@ -52,7 +54,7 @@ export default function ResultsScreen() {
               {item.metricKey}
               {item.side ? ` (${item.side})` : ""}
             </Text>
-            <Text style={styles.value}>{formatResult(item)}</Text>
+            <Text style={[styles.value, { fontSize: bodySize + 2 }]}>{formatResult(item)}</Text>
           </View>
         )}
         ListEmptyComponent={!error ? <Text style={styles.empty}>No measurements returned.</Text> : undefined}
@@ -63,12 +65,12 @@ export default function ResultsScreen() {
       <Pressable style={styles.button} onPress={() => router.replace("/home")}>
         <Text style={styles.buttonText}>Done</Text>
       </Pressable>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0e0a16", padding: 20, paddingTop: 60 },
+  screen: { paddingTop: 60 },
   title: { color: "#efeaf6", fontSize: 26, fontWeight: "800", marginBottom: 16 },
   error: { color: "#ff6b6b", marginBottom: 12 },
   row: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },

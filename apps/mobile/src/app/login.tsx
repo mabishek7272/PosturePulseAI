@@ -3,8 +3,10 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { login } from "../api/auth";
 import { saveClinicianToken } from "../auth/tokenStore";
+import { Screen, useResponsive } from "../components/Screen";
 
 export default function LoginScreen() {
+  const { titleSize, bodySize } = useResponsive();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -25,12 +27,12 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.title}>beAIve</Text>
-      <Text style={styles.subtitle}>Clinician sign in</Text>
+    <Screen center>
+      <Text style={[styles.title, { fontSize: titleSize }]}>beAIve</Text>
+      <Text style={[styles.subtitle, { fontSize: bodySize }]}>Clinician sign in</Text>
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, { fontSize: bodySize + 1 }]}
         placeholder="Username"
         placeholderTextColor="#9d93ae"
         autoCapitalize="none"
@@ -39,7 +41,7 @@ export default function LoginScreen() {
         onChangeText={setUsername}
       />
       <TextInput
-        style={styles.input}
+        style={[styles.input, { fontSize: bodySize + 1 }]}
         placeholder="Password"
         placeholderTextColor="#9d93ae"
         secureTextEntry
@@ -53,12 +55,11 @@ export default function LoginScreen() {
       <Pressable style={styles.button} onPress={submit} disabled={busy}>
         {busy ? <ActivityIndicator color="#0e0a16" /> : <Text style={styles.buttonText}>Sign in</Text>}
       </Pressable>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0e0a16", padding: 28, justifyContent: "center" },
   title: { color: "#efeaf6", fontSize: 34, fontWeight: "800" },
   subtitle: { color: "#9d93ae", fontSize: 15, marginBottom: 28 },
   input: {

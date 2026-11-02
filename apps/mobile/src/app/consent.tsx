@@ -9,8 +9,10 @@ import {
   type SessionCredentials,
 } from "../api/sessions";
 import { getClinicianToken } from "../auth/tokenStore";
+import { MAX_CONTENT_WIDTH, useResponsive } from "../components/Screen";
 
 export default function ConsentScreen() {
+  const { titleSize, bodySize, gutter } = useResponsive();
   const { patientId, patientName } = useLocalSearchParams<{ patientId: string; patientName: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,16 +68,16 @@ export default function ConsentScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Consent</Text>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingHorizontal: gutter, maxWidth: MAX_CONTENT_WIDTH + gutter * 2 }]}>
+      <Text style={[styles.title, { fontSize: titleSize }]}>Consent</Text>
       <Text style={styles.name}>{patientName}</Text>
-      <Text style={styles.body}>
+      <Text style={[styles.body, { fontSize: bodySize, lineHeight: bodySize * 1.55 }]}>
         Short video clips of four standing poses will be recorded and uploaded to this clinic's
         server, where body landmarks are measured. Video is not retained after measurement.
         Measurements are camera-based estimates reviewed by a clinician, and are not a substitute
         for clinical examination.
       </Text>
-      <Text style={styles.body}>
+      <Text style={[styles.body, { fontSize: bodySize, lineHeight: bodySize * 1.55 }]}>
         The recording can be stopped at any time, and the assessment can be ended on request.
       </Text>
       {error && <Text style={styles.error}>{error}</Text>}
@@ -92,7 +94,7 @@ export default function ConsentScreen() {
 const styles = StyleSheet.create({
   back: { color: "#9d93ae", textAlign: "center", marginTop: 24 },
   screen: { flex: 1, backgroundColor: "#0e0a16" },
-  content: { padding: 24, paddingTop: 60 },
+  content: { paddingTop: 60, paddingBottom: 24, width: "100%", alignSelf: "center" },
   title: { color: "#efeaf6", fontSize: 26, fontWeight: "800" },
   name: { color: "#b98cff", fontSize: 16, marginTop: 4, marginBottom: 20 },
   body: { color: "#9d93ae", fontSize: 15, lineHeight: 23, marginBottom: 16 },

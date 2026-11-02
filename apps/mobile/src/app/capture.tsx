@@ -15,6 +15,7 @@ import { uploadClip } from "../api/clips";
 import { startGravitySampling } from "../capture/gravity";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
 import { buildSidecar } from "../capture/sidecar";
+import { MAX_CONTENT_WIDTH, useResponsive } from "../components/Screen";
 
 // 1440x1920 - portrait 4:3, because iPad is the primary device and iPad and
 // iPhone rear cameras are natively 4:3.
@@ -35,6 +36,7 @@ const TARGET_RESOLUTION = CommonResolutions.FHD_4_3;
 const TARGET_FPS = 30;
 
 export default function CaptureScreen() {
+  const { bodySize } = useResponsive();
   const { sessionId, sessionToken } = useLocalSearchParams<{ sessionId: string; sessionToken: string }>();
   const [poseIndex, setPoseIndex] = useState(0);
   const [recording, setRecording] = useState(false);
@@ -178,12 +180,15 @@ export default function CaptureScreen() {
 
       <View style={styles.overlay} pointerEvents="box-none">
         <View style={styles.header}>
-          <Text style={styles.step}>Pose {poseIndex + 1} of {POSES.length}</Text>
-          <Text style={styles.title}>{pose.title}</Text>
+          <View style={styles.constrained}>
+            <Text style={styles.step}>Pose {poseIndex + 1} of {POSES.length}</Text>
+            <Text style={styles.title}>{pose.title}</Text>
+          </View>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.instruction}>{pose.instruction}</Text>
+          <View style={styles.constrained}>
+          <Text style={[styles.instruction, { fontSize: bodySize, lineHeight: bodySize * 1.5 }]}>{pose.instruction}</Text>
           {error && (
             <>
               <Text style={styles.error}>{error}</Text>
@@ -195,6 +200,7 @@ export default function CaptureScreen() {
           <Pressable style={[styles.shutter, recording && styles.shutterActive]} onPress={record} disabled={recording}>
             <Text style={styles.shutterText}>{recording ? "Recording…" : "Start"}</Text>
           </Pressable>
+          </View>
         </View>
       </View>
     </View>
@@ -204,6 +210,7 @@ export default function CaptureScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#000" },
   overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "space-between" },
+  constrained: { width: "100%", maxWidth: MAX_CONTENT_WIDTH, alignSelf: "center" },
   header: { paddingTop: 60, paddingHorizontal: 20 },
   step: { color: "#39ffc4", fontSize: 12, fontWeight: "700", letterSpacing: 1 },
   title: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 4 },

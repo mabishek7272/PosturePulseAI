@@ -1,11 +1,13 @@
 import { router } from "expo-router";
 import { useEffect } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text } from "react-native";
 import { useCameraPermission } from "react-native-vision-camera";
+import { Screen, useResponsive } from "../components/Screen";
 
 export default function PermissionsScreen() {
   // vision-camera v5 exposes permissions as a reactive hook rather than the
   // static Camera.requestCameraPermission() of v4.
+  const { titleSize, bodySize } = useResponsive();
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
 
   useEffect(() => {
@@ -17,9 +19,9 @@ export default function PermissionsScreen() {
   const mustUseSettings = !hasPermission && !canRequestPermission;
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.title}>Camera access</Text>
-      <Text style={styles.body}>
+    <Screen center>
+      <Text style={[styles.title, { fontSize: titleSize }]}>Camera access</Text>
+      <Text style={[styles.body, { fontSize: bodySize, lineHeight: bodySize * 1.5 }]}>
         beAIve records short video clips of each assessment pose. The clips are uploaded to your
         clinic's server for measurement and are never shared elsewhere.
       </Text>
@@ -34,12 +36,11 @@ export default function PermissionsScreen() {
       >
         <Text style={styles.buttonText}>{mustUseSettings ? "Open Settings" : "Allow camera"}</Text>
       </Pressable>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0e0a16", padding: 28, justifyContent: "center" },
   title: { color: "#efeaf6", fontSize: 26, fontWeight: "800", marginBottom: 12 },
   body: { color: "#9d93ae", fontSize: 15, lineHeight: 22, marginBottom: 24 },
   denied: { color: "#ff6b6b", marginBottom: 16 },

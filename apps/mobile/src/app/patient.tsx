@@ -1,10 +1,12 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, TextInput } from "react-native";
 import { PatientRecord, searchPatients } from "../api/patients";
 import { getClinicianToken } from "../auth/tokenStore";
+import { Screen, useResponsive } from "../components/Screen";
 
 export default function PatientPickerScreen() {
+  const { titleSize, bodySize } = useResponsive();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PatientRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -36,13 +38,13 @@ export default function PatientPickerScreen() {
   }, [query]);
 
   return (
-    <View style={styles.screen}>
+    <Screen style={styles.screen}>
       <Pressable onPress={() => router.back()} hitSlop={12}>
         <Text style={styles.back}>Back</Text>
       </Pressable>
-      <Text style={styles.title}>Who are you assessing?</Text>
+      <Text style={[styles.title, { fontSize: titleSize }]}>Who are you assessing?</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { fontSize: bodySize + 1 }]}
         placeholder="Search by name"
         placeholderTextColor="#9d93ae"
         autoFocus
@@ -60,7 +62,7 @@ export default function PatientPickerScreen() {
               router.push({ pathname: "/consent", params: { patientId: item.id, patientName: item.name } })
             }
           >
-            <Text style={styles.rowName}>{item.name}</Text>
+            <Text style={[styles.rowName, { fontSize: bodySize + 2 }]}>{item.name}</Text>
             <Text style={styles.rowMeta}>{item.dateOfBirth}</Text>
           </Pressable>
         )}
@@ -68,13 +70,13 @@ export default function PatientPickerScreen() {
           query.trim().length >= 2 ? <Text style={styles.empty}>No matching patient.</Text> : undefined
         }
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   back: { color: "#9d93ae", fontSize: 15, marginBottom: 12 },
-  screen: { flex: 1, backgroundColor: "#0e0a16", padding: 20, paddingTop: 60 },
+  screen: { paddingTop: 60 },
   title: { color: "#efeaf6", fontSize: 24, fontWeight: "800", marginBottom: 16 },
   input: {
     backgroundColor: "rgba(255,255,255,0.06)", color: "#efeaf6",
