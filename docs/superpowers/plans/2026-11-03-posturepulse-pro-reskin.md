@@ -214,14 +214,14 @@ git commit -m "feat(mobile): add the shared bottom tab bar"
 **Files:**
 - Modify: `apps/mobile/src/app/login.tsx`
 
-Visual-only. No change to `submit()`, validation, or navigation.
+Visual-only. No change to `submit()`, validation, or navigation. Adds the real brand mark (`apps/mobile/assets/brand/mark.png`, installed separately - a transparent PNG, not the misleadingly-named `.svg` the source design process produced) above the title, matching the source design's own icon-plus-wordmark header pattern.
 
 - [ ] **Step 1: Replace the file**
 
 ```tsx
 import { router } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { login } from "../api/auth";
 import { saveClinicianToken } from "../auth/tokenStore";
 import { Screen, useResponsive } from "../components/Screen";
@@ -251,6 +251,12 @@ export default function LoginScreen() {
   return (
     <Screen center>
       <View style={styles.heading}>
+        <Image
+          source={require("../../assets/brand/mark.png")}
+          style={styles.mark}
+          resizeMode="contain"
+          accessibilityIgnoresInvertColors
+        />
         <Text style={[styles.title, { fontSize: titleSize }]}>Clinician{"\n"}sign-in</Text>
         <Text style={[styles.subtitle, { fontSize: bodySize }]}>
           Shared clinic device. Sign out when you are done with a patient.
@@ -301,6 +307,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   heading: { gap: 11, marginBottom: 34 },
+  mark: { width: 44, height: 44, marginBottom: 4 },
   title: { color: colors.text, fontWeight: "600", letterSpacing: -0.035 * 29, lineHeight: 34 },
   subtitle: { color: colors.textMuted, lineHeight: 21 },
   card: {
