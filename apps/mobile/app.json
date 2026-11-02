@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "beAIve",
+    "slug": "beaive-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "beaive",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
