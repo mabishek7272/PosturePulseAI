@@ -11,7 +11,9 @@ import {
   Smoking,
 } from "../api/patients";
 import { getClinicianToken } from "../auth/tokenStore";
+import { BottomTabBar } from "../components/BottomTabBar";
 import { Screen, useResponsive } from "../components/Screen";
+import { colors } from "../theme/colors";
 
 /** Matches the backend's own check (patients.service.ts `dateOfBirth`). */
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -69,37 +71,47 @@ export default function PatientPickerScreen() {
   }
 
   return (
-    <Screen style={styles.screen}>
-      <Pressable onPress={() => router.back()} hitSlop={12}>
-        <Text style={styles.back}>Back</Text>
-      </Pressable>
-      <Text style={[styles.title, { fontSize: titleSize }]}>Who are you assessing?</Text>
-      <TextInput
-        style={[styles.input, { fontSize: bodySize + 1 }]}
-        placeholder="Search by name"
-        placeholderTextColor="#9d93ae"
-        autoFocus
-        value={query}
-        onChangeText={setQuery}
-      />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <FlatList
-        data={results}
-        keyExtractor={(p) => p.id}
-        renderItem={({ item }) => (
-          <Pressable style={styles.row} onPress={() => choose(item)}>
-            <Text style={[styles.rowName, { fontSize: bodySize + 2 }]}>{item.name}</Text>
-            <Text style={styles.rowMeta}>{item.dateOfBirth}</Text>
-          </Pressable>
-        )}
-        ListEmptyComponent={
-          query.trim().length >= 2 ? <Text style={styles.empty}>No matching patient.</Text> : undefined
-        }
-        ListFooterComponent={
-          <NewPatientForm initialName={query.trim()} busy={creating} onCreate={createAndChoose} />
-        }
-      />
-    </Screen>
+    <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
+      <Screen style={styles.screen}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Text style={styles.back}>Back</Text>
+        </Pressable>
+        <Text style={[styles.title, { fontSize: titleSize }]}>Who are you assessing?</Text>
+        <TextInput
+          style={[styles.input, { fontSize: bodySize + 1 }]}
+          placeholder="Search by name"
+          placeholderTextColor="#9d93ae"
+          autoFocus
+          value={query}
+          onChangeText={setQuery}
+        />
+        {error && <Text style={styles.error}>{error}</Text>}
+        <FlatList
+          data={results}
+          keyExtractor={(p) => p.id}
+          renderItem={({ item }) => (
+            <Pressable style={styles.row} onPress={() => choose(item)}>
+              <View style={styles.rowAvatar}>
+                <Text style={styles.rowAvatarText}>
+                  {item.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
+                </Text>
+              </View>
+              <View>
+                <Text style={[styles.rowName, { fontSize: bodySize + 2 }]}>{item.name}</Text>
+                <Text style={styles.rowMeta}>{item.dateOfBirth}</Text>
+              </View>
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            query.trim().length >= 2 ? <Text style={styles.empty}>No matching patient.</Text> : undefined
+          }
+          ListFooterComponent={
+            <NewPatientForm initialName={query.trim()} busy={creating} onCreate={createAndChoose} />
+          }
+        />
+      </Screen>
+      <BottomTabBar />
+    </View>
   );
 }
 
@@ -324,58 +336,69 @@ function ChipRow<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  back: { color: "#9d93ae", fontSize: 15, marginBottom: 12 },
-  screen: { paddingTop: 60 },
-  title: { color: "#efeaf6", fontSize: 24, fontWeight: "800", marginBottom: 16 },
+  back: { color: colors.textFaint, fontSize: 15, marginBottom: 12 },
+  screen: { paddingTop: 58, paddingBottom: 110 },
+  title: { color: colors.text, fontWeight: "600", marginBottom: 16 },
   input: {
-    backgroundColor: "rgba(255,255,255,0.06)", color: "#efeaf6",
-    borderRadius: 12, padding: 15, fontSize: 16, marginBottom: 14,
+    backgroundColor: colors.surfaceSolid, color: colors.text,
+    borderRadius: 13, padding: 15,
+    borderWidth: 1, borderColor: colors.hairline,
+    marginBottom: 14,
   },
-  error: { color: "#ff6b6b", marginBottom: 10 },
-  row: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
-  rowName: { color: "#efeaf6", fontSize: 17, fontWeight: "600" },
-  rowMeta: { color: "#9d93ae", fontSize: 13, marginTop: 2 },
-  empty: { color: "#9d93ae", marginTop: 20 },
+  error: { color: colors.caution, marginBottom: 10 },
+  row: {
+    flexDirection: "row", alignItems: "center", gap: 13, padding: 15, borderRadius: 18,
+    backgroundColor: colors.surfaceSolid, borderWidth: 1, borderColor: colors.hairline,
+    marginBottom: 9,
+  },
+  rowAvatar: {
+    width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center",
+    backgroundColor: colors.accent200,
+  },
+  rowAvatarText: { color: colors.accent700, fontWeight: "600", fontSize: 13 },
+  rowName: { color: colors.text, fontWeight: "600" },
+  rowMeta: { color: colors.textMuted, fontSize: 12.5, marginTop: 2 },
+  empty: { color: colors.textFaint, marginTop: 20 },
   newButton: {
-    borderWidth: 1, borderColor: "#6e3fc9", borderRadius: 12,
+    borderWidth: 1, borderColor: colors.accent600, borderRadius: 13,
     padding: 15, alignItems: "center", marginTop: 18,
   },
-  newButtonText: { color: "#b98cff", fontWeight: "700", fontSize: 15 },
+  newButtonText: { color: colors.accent700, fontWeight: "700", fontSize: 15 },
   // A plain View, not <Screen>: this renders inside a FlatList footer, which
   // isn't a flex container - Screen's flex:1 column would collapse to zero
   // height here.
   formWrap: { paddingTop: 18, paddingBottom: 40 },
-  formTitle: { color: "#efeaf6", fontSize: 18, fontWeight: "700", marginBottom: 12 },
-  button: { backgroundColor: "#b98cff", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 4 },
-  buttonText: { color: "#0e0a16", fontWeight: "700", fontSize: 16 },
-  cancel: { color: "#9d93ae", textAlign: "center", marginTop: 14 },
+  formTitle: { color: colors.text, fontSize: 18, fontWeight: "700", marginBottom: 12 },
+  button: { backgroundColor: colors.accent700, borderRadius: 13, padding: 16, alignItems: "center", marginTop: 4 },
+  buttonText: { color: colors.textOnDark, fontWeight: "700", fontSize: 16 },
+  cancel: { color: colors.textFaint, textAlign: "center", marginTop: 14 },
 
   intakeToggle: { paddingVertical: 10 },
-  intakeToggleText: { color: "#b98cff", fontSize: 14, fontWeight: "600" },
+  intakeToggleText: { color: colors.accent600, fontSize: 14, fontWeight: "600" },
   intakeSection: {
-    borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)",
+    borderTopWidth: 1, borderTopColor: colors.hairline,
     marginTop: 4, marginBottom: 14, paddingTop: 14,
   },
-  intakeLabel: { color: "#9d93ae", fontSize: 12, fontWeight: "700", letterSpacing: 0.5, marginBottom: 10 },
-  fieldLabel: { color: "#efeaf6", fontSize: 13, fontWeight: "600", marginBottom: 8, marginTop: 2 },
+  intakeLabel: { color: colors.textMuted, fontSize: 12, fontWeight: "700", letterSpacing: 0.5, marginBottom: 10 },
+  fieldLabel: { color: colors.text, fontSize: 13, fontWeight: "600", marginBottom: 8, marginTop: 2 },
   row2: { flexDirection: "row", gap: 10 },
   half: { flex: 1 },
   note: { minHeight: 60, textAlignVertical: "top" },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   chip: {
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 20,
+    borderWidth: 1, borderColor: colors.hairline, borderRadius: 20,
     paddingVertical: 8, paddingHorizontal: 14,
   },
-  chipOn: { backgroundColor: "#b98cff", borderColor: "#b98cff" },
-  chipText: { color: "#9d93ae", fontSize: 13, fontWeight: "600" },
-  chipTextOn: { color: "#0e0a16" },
+  chipOn: { backgroundColor: colors.accent600, borderColor: colors.accent600 },
+  chipText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
+  chipTextOn: { color: colors.textOnDark },
 
   checkboxRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   checkbox: {
-    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.3)",
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: colors.hairlineStrong,
     marginRight: 10, alignItems: "center", justifyContent: "center",
   },
-  checkboxOn: { backgroundColor: "#b98cff", borderColor: "#b98cff" },
-  checkboxMark: { color: "#0e0a16", fontSize: 13, fontWeight: "800" },
+  checkboxOn: { backgroundColor: colors.accent600, borderColor: colors.accent600 },
+  checkboxMark: { color: colors.textOnDark, fontSize: 13, fontWeight: "800" },
 });
