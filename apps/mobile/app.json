@@ -8,7 +8,6 @@
     "scheme": "posturepulse",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "supportsTablet": true,
       "bundleIdentifier": "com.beaive.mobile",
       "infoPlist": {
@@ -37,9 +36,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0e0a16",
+          "backgroundColor": "#eef0fb",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 120
+          "imageWidth": 160
         }
       ]
     ],
