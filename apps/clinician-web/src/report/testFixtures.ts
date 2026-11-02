@@ -1,7 +1,7 @@
 // Sample report data for component tests. Descriptive labels only, every value
 // carries its uncertainty, and the unsupported row says why it was not measured.
 
-import type { AssessmentReportBody, AssessmentReportRecord, ReportRow } from "../api/types";
+import type { AssessmentReportBody, ReportRow, ReportSummary } from "../api/types";
 
 const draftGeometric = (label: string) => ({
   kind: "geometric" as const,
@@ -135,18 +135,17 @@ export function sampleBody(overrides: Partial<AssessmentReportBody> = {}): Asses
   };
 }
 
-export function sampleRecord(overrides: Partial<AssessmentReportRecord> = {}): AssessmentReportRecord {
-  const body = sampleBody(overrides.body ? overrides.body : {});
+/** GET /reports row shape - ReviewQueuePage.tsx reads these, not the full body. */
+export function sampleSummary(overrides: Partial<ReportSummary> = {}): ReportSummary {
   return {
     id: "rep-1",
+    reportId: "rep-1",
     sessionId: "sess-1",
-    reportVersion: body.reportVersion,
-    status: body.status,
-    body,
-    signedBy: null,
-    signedAt: null,
-    contentSha256: null,
+    reportVersion: 2,
+    status: "draft",
     createdAt: "2026-10-23T10:00:00Z",
+    signedAt: null,
+    sessionState: null,
     ...overrides,
   };
 }

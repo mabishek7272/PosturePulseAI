@@ -3,13 +3,14 @@ import { BACKEND_API_URL } from "./config";
 import type {
   AdverseEventRecord,
   AssessmentBattery,
-  AssessmentReportRecord,
+  AssessmentReportBody,
   AuditLogEntryRecord,
   EventRecord,
   ExposureSummary,
   NewPatient,
   PatientRecord,
   PilotMetricsSummary,
+  ReportSummary,
   RowExclusion,
   SessionRecord,
 } from "./types";
@@ -156,32 +157,32 @@ export function getAssessmentBattery(): Promise<AssessmentBattery> {
   return getJson<AssessmentBattery>("/assessment-battery");
 }
 
-/** GET /reports?status= - clinician-only. */
-export function listReports(status?: "draft" | "released"): Promise<AssessmentReportRecord[]> {
+/** GET /reports?status= - clinician-only. Summaries only; use getReport for the full body. */
+export function listReports(status?: "draft" | "released"): Promise<ReportSummary[]> {
   const query = status ? `?status=${encodeURIComponent(status)}` : "";
-  return getJson<AssessmentReportRecord[]>(`/reports${query}`);
+  return getJson<ReportSummary[]>(`/reports${query}`);
 }
 
-export function getReport(reportId: string): Promise<AssessmentReportRecord> {
-  return getJson<AssessmentReportRecord>(`/reports/${encodeURIComponent(reportId)}`);
+export function getReport(reportId: string): Promise<AssessmentReportBody> {
+  return getJson<AssessmentReportBody>(`/reports/${encodeURIComponent(reportId)}`);
 }
 
 /** POST /sessions/:id/report - builds the next draft version from the session's latest metric results. */
-export function buildDraftReport(sessionId: string): Promise<AssessmentReportRecord> {
-  return postJson<AssessmentReportRecord>(`/sessions/${encodeURIComponent(sessionId)}/report`, {});
+export function buildDraftReport(sessionId: string): Promise<AssessmentReportBody> {
+  return postJson<AssessmentReportBody>(`/sessions/${encodeURIComponent(sessionId)}/report`, {});
 }
 
-export function excludeReportRow(reportId: string, exclusion: RowExclusion): Promise<AssessmentReportRecord> {
-  return postJson<AssessmentReportRecord>(`/reports/${encodeURIComponent(reportId)}/rows/exclude`, exclusion);
+export function excludeReportRow(reportId: string, exclusion: RowExclusion): Promise<AssessmentReportBody> {
+  return postJson<AssessmentReportBody>(`/reports/${encodeURIComponent(reportId)}/rows/exclude`, exclusion);
 }
 
-export function saveClinicianAssessment(reportId: string, text: string): Promise<AssessmentReportRecord> {
-  return postJson<AssessmentReportRecord>(`/reports/${encodeURIComponent(reportId)}/assessment`, { text });
+export function saveClinicianAssessment(reportId: string, text: string): Promise<AssessmentReportBody> {
+  return postJson<AssessmentReportBody>(`/reports/${encodeURIComponent(reportId)}/assessment`, { text });
 }
 
 /** POST /reports/:id/sign-off - backend-api re-verifies the password before releasing the report. */
-export function signOffReport(reportId: string, password: string): Promise<AssessmentReportRecord> {
-  return postJson<AssessmentReportRecord>(
+export function signOffReport(reportId: string, password: string): Promise<AssessmentReportBody> {
+  return postJson<AssessmentReportBody>(
     `/reports/${encodeURIComponent(reportId)}/sign-off`,
     { password },
     {
@@ -192,8 +193,8 @@ export function signOffReport(reportId: string, password: string): Promise<Asses
   );
 }
 
-export function rejectReport(reportId: string, reason: string): Promise<AssessmentReportRecord> {
-  return postJson<AssessmentReportRecord>(`/reports/${encodeURIComponent(reportId)}/reject`, { reason });
+export function rejectReport(reportId: string, reason: string): Promise<AssessmentReportBody> {
+  return postJson<AssessmentReportBody>(`/reports/${encodeURIComponent(reportId)}/reject`, { reason });
 }
 
 /** GET /patients?q= - backend-api decrypts and filters (ADR-017). Clinician-only, audited. */

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listReports, listSessions } from "../api/client";
-import type { AssessmentReportRecord, SessionRecord } from "../api/types";
+import type { ReportSummary, SessionRecord } from "../api/types";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 
 type ReportFilter = "draft" | "released";
@@ -14,7 +14,7 @@ const FILTERS: Array<{ label: string; status: ReportFilter }> = [
 /** Assessment reports awaiting review (spec slice D), with each session's safety state alongside. */
 export function ReviewQueuePage() {
   const [filter, setFilter] = useState<ReportFilter>("draft");
-  const [reports, setReports] = useState<AssessmentReportRecord[]>([]);
+  const [reports, setReports] = useState<ReportSummary[]>([]);
   const [sessions, setSessions] = useState<Map<string, SessionRecord>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

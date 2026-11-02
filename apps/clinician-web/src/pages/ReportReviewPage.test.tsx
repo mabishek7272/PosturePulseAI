@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../api/client";
-import type { AssessmentReportRecord, SessionRecord } from "../api/types";
-import { sampleBody, sampleRecord } from "../report/testFixtures";
+import type { AssessmentReportBody, SessionRecord } from "../api/types";
+import { sampleBody } from "../report/testFixtures";
 import { ReportReviewPage } from "./ReportReviewPage";
 
 const session: SessionRecord = {
@@ -30,13 +30,12 @@ function renderPage() {
   );
 }
 
-function released(): AssessmentReportRecord {
-  const body = sampleBody({
+function released(): AssessmentReportBody {
+  return sampleBody({
     status: "released",
     clinicianAssessment: { text: "Reviewed with the patient in clinic.", clinicianId: "clin-1" },
     signOff: { clinicianId: "clin-1", signedAt: "2026-10-23T11:00:00Z", contentSha256: "a".repeat(64) },
   });
-  return sampleRecord({ status: "released", body, signedBy: "clin-1", signedAt: "2026-10-23T11:00:00Z" });
 }
 
 beforeEach(() => {
@@ -57,7 +56,7 @@ afterEach(() => {
 
 describe("ReportReviewPage", () => {
   it("renders the draft report's rows grouped by step, provenance and the not-measurable list", async () => {
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
     renderPage();
     await waitFor(() => expect(screen.getByRole("region", { name: /Front view/ })).toBeInTheDocument());
     expect(client.getReport).toHaveBeenCalledWith("rep-1");
@@ -72,7 +71,7 @@ describe("ReportReviewPage", () => {
   });
 
   it("still renders with step ids when the battery cannot be loaded", async () => {
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
     vi.spyOn(client, "getAssessmentBattery").mockRejectedValue(new Error("offline"));
     renderPage();
     await waitFor(() => expect(screen.getByRole("region", { name: /static\.anterior/ })).toBeInTheDocument());
@@ -85,8 +84,8 @@ describe("ReportReviewPage", () => {
   });
 
   it("excludes a row with its reason and reloads the report", async () => {
-    const getReport = vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
-    const exclude = vi.spyOn(client, "excludeReportRow").mockResolvedValue(sampleRecord());
+    const getReport = vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
+    const exclude = vi.spyOn(client, "excludeReportRow").mockResolvedValue(sampleBody());
     renderPage();
     const row = (await screen.findByText("Shoulder line tilt")).closest("tr") as HTMLElement;
     await userEvent.click(within(row).getByRole("button", { name: "Exclude" }));
@@ -104,8 +103,8 @@ describe("ReportReviewPage", () => {
   });
 
   it("saves the clinician's assessment", async () => {
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
-    const save = vi.spyOn(client, "saveClinicianAssessment").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
+    const save = vi.spyOn(client, "saveClinicianAssessment").mockResolvedValue(sampleBody());
     renderPage();
     const box = await screen.findByLabelText("Clinician's assessment");
     await userEvent.type(box, "Discussed the side view with the patient.");
@@ -114,7 +113,7 @@ describe("ReportReviewPage", () => {
   });
 
   it("does not allow sign-off while the assessment has unsaved changes", async () => {
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
     renderPage();
     await userEvent.type(await screen.findByLabelText("Clinician's assessment"), "Unsaved");
     expect(screen.getByRole("button", { name: "Sign off..." })).toBeDisabled();
@@ -123,8 +122,8 @@ describe("ReportReviewPage", () => {
   it("signs off with the password once, then shows the released report", async () => {
     const getReport = vi
       .spyOn(client, "getReport")
-      .mockResolvedValueOnce(sampleRecord())
-      .mockResolvedValueOnce(sampleRecord())
+      .mockResolvedValueOnce(sampleBody())
+      .mockResolvedValueOnce(sampleBody())
       .mockResolvedValue(released());
     const signOff = vi.spyOn(client, "signOffReport").mockResolvedValue(released());
     renderPage();
@@ -141,7 +140,7 @@ describe("ReportReviewPage", () => {
   });
 
   it("shows a failed sign-off once, inside the dialog only", async () => {
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
     vi.spyOn(client, "signOffReport").mockRejectedValue(new Error("Sign-off not accepted: check your password."));
     renderPage();
     await userEvent.click(await screen.findByRole("button", { name: "Sign off..." }));
@@ -152,7 +151,7 @@ describe("ReportReviewPage", () => {
   });
 
   it("shows a failed save once", async () => {
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
     vi.spyOn(client, "saveClinicianAssessment").mockRejectedValue(new Error("Save failed"));
     renderPage();
     await userEvent.type(await screen.findByLabelText("Clinician's assessment"), "Some text");
@@ -162,10 +161,10 @@ describe("ReportReviewPage", () => {
   });
 
   it("does not open the sign-off dialog when the draft changed since it was loaded", async () => {
-    const changed = sampleRecord({
-      body: sampleBody({ clinicianAssessment: { text: "Edited by another clinician.", clinicianId: "clin-2" } }),
+    const changed = sampleBody({
+      clinicianAssessment: { text: "Edited by another clinician.", clinicianId: "clin-2" },
     });
-    vi.spyOn(client, "getReport").mockResolvedValueOnce(sampleRecord()).mockResolvedValue(changed);
+    vi.spyOn(client, "getReport").mockResolvedValueOnce(sampleBody()).mockResolvedValue(changed);
     const signOff = vi.spyOn(client, "signOffReport").mockResolvedValue(released());
     renderPage();
     await userEvent.click(await screen.findByRole("button", { name: "Sign off..." }));
@@ -177,22 +176,22 @@ describe("ReportReviewPage", () => {
 
   it("warns, without blocking, when the session safety state needs attention", async () => {
     vi.spyOn(client, "getSession").mockResolvedValue({ ...session, state: "Pause" });
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
     renderPage();
     expect(await screen.findByText(/safety state is Pause/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign off..." })).toBeEnabled();
   });
 
   it("shows no safety warning in a normal state", async () => {
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
     renderPage();
     await screen.findByRole("button", { name: "Sign off..." });
     expect(screen.queryByText(/safety state is/i)).not.toBeInTheDocument();
   });
 
   it("requires a reason to reject", async () => {
-    vi.spyOn(client, "getReport").mockResolvedValue(sampleRecord());
-    const reject = vi.spyOn(client, "rejectReport").mockResolvedValue(sampleRecord());
+    vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
+    const reject = vi.spyOn(client, "rejectReport").mockResolvedValue(sampleBody());
     renderPage();
     await userEvent.click(await screen.findByRole("button", { name: "Reject..." }));
     const confirm = screen.getByRole("button", { name: "Confirm rejection" });

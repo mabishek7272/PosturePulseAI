@@ -9,7 +9,7 @@ import {
   saveClinicianAssessment,
   signOffReport,
 } from "../api/client";
-import type { AssessmentReportRecord, ReportStatus, RowExclusion, SafetyState, SessionRecord } from "../api/types";
+import type { AssessmentReportBody, ReportStatus, RowExclusion, SafetyState, SessionRecord } from "../api/types";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 import { ReportRowsTable } from "../report/ReportRowsTable";
 import { SignOffDialog } from "../report/SignOffDialog";
@@ -32,7 +32,7 @@ const SAFETY_ATTENTION: ReadonlySet<SafetyState> = new Set(["Pause", "ClinicianR
  */
 export function ReportReviewPage() {
   const { reportId } = useParams<{ reportId: string }>();
-  const [record, setRecord] = useState<AssessmentReportRecord | null>(null);
+  const [record, setRecord] = useState<AssessmentReportBody | null>(null);
   const [session, setSession] = useState<SessionRecord | null>(null);
   const [stepTitles, setStepTitles] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +90,7 @@ export function ReportReviewPage() {
   if (error) return <p className="error-text">Could not load report: {error}</p>;
   if (!record) return <p>Loading...</p>;
 
-  const body = record.body;
+  const body = record;
   const editable = record.status === "draft";
   const hasDraftReference = body.rows.some((row) => row.reference?.status === "draft");
 
@@ -113,7 +113,7 @@ export function ReportReviewPage() {
       if (
         fresh.status !== record!.status ||
         fresh.reportVersion !== record!.reportVersion ||
-        JSON.stringify(fresh.body) !== JSON.stringify(record!.body)
+        JSON.stringify(fresh) !== JSON.stringify(record)
       ) {
         setRecord(fresh);
         setNotice("This report changed since you opened it. Review the updated version, then sign off.");
@@ -147,7 +147,7 @@ export function ReportReviewPage() {
           <Link to={`/sessions/${record.sessionId}`}>{session?.subjectPseudoId ?? record.sessionId}</Link>
         </dd>
         <dt>Built</dt>
-        <dd>{new Date(record.createdAt).toLocaleString()}</dd>
+        <dd>{new Date(body.provenance.producedAt).toLocaleString()}</dd>
         <dt>Reference set</dt>
         <dd>
           <span>{body.provenance.referenceFileVersion ?? "not recorded"}</span>
@@ -212,7 +212,7 @@ export function ReportReviewPage() {
       <h2>Clinician's assessment</h2>
       {editable ? (
         <DraftActions
-          key={record.id + (body.clinicianAssessment?.text ?? "")}
+          key={record.reportId + (body.clinicianAssessment?.text ?? "")}
           savedText={body.clinicianAssessment?.text ?? ""}
           safetyWarning={
             session && SAFETY_ATTENTION.has(session.state)

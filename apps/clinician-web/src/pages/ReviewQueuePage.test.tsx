@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as client from "../api/client";
 import type { SessionRecord } from "../api/types";
-import { sampleRecord } from "../report/testFixtures";
+import { sampleSummary } from "../report/testFixtures";
 import { ReviewQueuePage } from "./ReviewQueuePage";
 
 const session: SessionRecord = {
@@ -34,7 +34,7 @@ afterEach(() => {
 
 describe("ReviewQueuePage", () => {
   it("lists draft reports with the session's safety state and a link to review", async () => {
-    const listReports = vi.spyOn(client, "listReports").mockResolvedValue([sampleRecord()]);
+    const listReports = vi.spyOn(client, "listReports").mockResolvedValue([sampleSummary()]);
     vi.spyOn(client, "listSessions").mockResolvedValue([session]);
     renderPage();
     const link = await screen.findByRole("link", { name: "subj-9" });
@@ -46,7 +46,7 @@ describe("ReviewQueuePage", () => {
   });
 
   it("falls back to the session id when the session is not in the list", async () => {
-    vi.spyOn(client, "listReports").mockResolvedValue([sampleRecord()]);
+    vi.spyOn(client, "listReports").mockResolvedValue([sampleSummary()]);
     vi.spyOn(client, "listSessions").mockRejectedValue(new Error("offline"));
     renderPage();
     expect(await screen.findByRole("link", { name: "sess-1" })).toHaveAttribute("href", "/reports/rep-1");

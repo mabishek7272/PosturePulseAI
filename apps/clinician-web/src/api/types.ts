@@ -234,17 +234,20 @@ export interface AssessmentReportBody {
   provenance: Provenance;
 }
 
-/** Prisma `AssessmentReport` model (spec slice B) as returned by GET /reports and GET /reports/:id. */
-export interface AssessmentReportRecord {
+/**
+ * GET /reports row shape (reports.service.ts `list()`): a summary only, not
+ * the full body - `id`/`reportId` are the same value, kept as two keys to
+ * match what the backend actually sends.
+ */
+export interface ReportSummary {
   id: string;
+  reportId: string;
   sessionId: string;
   reportVersion: number;
   status: ReportStatus;
-  body: AssessmentReportBody;
-  signedBy: string | null;
-  signedAt: string | null;
-  contentSha256: string | null;
   createdAt: string;
+  signedAt: string | null;
+  sessionState: string | null;
 }
 
 /** POST /reports/:id/rows/exclude body */

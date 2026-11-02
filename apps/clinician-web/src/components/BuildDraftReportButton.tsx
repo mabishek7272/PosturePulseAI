@@ -19,7 +19,7 @@ export function BuildDraftReportButton({ sessionId }: { sessionId: string }) {
     setError(null);
     try {
       const report = await buildDraftReport(sessionId);
-      navigate(`/reports/${report.id}`);
+      navigate(`/reports/${report.reportId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

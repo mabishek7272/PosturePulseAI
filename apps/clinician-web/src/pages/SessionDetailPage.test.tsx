@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as client from "../api/client";
 import type { SessionRecord } from "../api/types";
-import { sampleRecord } from "../report/testFixtures";
+import { sampleBody } from "../report/testFixtures";
 import { SessionDetailPage } from "./SessionDetailPage";
 
 vi.mock("../api/socket", () => ({
@@ -44,7 +44,7 @@ describe("SessionDetailPage", () => {
     vi.spyOn(client, "getSession").mockResolvedValue(session);
     vi.spyOn(client, "listEvents").mockResolvedValue([]);
     vi.spyOn(client, "getExposureSummary").mockResolvedValue({});
-    const build = vi.spyOn(client, "buildDraftReport").mockResolvedValue(sampleRecord({ id: "rep-3" }));
+    const build = vi.spyOn(client, "buildDraftReport").mockResolvedValue(sampleBody({ reportId: "rep-3" }));
     renderPage();
     await userEvent.click(await screen.findByRole("button", { name: "Build draft report" }));
     await waitFor(() => expect(screen.getByText("Report page")).toBeInTheDocument());

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as client from "../api/client";
-import { sampleRecord } from "../report/testFixtures";
+import { sampleBody } from "../report/testFixtures";
 import { BuildDraftReportButton } from "./BuildDraftReportButton";
 
 function renderButton() {
@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe("BuildDraftReportButton", () => {
   it("builds a draft for the session and opens it", async () => {
-    const build = vi.spyOn(client, "buildDraftReport").mockResolvedValue(sampleRecord({ id: "rep-7" }));
+    const build = vi.spyOn(client, "buildDraftReport").mockResolvedValue(sampleBody({ reportId: "rep-7" }));
     renderButton();
     await userEvent.click(screen.getByRole("button", { name: "Build draft report" }));
     await waitFor(() => expect(screen.getByText("Report page")).toBeInTheDocument());
