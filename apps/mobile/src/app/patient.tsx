@@ -37,6 +37,9 @@ export default function PatientPickerScreen() {
 
   return (
     <View style={styles.screen}>
+      <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Text style={styles.back}>Back</Text>
+      </Pressable>
       <Text style={styles.title}>Who are you assessing?</Text>
       <TextInput
         style={styles.input}
@@ -70,6 +73,7 @@ export default function PatientPickerScreen() {
 }
 
 const styles = StyleSheet.create({
+  back: { color: "#9d93ae", fontSize: 15, marginBottom: 12 },
   screen: { flex: 1, backgroundColor: "#0e0a16", padding: 20, paddingTop: 60 },
   title: { color: "#efeaf6", fontSize: 24, fontWeight: "800", marginBottom: 16 },
   input: {

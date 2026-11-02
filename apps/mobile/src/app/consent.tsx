@@ -82,11 +82,15 @@ export default function ConsentScreen() {
       <Pressable style={styles.button} onPress={agree} disabled={busy}>
         {busy ? <ActivityIndicator color="#0e0a16" /> : <Text style={styles.buttonText}>Consent given — begin</Text>}
       </Pressable>
+      <Pressable onPress={() => router.back()} disabled={busy} hitSlop={12}>
+        <Text style={styles.back}>Back</Text>
+      </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  back: { color: "#9d93ae", textAlign: "center", marginTop: 24 },
   screen: { flex: 1, backgroundColor: "#0e0a16" },
   content: { padding: 24, paddingTop: 60 },
   title: { color: "#efeaf6", fontSize: 26, fontWeight: "800" },

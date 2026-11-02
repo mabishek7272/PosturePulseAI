@@ -5,10 +5,11 @@ import { listMetricResults, MetricResult } from "../api/events";
 import { getClinicianToken } from "../auth/tokenStore";
 
 function formatResult(result: MetricResult): string {
+  const unitSuffix = result.unit === "deg" ? "°" : result.unit ? ` ${result.unit}` : "";
   if (result.estimate) {
     const { value, uncertainty } = result.estimate;
     const sign = value >= 0 ? "+" : "";
-    return `${sign}${value.toFixed(1)} ± ${uncertainty.toFixed(1)}${result.unit === "deg" ? "°" : ` ${result.unit ?? ""}`}`;
+    return `${sign}${value.toFixed(1)} ± ${uncertainty.toFixed(1)}${unitSuffix}`;
   }
   // Never blank, never zero-filled: an unmeasurable row states its reason.
   if (result.unsupported) return `Not measured — ${result.unsupported.reasons.join(", ")}`;
