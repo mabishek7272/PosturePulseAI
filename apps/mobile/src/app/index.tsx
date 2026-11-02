@@ -2,6 +2,7 @@ import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { getClinicianToken } from "../auth/tokenStore";
+import { colors } from "../theme/colors";
 
 /** Decides where to send the clinician on launch. Redirect rather than an
  *  imperative replace, which can fire before the navigator has mounted. */
@@ -21,8 +22,8 @@ export default function Index() {
 
   if (!target) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#0e0a16", alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator color="#b98cff" />
+      <View style={{ flex: 1, backgroundColor: colors.bgDeep, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator color={colors.accent600} />
       </View>
     );
   }
