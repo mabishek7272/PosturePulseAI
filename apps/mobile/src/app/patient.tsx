@@ -1,7 +1,15 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { createPatient, PatientRecord, searchPatients } from "../api/patients";
+import {
+  Alcohol,
+  createPatient,
+  PatientIntake,
+  PatientRecord,
+  PhysicalActivityLevel,
+  searchPatients,
+  Smoking,
+} from "../api/patients";
 import { getClinicianToken } from "../auth/tokenStore";
 import { Screen, useResponsive } from "../components/Screen";
 
@@ -45,13 +53,13 @@ export default function PatientPickerScreen() {
     router.push({ pathname: "/consent", params: { patientId: patient.id, patientName: patient.name } });
   }
 
-  async function createAndChoose(name: string, dateOfBirth: string) {
+  async function createAndChoose(name: string, dateOfBirth: string, intake: PatientIntake | undefined) {
     setCreating(true);
     setError(null);
     try {
       const token = await getClinicianToken();
       if (!token) return router.replace("/login");
-      const patient = await createPatient({ name, dateOfBirth }, token);
+      const patient = await createPatient({ name, dateOfBirth, intake }, token);
       choose(patient);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create the patient.");
@@ -102,7 +110,7 @@ function NewPatientForm({
 }: {
   initialName: string;
   busy: boolean;
-  onCreate: (name: string, dateOfBirth: string) => void;
+  onCreate: (name: string, dateOfBirth: string, intake: PatientIntake | undefined) => void;
 }) {
   const { bodySize, gutter } = useResponsive();
   const [open, setOpen] = useState(false);
@@ -110,12 +118,42 @@ function NewPatientForm({
   const [dob, setDob] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
 
+  // Clinical intake - every field optional, documentary context only. Shown
+  // as part of the same form rather than a separate step, since it is asked
+  // once at patient creation, not re-asked per visit.
+  const [showIntake, setShowIntake] = useState(false);
+  const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [smoking, setSmoking] = useState<Smoking | undefined>();
+  const [alcohol, setAlcohol] = useState<Alcohol | undefined>();
+  const [activity, setActivity] = useState<PhysicalActivityLevel | undefined>();
+  const [physicalProblems, setPhysicalProblems] = useState("");
+  const [recentAccident, setRecentAccident] = useState(false);
+  const [accidentDetails, setAccidentDetails] = useState("");
+
   if (!open) {
     return (
       <Pressable style={styles.newButton} onPress={() => { setName(initialName); setOpen(true); }}>
         <Text style={styles.newButtonText}>+ New patient</Text>
       </Pressable>
     );
+  }
+
+  function buildIntake(): PatientIntake | undefined {
+    const intake: PatientIntake = {};
+    const height = Number(heightCm);
+    const weight = Number(weightKg);
+    if (heightCm.trim() && Number.isFinite(height)) intake.heightCm = height;
+    if (weightKg.trim() && Number.isFinite(weight)) intake.weightKg = weight;
+    if (smoking) intake.smoking = smoking;
+    if (alcohol) intake.alcohol = alcohol;
+    if (activity) intake.physicalActivityLevel = activity;
+    if (physicalProblems.trim()) intake.physicalProblems = physicalProblems.trim();
+    if (recentAccident) {
+      intake.recentAccident = true;
+      if (accidentDetails.trim()) intake.recentAccidentDetails = accidentDetails.trim();
+    }
+    return Object.keys(intake).length > 0 ? intake : undefined;
   }
 
   function submit() {
@@ -131,7 +169,7 @@ function NewPatientForm({
       return;
     }
     setLocalError(null);
-    onCreate(trimmedName, dob);
+    onCreate(trimmedName, dob, buildIntake());
   }
 
   return (
@@ -152,6 +190,101 @@ function NewPatientForm({
         value={dob}
         onChangeText={setDob}
       />
+
+      {!showIntake ? (
+        <Pressable onPress={() => setShowIntake(true)} hitSlop={8} style={styles.intakeToggle}>
+          <Text style={styles.intakeToggleText}>+ Add clinical intake (optional)</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.intakeSection}>
+          <Text style={styles.intakeLabel}>Clinical intake (optional)</Text>
+
+          <View style={styles.row2}>
+            <TextInput
+              style={[styles.input, styles.half, { fontSize: bodySize + 1 }]}
+              placeholder="Height (cm)"
+              placeholderTextColor="#9d93ae"
+              keyboardType="decimal-pad"
+              value={heightCm}
+              onChangeText={setHeightCm}
+            />
+            <TextInput
+              style={[styles.input, styles.half, { fontSize: bodySize + 1 }]}
+              placeholder="Weight (kg)"
+              placeholderTextColor="#9d93ae"
+              keyboardType="decimal-pad"
+              value={weightKg}
+              onChangeText={setWeightKg}
+            />
+          </View>
+
+          <Text style={styles.fieldLabel}>Smoking</Text>
+          <ChipRow<Smoking>
+            options={[
+              { value: "never", label: "Never" },
+              { value: "former", label: "Former" },
+              { value: "current", label: "Current" },
+            ]}
+            value={smoking}
+            onChange={setSmoking}
+          />
+
+          <Text style={styles.fieldLabel}>Alcohol</Text>
+          <ChipRow<Alcohol>
+            options={[
+              { value: "never", label: "Never" },
+              { value: "occasional", label: "Occasional" },
+              { value: "regular", label: "Regular" },
+            ]}
+            value={alcohol}
+            onChange={setAlcohol}
+          />
+
+          <Text style={styles.fieldLabel}>Physical activity</Text>
+          <ChipRow<PhysicalActivityLevel>
+            options={[
+              { value: "sedentary", label: "Sedentary" },
+              { value: "light", label: "Light" },
+              { value: "moderate", label: "Moderate" },
+              { value: "active", label: "Active" },
+            ]}
+            value={activity}
+            onChange={setActivity}
+          />
+
+          <Text style={styles.fieldLabel}>Any physical problem</Text>
+          <TextInput
+            style={[styles.input, styles.note, { fontSize: bodySize }]}
+            placeholder="E.g. lower back pain for two weeks"
+            placeholderTextColor="#9d93ae"
+            multiline
+            value={physicalProblems}
+            onChangeText={setPhysicalProblems}
+          />
+
+          <Pressable
+            style={styles.checkboxRow}
+            onPress={() => setRecentAccident((v) => !v)}
+            hitSlop={8}
+          >
+            <View style={[styles.checkbox, recentAccident && styles.checkboxOn]}>
+              {recentAccident && <Text style={styles.checkboxMark}>✓</Text>}
+            </View>
+            <Text style={styles.fieldLabel}>Recently met with an accident</Text>
+          </Pressable>
+          {recentAccident && (
+            <TextInput
+              style={[styles.input, styles.note, { fontSize: bodySize }]}
+              placeholder="Details (optional)"
+              placeholderTextColor="#9d93ae"
+              multiline
+              value={accidentDetails}
+              onChangeText={setAccidentDetails}
+            />
+          )}
+        </View>
+      )}
+
       {localError && <Text style={styles.error}>{localError}</Text>}
       <Pressable style={styles.button} onPress={submit} disabled={busy}>
         {busy ? <ActivityIndicator color="#0e0a16" /> : <Text style={styles.buttonText}>Create and select</Text>}
@@ -159,6 +292,33 @@ function NewPatientForm({
       <Pressable onPress={() => setOpen(false)} disabled={busy}>
         <Text style={styles.cancel}>Cancel</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function ChipRow<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: Array<{ value: T; label: string }>;
+  value: T | undefined;
+  onChange: (value: T | undefined) => void;
+}) {
+  return (
+    <View style={styles.chipRow}>
+      {options.map((opt) => {
+        const selected = value === opt.value;
+        return (
+          <Pressable
+            key={opt.value}
+            style={[styles.chip, selected && styles.chipOn]}
+            onPress={() => onChange(selected ? undefined : opt.value)}
+          >
+            <Text style={[styles.chipText, selected && styles.chipTextOn]}>{opt.label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -184,9 +344,38 @@ const styles = StyleSheet.create({
   // A plain View, not <Screen>: this renders inside a FlatList footer, which
   // isn't a flex container - Screen's flex:1 column would collapse to zero
   // height here.
-  formWrap: { paddingTop: 18 },
+  formWrap: { paddingTop: 18, paddingBottom: 40 },
   formTitle: { color: "#efeaf6", fontSize: 18, fontWeight: "700", marginBottom: 12 },
   button: { backgroundColor: "#b98cff", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 4 },
   buttonText: { color: "#0e0a16", fontWeight: "700", fontSize: 16 },
   cancel: { color: "#9d93ae", textAlign: "center", marginTop: 14 },
+
+  intakeToggle: { paddingVertical: 10 },
+  intakeToggleText: { color: "#b98cff", fontSize: 14, fontWeight: "600" },
+  intakeSection: {
+    borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.08)",
+    marginTop: 4, marginBottom: 14, paddingTop: 14,
+  },
+  intakeLabel: { color: "#9d93ae", fontSize: 12, fontWeight: "700", letterSpacing: 0.5, marginBottom: 10 },
+  fieldLabel: { color: "#efeaf6", fontSize: 13, fontWeight: "600", marginBottom: 8, marginTop: 2 },
+  row2: { flexDirection: "row", gap: 10 },
+  half: { flex: 1 },
+  note: { minHeight: 60, textAlignVertical: "top" },
+
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  chip: {
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 20,
+    paddingVertical: 8, paddingHorizontal: 14,
+  },
+  chipOn: { backgroundColor: "#b98cff", borderColor: "#b98cff" },
+  chipText: { color: "#9d93ae", fontSize: 13, fontWeight: "600" },
+  chipTextOn: { color: "#0e0a16" },
+
+  checkboxRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.3)",
+    marginRight: 10, alignItems: "center", justifyContent: "center",
+  },
+  checkboxOn: { backgroundColor: "#b98cff", borderColor: "#b98cff" },
+  checkboxMark: { color: "#0e0a16", fontSize: 13, fontWeight: "800" },
 });

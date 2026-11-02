@@ -1,5 +1,28 @@
 import { request } from "./http";
 
+export type Smoking = "never" | "former" | "current";
+export type Alcohol = "never" | "occasional" | "regular";
+export type PhysicalActivityLevel = "sedentary" | "light" | "moderate" | "active";
+
+/**
+ * Optional clinical intake, collected alongside identity at patient creation.
+ * Documentary context for the clinician only - mirrors
+ * services/backend-api/src/patients/patients.service.ts PatientIntake
+ * exactly. Nothing in the measurement pipeline reads this; there is no
+ * stratified reference-range logic behind it yet (CLAUDE.md, no fabricated
+ * clinical claims without clinical-lead sign-off).
+ */
+export interface PatientIntake {
+  heightCm?: number;
+  weightKg?: number;
+  smoking?: Smoking;
+  alcohol?: Alcohol;
+  physicalActivityLevel?: PhysicalActivityLevel;
+  physicalProblems?: string | null;
+  recentAccident?: boolean;
+  recentAccidentDetails?: string | null;
+}
+
 /**
  * Identifying fields are decrypted by backend-api for this response only
  * (ADR-017). They must never be written into an event, a session record or a
@@ -10,6 +33,7 @@ export interface PatientRecord {
   name: string;
   dateOfBirth: string;
   contact?: string | null;
+  intake?: PatientIntake | null;
   createdAt?: string;
 }
 
@@ -17,6 +41,7 @@ export interface NewPatient {
   name: string;
   dateOfBirth: string;
   contact?: string;
+  intake?: PatientIntake;
 }
 
 export function searchPatients(query: string, token: string): Promise<PatientRecord[]> {
