@@ -16,6 +16,7 @@ import { startGravitySampling } from "../capture/gravity";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
 import { buildSidecar } from "../capture/sidecar";
 import { MAX_CONTENT_WIDTH, useResponsive } from "../components/Screen";
+import { colors } from "../theme/colors";
 
 // 1440x1920 - portrait 4:3, because iPad is the primary device and iPad and
 // iPhone rear cameras are natively 4:3.
@@ -208,17 +209,17 @@ export default function CaptureScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#000" },
+  screen: { flex: 1, backgroundColor: colors.bgDark },
   overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "space-between" },
   constrained: { width: "100%", maxWidth: MAX_CONTENT_WIDTH, alignSelf: "center" },
   header: { paddingTop: 60, paddingHorizontal: 20 },
-  step: { color: "#39ffc4", fontSize: 12, fontWeight: "700", letterSpacing: 1 },
-  title: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 4 },
-  footer: { padding: 20, paddingBottom: 44, backgroundColor: "rgba(14,10,22,0.55)" },
-  instruction: { color: "#efeaf6", fontSize: 15, lineHeight: 22, marginBottom: 14 },
-  error: { color: "#ff6b6b", marginBottom: 4 },
-  errorHint: { color: "#9d93ae", fontSize: 13, marginBottom: 10 },
-  shutter: { backgroundColor: "#b98cff", borderRadius: 14, padding: 18, alignItems: "center" },
-  shutterActive: { backgroundColor: "#6e3fc9" },
-  shutterText: { color: "#0e0a16", fontWeight: "800", fontSize: 16 },
+  step: { color: colors.accent300, fontSize: 12, fontWeight: "700", letterSpacing: 1 },
+  title: { color: colors.textOnDark, fontSize: 24, fontWeight: "800", marginTop: 4 },
+  footer: { padding: 20, paddingBottom: 44, backgroundColor: "rgba(23,22,42,0.72)" },
+  instruction: { color: colors.textOnDark, fontSize: 15, lineHeight: 22, marginBottom: 14 },
+  error: { color: colors.caution, marginBottom: 4 },
+  errorHint: { color: colors.accent300, fontSize: 13, marginBottom: 10 },
+  shutter: { backgroundColor: colors.accent600, borderRadius: 14, padding: 18, alignItems: "center" },
+  shutterActive: { backgroundColor: colors.accent700 },
+  shutterText: { color: colors.textOnDark, fontWeight: "800", fontSize: 16 },
 });
