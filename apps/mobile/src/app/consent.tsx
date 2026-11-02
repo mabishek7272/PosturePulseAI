@@ -2,16 +2,24 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { linkPatient } from "../api/patients";
-import { createConsentRecord, createSession, getAssessmentBattery } from "../api/sessions";
+import {
+  createConsentRecord,
+  createSession,
+  getAssessmentBattery,
+  type SessionCredentials,
+} from "../api/sessions";
 import { getClinicianToken } from "../auth/tokenStore";
 
 export default function ConsentScreen() {
   const { patientId, patientName } = useLocalSearchParams<{ patientId: string; patientName: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Held across retries so a mid-flow failure continues the same visit. A new
-  // visit is a new screen instance and therefore a fresh id.
+  // Held across retries so a mid-flow failure resumes the same visit instead of
+  // creating a second consent record and session. A new visit is a new screen
+  // instance and therefore a fresh id. In memory only: the session token is never persisted.
   const subjectPseudoIdRef = useRef<string | null>(null);
+  const consentRecordIdRef = useRef<string | null>(null);
+  const credentialsRef = useRef<SessionCredentials | null>(null);
 
   async function agree() {
     if (busy) return;
@@ -24,16 +32,23 @@ export default function ConsentScreen() {
       // A fresh pseudonymous id per visit - the clinic device is shared (ADR-012).
       subjectPseudoIdRef.current ??= `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       const subjectPseudoId = subjectPseudoIdRef.current;
-      const battery = await getAssessmentBattery();
-      // Order matters: linking first guarantees a created session is always
-      // attributable to a patient. Do not move this after createSession.
+      if (!credentialsRef.current) {
+        const battery = await getAssessmentBattery();
+        if (!consentRecordIdRef.current) {
+          consentRecordIdRef.current = (await createConsentRecord(subjectPseudoId)).consentRecordId;
+        }
+        credentialsRef.current = await createSession({
+          subjectPseudoId,
+          consentRecordId: consentRecordIdRef.current,
+          protocolVersion: battery.version,
+        });
+      }
+      const credentials = credentialsRef.current;
+
+      // Link must run after createSession: the endpoint 404s unless a session already
+      // exists for this subject id. Repeat links to the same patient are idempotent,
+      // so a retry after a failed link safely re-runs only this step.
       await linkPatient(patientId, subjectPseudoId, token);
-      const consent = await createConsentRecord(subjectPseudoId);
-      const credentials = await createSession({
-        subjectPseudoId,
-        consentRecordId: consent.consentRecordId,
-        protocolVersion: battery.version,
-      });
 
       router.replace({
         pathname: "/capture",
