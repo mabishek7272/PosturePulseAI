@@ -1,3 +1,4 @@
+import type { GravitySample } from "./gravity";
 import { buildSidecar, MissingGravityError } from "./sidecar";
 
 const device = { model: "iPhone16,1", lens: "back_wide" as const, appVersion: "1.0.0" };
@@ -90,21 +91,22 @@ describe("buildSidecar", () => {
   });
 
   it("interpolates correctly even when samples arrive out of order", () => {
-    // Date.now() can step backwards under an NTP adjustment, so arrival order
-    // is not guaranteed to be time order.
+    // Date.now() can step backwards under an NTP adjustment, so arrival order is
+    // not guaranteed to be time order. Three samples, with the middle timestamp
+    // arriving last, so the coverage guard passes unsorted and only the
+    // interpolation can catch the ordering bug.
+    const samples: GravitySample[] = [
+      { t: 0, g: [0, 1, 0] },
+      { t: 1, g: [0, 0, 1] },
+      { t: 2, g: [1, 0, 0] },
+    ];
     const shuffled = buildSidecar({
       ...base, durationSeconds: 2, fps: 2,
-      gravitySamples: [
-        { t: 2, g: [1, 0, 0] },
-        { t: 0, g: [0, 1, 0] },
-      ],
+      gravitySamples: [samples[0], samples[2], samples[1]],
     });
     const inOrder = buildSidecar({
       ...base, durationSeconds: 2, fps: 2,
-      gravitySamples: [
-        { t: 0, g: [0, 1, 0] },
-        { t: 2, g: [1, 0, 0] },
-      ],
+      gravitySamples: [...samples],
     });
     expect(shuffled.frames.map((f) => f.gravity)).toEqual(inOrder.frames.map((f) => f.gravity));
   });
