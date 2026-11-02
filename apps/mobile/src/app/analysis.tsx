@@ -80,6 +80,6 @@ export default function AnalysisScreen() {
 }
 
 const styles = StyleSheet.create({
-  eyebrow: { color: colors.accent600, fontSize: 11, fontWeight: "800", letterSpacing: 2 },
+  eyebrow: { color: colors.accent300, fontSize: 11, fontWeight: "800", letterSpacing: 2 },
   error: { color: colors.caution, marginTop: 24, lineHeight: 20 },
 });

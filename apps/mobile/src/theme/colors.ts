@@ -7,7 +7,7 @@ export const colors = {
   // Light surfaces (the new default - replaces #0e0a16 as the app background)
   bg: "#f8f9ff",
   bgDeep: "#eef0fb",
-  bgDark: "#17162a", // capture screen only, which stays dark for camera visibility
+  bgDark: "#17162a", // the few screens that stay dark intentionally: capture (camera visibility), analysis (matches source design)
   surface: "rgba(255,255,255,0.78)",
   surfaceSolid: "#ffffff",
 
