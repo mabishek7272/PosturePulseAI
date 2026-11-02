@@ -1840,7 +1840,9 @@ git commit -m "feat(mobile): upload clips with the session token"
 
 ---
 
-## Task 11: Analysis screen with the six-stage animation
+## Task 11: Events polling and the analysis screen
+
+> **Resequenced during execution.** The events API (`src/api/events.ts`) was originally Task 12's first steps, but the analysis screen consumes `countMetricResults`, so building it here avoids a deliberate typecheck break. Task 12 is now the results screen and app shell only.
 
 Every stage label describes work the server actually does. The word `diagnos` must not appear — `npm run lint:claims` fails on it.
 
@@ -1999,7 +2001,9 @@ git commit -m "feat(mobile): add six-stage analysis screen"
 
 ---
 
-## Task 12: Results
+## Task 12: Results screen and app shell
+
+> **Resequenced during execution.** Steps 1–4 below (the events API) moved into Task 11, which consumes them. Start from the results screen.
 
 **Files:**
 - Create: `apps/mobile/src/api/events.ts`

@@ -7,7 +7,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-BANNED_PATTERN='diagnos|clinically validated|medically safe|cures|prevents injury|treats [a-z]+ disease'
+# `cures` is word-bounded because the match is case-insensitive and the bare
+# substring hits ordinary identifiers - "SecureStore" contains "cureS". The
+# boundary removes that false positive without weakening the rule: "cures back
+# pain" and "cures injury" still match. The other terms stay unbounded on
+# purpose, so "diagnos" catches diagnose/diagnosis/diagnostic alike.
+BANNED_PATTERN='diagnos|clinically validated|medically safe|\bcures\b|prevents injury|treats [a-z]+ disease'
 
 EXCLUDE_DIRS=(
   "./docs"
