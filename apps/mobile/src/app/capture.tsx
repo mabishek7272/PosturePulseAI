@@ -147,7 +147,7 @@ export default function CaptureScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#000" },
-  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: "space-between" },
+  overlay: { ...StyleSheet.absoluteFill, justifyContent: "space-between" },
   header: { paddingTop: 60, paddingHorizontal: 20 },
   step: { color: "#39ffc4", fontSize: 12, fontWeight: "700", letterSpacing: 1 },
   title: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 4 },
