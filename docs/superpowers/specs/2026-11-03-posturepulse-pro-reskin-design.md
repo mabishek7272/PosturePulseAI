@@ -93,13 +93,13 @@ Visual-only changes. No change to navigation, API calls, validation, or business
 - `capture.tsx` — stays dark. Visual polish to the overlay only (the instruction card, pose-progress indicator). The skeleton-overlay animation from the source design is **not** added here — live on-device pose guidance is P2 scope, already deferred in the P1 plan, and restyling P1's camera screen must not quietly pull that forward.
 - `analysis.tsx` — restyle the six-stage list and ring/progress treatment; copy is unchanged (already compliant).
 - `results.tsx` — restyle the metrics table (Reference + Position bars, matching the source design's reference-range bar visual) and the Clinician's assessment section. No hero score.
-- `home.tsx` tab bar — the 5-item bottom nav (Home / Patients / Capture-FAB / Trends / Profile) is added here, since it's shared chrome. Only Home, Patients and Capture are real destinations in P1; Trends and Profile route to the new screens built in Part 3 below (Profile → Settings).
+- `home.tsx` tab bar — the 5-item bottom nav (Home / Patients / Capture-FAB / Trends / Profile) is added here, since it's shared chrome. Verified directly against the source's own `go` index map (`go9=History, go10=Trends, go11=Settings`): the tab bar's wiring is internally consistent, not swapped as first suspected — "Trends" opens Trends, "Profile" opens Settings. **History is not a tab-bar destination at all** — the source reaches it via an "All sessions" link on Home (`go9`), which is how it's built here too.
 
 ## Part 3 — Three new screens
 
 ### History — buildable now, real data
 
-**Corrected during planning:** the source design reaches History from the bottom tab bar, not by drilling into one patient — it's a clinician-wide feed, matching clinician-web's own `SessionQueuePage`. Built on `GET /sessions?limit=` (clinician-only, already used by clinician-web), not the per-patient `GET /patients/:id/sessions` this spec originally named. Each row: date, protocol, state chip. No score, no diagnostic label. "Export full record (PDF)" from the source design is **not** built — no PDF export exists anywhere in this stack; cut rather than stubbed with a dead button.
+**Corrected during planning, twice.** First correction: History is a clinician-wide feed, not a per-patient drill-in — matching clinician-web's own `SessionQueuePage`, built on `GET /sessions?limit=` rather than the per-patient `GET /patients/:id/sessions` this spec first named. Second correction: it is reached via an "All sessions" link on Home, not a bottom-tab slot (see Part 2) — the tab bar's own 5 slots are Home / Patients / Capture / Trends / Profile. Each History row: date, protocol, state chip. No score, no diagnostic label. "Export full record (PDF)" from the source design is **not** built — no PDF export exists anywhere in this stack; cut rather than stubbed with a dead button.
 
 ### Trends — deferred, not built this pass
 
