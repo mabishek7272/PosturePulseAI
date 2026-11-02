@@ -65,5 +65,20 @@ export async function assertOk(response: Response): Promise<void> {
     unauthorizedHandler?.();
     throw new UnauthorizedError();
   }
-  if (!response.ok) throw new ApiError(await serverMessage(response), response.status);
+  if (!response.ok) {
+    // A bare "Internal server error" tells the clinician nothing and the
+    // developer even less, so name the status and the call that produced it.
+    throw new ApiError(
+      `${await serverMessage(response)} (${response.status} ${pathOf(response)})`,
+      response.status
+    );
+  }
+}
+
+function pathOf(response: Response): string {
+  try {
+    return new URL(response.url).pathname;
+  } catch {
+    return "unknown endpoint";
+  }
 }
