@@ -1132,7 +1132,16 @@ git commit -m "feat(mobile): add per-visit consent and session creation"
 
 ## Task 8: Gravity sampling and the ClipCapture sidecar
 
-This is the most important task in the project. The sidecar is what lets the server know which way is down; get it wrong and every angle is wrong. Both files are pure functions so they can be tested properly.
+This is the most important task in the project. The sidecar is what lets the server know which way is down; get it wrong and every angle is wrong — and wrong in a way no test will catch, because the numbers still look plausible. Both files are pure functions so they can be tested properly.
+
+**Verified against the installed `expo-sensors@58.0.4`:**
+
+- `DeviceMotion` and the `DeviceMotionMeasurement` type are both exported from the package root, so the import below is correct.
+- `accelerationIncludingGravity` is `{x, y, z}` in m/s² and is **not** nullable.
+- `acceleration` (linear, gravity removed) **is** nullable — it is `null` when the device cannot separate the two. The code below falls back to zeros, which means gravity then includes linear motion. For a subject standing still that is harmless; it is also why the sampler must not be trusted during vigorous movement.
+- Units do not matter, because every vector is normalised to unit length.
+
+**The axis mapping is the part to be suspicious of.** Expo reports device axes (x right, y up, z out of the screen toward the viewer). The schema wants camera frame C (x image-right, y image-down, z along the optical axis away from the camera), so for a portrait back-camera shot y and z are negated. An upright, level phone should then produce approximately `[0, 1, 0]` — which is exactly the sanity check `clip-capture.schema.json` documents, and exactly what Task 13 Step 2 verifies on a real device. Do not treat this as settled until that check passes on hardware.
 
 **Files:**
 - Create: `apps/mobile/src/capture/gravity.ts`
@@ -1601,13 +1610,14 @@ export default function CaptureScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* absoluteFill with no padding: the subject fills the screen. */}
       <Camera
-        ref={camera}
         style={StyleSheet.absoluteFill}
-        device={device}
-        format={format}
         isActive
-        video
+        device={device}
+        outputs={[previewOutput, videoOutput]}
+        constraints={[{ fps: TARGET_FPS }]}
+        onSessionConfigSelected={onSessionConfigSelected}
       />
 
       <View style={styles.overlay} pointerEvents="box-none">
@@ -1770,11 +1780,18 @@ export async function uploadClip(input: {
   sidecar: ClipCapture;
   token: string;
 }): Promise<{ clipId: string; status: string }> {
+  // iOS records .mov, Android always records .mp4 and ignores the recorder's
+  // fileType option. Declare what was actually written rather than assuming:
+  // the server accepts both, so a hardcoded type would be silently accepted
+  // while storing a mislabelled file the analyser then fails to decode.
+  const extension = input.videoPath.split(".").pop()?.toLowerCase() === "mp4" ? "mp4" : "mov";
+  const contentType = extension === "mp4" ? "video/mp4" : "video/quicktime";
+
   const form = new FormData();
   form.append("clip", {
     uri: input.videoPath.startsWith("file://") ? input.videoPath : `file://${input.videoPath}`,
-    name: `${input.stepId}.mov`,
-    type: "video/quicktime",
+    name: `${input.stepId}.${extension}`,
+    type: contentType,
   } as unknown as Blob);
   form.append("sidecar", JSON.stringify(input.sidecar));
 
