@@ -1,9 +1,6 @@
-import { Text, View } from 'react-native';
+import { View } from "react-native";
 
+/** Shown for the moment before the root layout redirects to login or home. */
 export default function Index() {
-  return (
-    <View>
-      <Text>beAIve</Text>
-    </View>
-  );
+  return <View style={{ flex: 1, backgroundColor: "#0e0a16" }} />;
 }
