@@ -38,7 +38,7 @@ export default function LoginScreen() {
         />
         <Text style={[styles.title, { fontSize: titleSize }]}>Clinician{"\n"}sign-in</Text>
         <Text style={[styles.subtitle, { fontSize: bodySize }]}>
-          Shared clinic device. Sign out when you are done with a patient.
+          Shared clinic device. Sessions lock after 10 minutes idle.
         </Text>
       </View>
 
