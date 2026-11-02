@@ -1,18 +1,15 @@
 const { getDefaultConfig } = require("expo/metro-config");
-const path = require("path");
 
-const projectRoot = __dirname;
-const workspaceRoot = path.resolve(projectRoot, "../..");
-
-const config = getDefaultConfig(projectRoot);
-
-// Watch the whole monorepo so changes in packages/schemas are picked up.
-config.watchFolders = [workspaceRoot];
-// Resolve from the app first, then the hoisted root node_modules.
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, "node_modules"),
-  path.resolve(workspaceRoot, "node_modules"),
-];
-config.resolver.disableHierarchicalLookup = true;
-
-module.exports = config;
+/**
+ * SDK 58 resolves workspace packages itself ("Expo Autolinking module
+ * resolution enabled"), so no hand-rolled monorepo resolver is needed. An
+ * earlier version of this file set watchFolders, nodeModulesPaths and
+ * disableHierarchicalLookup; that combination broke React Native's own
+ * environment setup at runtime.
+ *
+ * If this app ever imports @beaive/schemas from the workspace root and Metro
+ * cannot find it, re-add watchFolders for the workspace root first, and only
+ * then consider the resolver options - disableHierarchicalLookup is what
+ * caused the breakage.
+ */
+module.exports = getDefaultConfig(__dirname);
