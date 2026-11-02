@@ -1436,6 +1436,19 @@ git add apps/mobile/src/capture
 git commit -m "feat(mobile): build ClipCapture sidecar from device gravity"
 ```
 
+### Hardening added during implementation
+
+Review of the first implementation found two ways to produce a **plausible but wrong** gravity vector — the worst failure mode here, because it passes schema validation and corrupts every derived angle without raising anything. Both are now guarded in `buildSidecar`:
+
+1. **Samples are sorted by `t` before interpolating.** `gravityAt` assumes ascending order, and `Date.now()` can step backwards under an NTP adjustment. Out-of-order input would otherwise interpolate against the wrong neighbour. A regression test pins this, because the sort is defensive code that would otherwise be deleted silently.
+2. **Sparse coverage is rejected.** For a clip longer than 1.5s, there must be at least two samples spanning at least half the duration. A single reading held across a whole recording is fabricated per-frame data — `CLAUDE.md` rule 3 — not a measurement.
+
+### Known limitations, accepted for P1
+
+- **Sampling starts a few hundred milliseconds before the first video frame**, so every frame's gravity carries a small constant time offset. Gravity is near-constant for a stationary standing pose, so this is negligible against the cost of aligning two clocks.
+- **Frame count is `duration × fps`, not the true encoded frame count.** The server does not validate the two against each other, and these are fixed-rate clips. Variable frame rate would drift — a P2 concern.
+- **The axis mapping is unproven until hardware.** Task 13 Step 2 is the only thing standing between a sign error and silently wrong measurements.
+
 ---
 
 ## Task 9: Capture screen
@@ -2217,6 +2230,17 @@ const styles = StyleSheet.create({
 });
 ```
 
+Replace `apps/mobile/src/app/index.tsx` (currently an unstyled template stub). The root layout redirects away from it on mount, so its only job is to match the app background and avoid a white flash on launch:
+
+```tsx
+import { View } from "react-native";
+
+/** Shown for the moment before the root layout redirects to login or home. */
+export default function Index() {
+  return <View style={{ flex: 1, backgroundColor: "#0e0a16" }} />;
+}
+```
+
 Create `apps/mobile/src/app/_layout.tsx`:
 
 ```tsx
@@ -2321,6 +2345,16 @@ Run through each and confirm:
 Capture a pose with the subject's head and feet just inside the frame edges. Then open the same session in the clinician web dashboard and check the returned measurements are not flagged out-of-frame.
 
 Expected: no `out_of_frame` quality flags. If there are, the preview is showing a crop of a wider recording and the format selection in `capture.tsx` needs fixing.
+
+Then confirm the **recorded aspect ratio** matches what the sidecar declares. The app reports `TARGET_RESOLUTION` (1080x1920) rather than the resolution the pipeline actually selected, which is safe only because vision-camera prioritises the target's aspect ratio over its pixel count — and ml-service feeds those dimensions into `analyze_observations`. Verify it rather than trusting the documentation: on the server, inspect an uploaded clip.
+
+```bash
+ssh -p 18755 ubuntu@103.118.158.129
+# then, against the stored clip for this session:
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 <clip-path>
+```
+
+Expected: a 9:16 ratio (1080x1920, 720x1280, or similar). A different **ratio** — 4:3, say — means every angle is being computed against a distorted frame, and `TARGET_RESOLUTION` must then be replaced with the pipeline's selected resolution. A different pixel count at the same ratio is fine and needs no change.
 
 - [ ] **Step 5: Cross-check against the dashboard**
 
