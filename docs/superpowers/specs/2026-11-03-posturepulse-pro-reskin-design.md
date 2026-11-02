@@ -122,6 +122,16 @@ Audited against what's actually built:
 
 Settings ships as a real screen with real sign-out (already exists) and clinician identity, and every not-yet-built toggle rendered visibly disabled with honest copy — never a toggle that looks live but does nothing silently.
 
+## Part 4 — Idle lock
+
+The login screen's existing claim ("Sessions lock after 10 minutes idle") becomes real rather than being removed.
+
+**Design:** a module-level activity tracker (`apps/mobile/src/auth/idleLock.ts`) records a `lastActivityAt` timestamp, updated by a touch listener at the root layout that observes every touch without intercepting it (`onStartShouldSetResponderCapture` returning `false`). A periodic check (every 30s while the app is active, and once on every `AppState` transition to `active`) compares wall-clock elapsed time against a 10-minute threshold; if exceeded and a clinician token exists, it clears the token and routes to `/login` — reusing the exact mechanism `setUnauthorizedHandler` already uses for a 401, so there is one lock-and-redirect code path, not two.
+
+Checking on `AppState` becoming active (not just the interval) covers the realistic shared-device case: the app is backgrounded, a different person reopens it nine minutes later — the elapsed wall-clock time is still correct even though the interval wasn't ticking while backgrounded.
+
+**Known limitation, stated plainly rather than silently uncovered:** this does not cover the app being fully killed and relaunched — a fresh launch still goes straight to Home if a valid token is in the keychain, regardless of how long the app was closed. Persisting `lastActivityAt` to the keychain alongside the token would close this gap; out of scope for "minimal," noted here so it isn't mistaken for complete coverage later.
+
 ## Verification
 
 - `npx jest` and `npx tsc --noEmit` clean after each task, same bar as every P1 task.
