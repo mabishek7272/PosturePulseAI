@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { linkPatient } from "../api/patients";
 import { createConsentRecord, createSession, getAssessmentBattery } from "../api/sessions";
@@ -9,6 +9,9 @@ export default function ConsentScreen() {
   const { patientId, patientName } = useLocalSearchParams<{ patientId: string; patientName: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Held across retries so a mid-flow failure continues the same visit. A new
+  // visit is a new screen instance and therefore a fresh id.
+  const subjectPseudoIdRef = useRef<string | null>(null);
 
   async function agree() {
     if (busy) return;
@@ -19,15 +22,18 @@ export default function ConsentScreen() {
       if (!token) return router.replace("/login");
 
       // A fresh pseudonymous id per visit - the clinic device is shared (ADR-012).
-      const subjectPseudoId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      subjectPseudoIdRef.current ??= `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const subjectPseudoId = subjectPseudoIdRef.current;
       const battery = await getAssessmentBattery();
+      // Order matters: linking first guarantees a created session is always
+      // attributable to a patient. Do not move this after createSession.
+      await linkPatient(patientId, subjectPseudoId, token);
       const consent = await createConsentRecord(subjectPseudoId);
       const credentials = await createSession({
         subjectPseudoId,
         consentRecordId: consent.consentRecordId,
         protocolVersion: battery.version,
       });
-      await linkPatient(patientId, subjectPseudoId, token);
 
       router.replace({
         pathname: "/capture",
