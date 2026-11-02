@@ -12,6 +12,17 @@
 
 ---
 
+## The actual installed stack
+
+Task 1 scaffolded the app and the real versions differ from what this plan originally assumed. These are verified facts, not guesses:
+
+- **Expo SDK 58**, React Native 0.88, React 19.3, TypeScript 6.0.
+- **Routes live under `src/app/`**, not `app/` — that is the SDK 58 template layout, and the plan follows it rather than fighting it.
+- **TypeScript 6 no longer auto-includes `@types/*`**, so `tsconfig.json` carries `"types": ["jest", "node"]`.
+- **`react-native-vision-camera@5` is a complete Nitro rewrite.** v4 APIs are gone: there is no `useCameraFormat`, no static `Camera.requestCameraPermission()`, and no `camera.startRecording({...})` on a ref. v5 uses `useCameraPermission()`, `usePreviewOutput()`, `useVideoOutput()`, and `videoOutput.createRecorder()` returning a `Recorder` with `startRecording(onFinished, onError)`, `stopRecording()` and a live `recordedDuration`. v5 also ships no Expo config plugin, so the camera permission is declared directly via `ios.infoPlist.NSCameraUsageDescription` and `android.permissions` in `app.json`.
+
+The app's own `apps/mobile/AGENTS.md` warns against trusting training data for Expo and React Native APIs. **That warning is correct and applies to the code in this plan.** If a snippet here does not typecheck, read the installed `.d.ts` files under `node_modules/` and fix the code to match — never reach for `any`, `@ts-ignore`, or a loosened `tsconfig.json`.
+
 ## Before you start
 
 Read the spec above, then these three rules from `CLAUDE.md`, which this plan enforces in code:
@@ -55,17 +66,18 @@ apps/mobile/
 ├── package.json
 ├── tsconfig.json
 ├── jest.config.js
-├── app/                          expo-router routes (one file per screen)
-│   ├── _layout.tsx               root layout + auth gate
-│   ├── login.tsx
-│   ├── permissions.tsx
-│   ├── home.tsx
-│   ├── patient.tsx
-│   ├── consent.tsx
-│   ├── capture.tsx
-│   ├── analysis.tsx
-│   └── results.tsx
 └── src/
+    ├── app/                      expo-router routes (one file per screen)
+    │   ├── _layout.tsx           root layout + auth gate
+    │   ├── index.tsx             redirects to login or home
+    │   ├── login.tsx
+    │   ├── permissions.tsx
+    │   ├── home.tsx
+    │   ├── patient.tsx
+    │   ├── consent.tsx
+    │   ├── capture.tsx
+    │   ├── analysis.tsx
+    │   └── results.tsx
     ├── api/
     │   ├── config.ts             base URL
     │   ├── http.ts               fetch wrapper, typed errors, token injection
@@ -466,7 +478,7 @@ git commit -m "feat(mobile): store the clinician token in the keychain"
 
 **Files:**
 - Create: `apps/mobile/src/api/auth.ts`
-- Create: `apps/mobile/app/login.tsx`
+- Create: `apps/mobile/src/app/login.tsx`
 - Test: `apps/mobile/src/api/auth.test.ts`
 
 - [ ] **Step 1: Write the failing test**
@@ -526,14 +538,14 @@ Expected: PASS, 1 test.
 
 - [ ] **Step 5: Build the login screen**
 
-Create `apps/mobile/app/login.tsx`:
+Create `apps/mobile/src/app/login.tsx`:
 
 ```tsx
 import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { login } from "../src/api/auth";
-import { saveClinicianToken } from "../src/auth/tokenStore";
+import { login } from "../api/auth";
+import { saveClinicianToken } from "../auth/tokenStore";
 
 export default function LoginScreen() {
   const [username, setUsername] = useState("");
@@ -608,7 +620,7 @@ const styles = StyleSheet.create({
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/mobile/src/api/auth.ts apps/mobile/src/api/auth.test.ts apps/mobile/app/login.tsx
+git add apps/mobile/src/api/auth.ts apps/mobile/src/api/auth.test.ts apps/mobile/src/app/login.tsx
 git commit -m "feat(mobile): add clinician login"
 ```
 
@@ -617,26 +629,30 @@ git commit -m "feat(mobile): add clinician login"
 ## Task 5: Permissions screen
 
 **Files:**
-- Create: `apps/mobile/app/permissions.tsx`
+- Create: `apps/mobile/src/app/permissions.tsx`
 
 - [ ] **Step 1: Build the screen**
 
-Create `apps/mobile/app/permissions.tsx`:
+Create `apps/mobile/src/app/permissions.tsx`:
 
 ```tsx
 import { router } from "expo-router";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Camera } from "react-native-vision-camera";
+import { useEffect } from "react";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCameraPermission } from "react-native-vision-camera";
 
 export default function PermissionsScreen() {
-  const [denied, setDenied] = useState(false);
+  // vision-camera v5 exposes permissions as a reactive hook rather than the
+  // static Camera.requestCameraPermission() of v4.
+  const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
 
-  async function ask() {
-    const status = await Camera.requestCameraPermission();
-    if (status === "granted") router.replace("/home");
-    else setDenied(true);
-  }
+  useEffect(() => {
+    if (hasPermission) router.replace("/home");
+  }, [hasPermission]);
+
+  // Permission permanently denied: requesting again is a no-op, so send the
+  // clinician to Settings rather than a button that silently does nothing.
+  const mustUseSettings = !hasPermission && !canRequestPermission;
 
   return (
     <View style={styles.screen}>
@@ -645,13 +661,16 @@ export default function PermissionsScreen() {
         beAIve records short video clips of each assessment pose. The clips are uploaded to your
         clinic's server for measurement and are never shared elsewhere.
       </Text>
-      {denied && (
+      {mustUseSettings && (
         <Text style={styles.denied}>
           Camera access was denied. Enable it in Settings to run an assessment.
         </Text>
       )}
-      <Pressable style={styles.button} onPress={ask}>
-        <Text style={styles.buttonText}>Allow camera</Text>
+      <Pressable
+        style={styles.button}
+        onPress={() => (mustUseSettings ? Linking.openSettings() : requestPermission())}
+      >
+        <Text style={styles.buttonText}>{mustUseSettings ? "Open Settings" : "Allow camera"}</Text>
       </Pressable>
     </View>
   );
@@ -670,7 +689,7 @@ const styles = StyleSheet.create({
 - [ ] **Step 2: Commit**
 
 ```bash
-git add apps/mobile/app/permissions.tsx
+git add apps/mobile/src/app/permissions.tsx
 git commit -m "feat(mobile): add camera permission screen"
 ```
 
@@ -680,7 +699,7 @@ git commit -m "feat(mobile): add camera permission screen"
 
 **Files:**
 - Create: `apps/mobile/src/api/patients.ts`
-- Create: `apps/mobile/app/patient.tsx`
+- Create: `apps/mobile/src/app/patient.tsx`
 - Test: `apps/mobile/src/api/patients.test.ts`
 
 - [ ] **Step 1: Write the failing test**
@@ -788,14 +807,14 @@ Expected: PASS, 3 tests.
 
 - [ ] **Step 5: Build the picker screen**
 
-Create `apps/mobile/app/patient.tsx`:
+Create `apps/mobile/src/app/patient.tsx`:
 
 ```tsx
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { PatientRecord, searchPatients } from "../src/api/patients";
-import { getClinicianToken } from "../src/auth/tokenStore";
+import { PatientRecord, searchPatients } from "../api/patients";
+import { getClinicianToken } from "../auth/tokenStore";
 
 export default function PatientPickerScreen() {
   const [query, setQuery] = useState("");
@@ -879,7 +898,7 @@ const styles = StyleSheet.create({
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/mobile/src/api/patients.ts apps/mobile/src/api/patients.test.ts apps/mobile/app/patient.tsx
+git add apps/mobile/src/api/patients.ts apps/mobile/src/api/patients.test.ts apps/mobile/src/app/patient.tsx
 git commit -m "feat(mobile): add patient search and picker"
 ```
 
@@ -889,7 +908,7 @@ git commit -m "feat(mobile): add patient search and picker"
 
 **Files:**
 - Create: `apps/mobile/src/api/sessions.ts`
-- Create: `apps/mobile/app/consent.tsx`
+- Create: `apps/mobile/src/app/consent.tsx`
 - Test: `apps/mobile/src/api/sessions.test.ts`
 
 - [ ] **Step 1: Write the failing test**
@@ -1020,15 +1039,15 @@ Expected: PASS, 3 tests.
 
 The clinic runs on a shared device, so consent is per visit and a fresh pseudonymous id is generated each time (ADR-012).
 
-Create `apps/mobile/app/consent.tsx`:
+Create `apps/mobile/src/app/consent.tsx`:
 
 ```tsx
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text } from "react-native";
-import { linkPatient } from "../src/api/patients";
-import { createConsentRecord, createSession, getAssessmentBattery } from "../src/api/sessions";
-import { getClinicianToken } from "../src/auth/tokenStore";
+import { linkPatient } from "../api/patients";
+import { createConsentRecord, createSession, getAssessmentBattery } from "../api/sessions";
+import { getClinicianToken } from "../auth/tokenStore";
 
 export default function ConsentScreen() {
   const { patientId, patientName } = useLocalSearchParams<{ patientId: string; patientName: string }>();
@@ -1105,7 +1124,7 @@ const styles = StyleSheet.create({
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/mobile/src/api/sessions.ts apps/mobile/src/api/sessions.test.ts apps/mobile/app/consent.tsx
+git add apps/mobile/src/api/sessions.ts apps/mobile/src/api/sessions.test.ts apps/mobile/src/app/consent.tsx
 git commit -m "feat(mobile): add per-visit consent and session creation"
 ```
 
@@ -1414,7 +1433,7 @@ git commit -m "feat(mobile): build ClipCapture sidecar from device gravity"
 
 **Files:**
 - Create: `apps/mobile/src/capture/poses.ts`
-- Create: `apps/mobile/app/capture.tsx`
+- Create: `apps/mobile/src/app/capture.tsx`
 
 - [ ] **Step 1: Define the poses**
 
@@ -1467,80 +1486,115 @@ export const CLIP_SECONDS = 3;
 
 The preview is `StyleSheet.absoluteFill` with no container padding — the subject fills the screen. The format is chosen to match the screen's aspect ratio so **what is framed is what is recorded**.
 
-Create `apps/mobile/app/capture.tsx`:
+Create `apps/mobile/src/app/capture.tsx`:
 
 ```tsx
+import * as Device from "expo-device";
 import { router, useLocalSearchParams } from "expo-router";
-import { useRef, useState } from "react";
-import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
-import { Camera, useCameraDevice, useCameraFormat } from "react-native-vision-camera";
-import { uploadClip } from "../src/api/clips";
-import { startGravitySampling } from "../src/capture/gravity";
-import { CLIP_SECONDS, POSES } from "../src/capture/poses";
-import { buildSidecar } from "../src/capture/sidecar";
+import { useCallback, useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Camera,
+  CommonResolutions,
+  useCameraDevice,
+  usePreviewOutput,
+  useVideoOutput,
+  type CameraSessionConfig,
+} from "react-native-vision-camera";
+import { uploadClip } from "../api/clips";
+import { startGravitySampling } from "../capture/gravity";
+import { CLIP_SECONDS, POSES } from "../capture/poses";
+import { buildSidecar } from "../capture/sidecar";
 
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+// 1080x1920 - portrait, so the preview fills a tall phone screen and what is
+// framed is what is recorded. A subject boxed into a letterboxed preview looks
+// like a toy and gets framed wrong.
+const TARGET_RESOLUTION = CommonResolutions.FHD_16_9;
+const TARGET_FPS = 30;
 
 export default function CaptureScreen() {
   const { sessionId, sessionToken } = useLocalSearchParams<{ sessionId: string; sessionToken: string }>();
-  const camera = useRef<Camera>(null);
   const [poseIndex, setPoseIndex] = useState(0);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const device = useCameraDevice("back");
-  // Match the screen's aspect ratio so the preview is not a crop of a wider
-  // recording - otherwise the subject is framed correctly but recorded cut off.
-  const format = useCameraFormat(device, [
-    { videoAspectRatio: SCREEN_H / SCREEN_W },
-    { videoResolution: { width: 1920, height: 1080 } },
-    { fps: 30 },
-  ]);
+  const previewOutput = usePreviewOutput();
+  const videoOutput = useVideoOutput({ targetResolution: TARGET_RESOLUTION, enableAudio: false });
+
+  // The pipeline resolves constraints to a concrete config; the sidecar must
+  // report the fps actually recorded, not the one we asked for.
+  const actualFps = useRef(TARGET_FPS);
+  const onSessionConfigSelected = useCallback((config: CameraSessionConfig) => {
+    if (config.selectedFPS) actualFps.current = config.selectedFPS;
+  }, []);
 
   const pose = POSES[poseIndex];
 
   async function record() {
-    if (!camera.current || recording) return;
+    if (recording) return;
     setRecording(true);
     setError(null);
 
     const stopSampling = startGravitySampling();
     const recordedAt = new Date().toISOString();
+    let lastDuration = 0;
+    let durationTicker: ReturnType<typeof setInterval> | undefined;
 
-    camera.current.startRecording({
-      onRecordingFinished: async (video) => {
-        const gravitySamples = stopSampling();
-        setRecording(false);
-        try {
-          const sidecar = buildSidecar({
-            clipId: `${sessionId}-${pose.stepId}`,
-            sessionId,
-            stepId: pose.stepId,
-            view: pose.view,
-            recordedAt,
-            fps: format?.maxFps ?? 30,
-            width: format?.videoWidth ?? 1080,
-            height: format?.videoHeight ?? 1920,
-            durationSeconds: video.duration,
-            gravitySamples,
-            device: { model: Device.modelId ?? "unknown", lens: "back_wide", appVersion: "1.0.0" },
-          });
-          await uploadClip({ sessionId, stepId: pose.stepId, videoPath: video.path, sidecar, token: sessionToken });
+    function cleanUp() {
+      if (durationTicker) clearInterval(durationTicker);
+      setRecording(false);
+    }
 
-          if (poseIndex + 1 < POSES.length) setPoseIndex(poseIndex + 1);
-          else router.replace({ pathname: "/analysis", params: { sessionId } });
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "Could not save that clip.");
+    try {
+      // maxDuration ends the recording itself, so there is no setTimeout race
+      // between stopping and the file being finalised.
+      const recorder = await videoOutput.createRecorder({ maxDuration: CLIP_SECONDS });
+
+      // recordedDuration reads 0 once recording stops, so sample it while live
+      // and keep the last value. The real duration drives the sidecar's frame
+      // count - assuming CLIP_SECONDS would be a fabricated measurement.
+      durationTicker = setInterval(() => {
+        if (recorder.recordedDuration > 0) lastDuration = recorder.recordedDuration;
+      }, 100);
+
+      await recorder.startRecording(
+        async (filePath) => {
+          cleanUp();
+          const gravitySamples = stopSampling();
+          try {
+            const sidecar = buildSidecar({
+              clipId: `${sessionId}-${pose.stepId}`,
+              sessionId,
+              stepId: pose.stepId,
+              view: pose.view,
+              recordedAt,
+              fps: actualFps.current,
+              width: TARGET_RESOLUTION.width,
+              height: TARGET_RESOLUTION.height,
+              durationSeconds: lastDuration,
+              gravitySamples,
+              device: { model: Device.modelId ?? "unknown", lens: "back_wide", appVersion: "1.0.0" },
+            });
+            await uploadClip({ sessionId, stepId: pose.stepId, videoPath: filePath, sidecar, token: sessionToken });
+
+            if (poseIndex + 1 < POSES.length) setPoseIndex(poseIndex + 1);
+            else router.replace({ pathname: "/analysis", params: { sessionId } });
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Could not save that clip.");
+          }
+        },
+        (err) => {
+          cleanUp();
+          stopSampling();
+          setError(err.message);
         }
-      },
-      onRecordingError: (err) => {
-        stopSampling();
-        setRecording(false);
-        setError(err.message);
-      },
-    });
-
-    setTimeout(() => camera.current?.stopRecording(), CLIP_SECONDS * 1000);
+      );
+    } catch (err) {
+      cleanUp();
+      stopSampling();
+      setError(err instanceof Error ? err.message : "Could not start recording.");
+    }
   }
 
   if (!device) return <View style={styles.screen}><Text style={styles.instruction}>No camera available.</Text></View>;
@@ -1597,19 +1651,14 @@ const styles = StyleSheet.create({
 });
 ```
 
-- [ ] **Step 3: Add the device import**
+- [ ] **Step 3: Confirm expo-device is present**
 
-The snippet above uses `Device.modelId`. Install and import it:
+The screen uses `Device.modelId`, already imported above. `expo-device` ships with the template, so no install should be needed:
 
 ```bash
-cd apps/mobile && npx expo install expo-device
+cd apps/mobile && node -e "console.log(require('./package.json').dependencies['expo-device'])"
 ```
-
-Add to the imports at the top of `apps/mobile/app/capture.tsx`:
-
-```tsx
-import * as Device from "expo-device";
-```
+Expected: a version string. If it prints `undefined`, run `npx expo install expo-device`.
 
 - [ ] **Step 4: Typecheck**
 
@@ -1621,7 +1670,7 @@ Expected: no output. (`uploadClip` arrives in Task 10 — if this runs before Ta
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/mobile/src/capture/poses.ts apps/mobile/app/capture.tsx apps/mobile/package.json
+git add apps/mobile/src/capture/poses.ts apps/mobile/src/app/capture.tsx apps/mobile/package.json
 git commit -m "feat(mobile): add full-bleed four-pose capture screen"
 ```
 
@@ -1767,7 +1816,7 @@ Every stage label describes work the server actually does. The word `diagnos` mu
 
 **Files:**
 - Create: `apps/mobile/src/components/AnalysisStages.tsx`
-- Create: `apps/mobile/app/analysis.tsx`
+- Create: `apps/mobile/src/app/analysis.tsx`
 
 - [ ] **Step 1: Build the stages component**
 
@@ -1838,15 +1887,15 @@ const styles = StyleSheet.create({
 
 - [ ] **Step 2: Build the analysis screen**
 
-Create `apps/mobile/app/analysis.tsx`:
+Create `apps/mobile/src/app/analysis.tsx`:
 
 ```tsx
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { countMetricResults } from "../src/api/events";
-import { getClinicianToken } from "../src/auth/tokenStore";
-import { AnalysisStages, STAGES } from "../src/components/AnalysisStages";
+import { countMetricResults } from "../api/events";
+import { getClinicianToken } from "../auth/tokenStore";
+import { AnalysisStages, STAGES } from "../components/AnalysisStages";
 
 const POLL_MS = 2000;
 const GIVE_UP_MS = 120000;
@@ -1914,7 +1963,7 @@ const styles = StyleSheet.create({
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/mobile/src/components/AnalysisStages.tsx apps/mobile/app/analysis.tsx
+git add apps/mobile/src/components/AnalysisStages.tsx apps/mobile/src/app/analysis.tsx
 git commit -m "feat(mobile): add six-stage analysis screen"
 ```
 
@@ -1924,7 +1973,7 @@ git commit -m "feat(mobile): add six-stage analysis screen"
 
 **Files:**
 - Create: `apps/mobile/src/api/events.ts`
-- Create: `apps/mobile/app/results.tsx`
+- Create: `apps/mobile/src/app/results.tsx`
 - Test: `apps/mobile/src/api/events.test.ts`
 
 - [ ] **Step 1: Write the failing test**
@@ -2030,14 +2079,14 @@ Expected: PASS, 3 tests.
 
 - [ ] **Step 5: Build the results screen**
 
-Create `apps/mobile/app/results.tsx`:
+Create `apps/mobile/src/app/results.tsx`:
 
 ```tsx
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { listMetricResults, MetricResult } from "../src/api/events";
-import { getClinicianToken } from "../src/auth/tokenStore";
+import { listMetricResults, MetricResult } from "../api/events";
+import { getClinicianToken } from "../auth/tokenStore";
 
 function formatResult(result: MetricResult): string {
   if (result.estimate) {
@@ -2112,12 +2161,12 @@ const styles = StyleSheet.create({
 
 - [ ] **Step 6: Build the home stub and root layout**
 
-Create `apps/mobile/app/home.tsx`:
+Create `apps/mobile/src/app/home.tsx`:
 
 ```tsx
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { clearClinicianToken } from "../src/auth/tokenStore";
+import { clearClinicianToken } from "../auth/tokenStore";
 
 export default function HomeScreen() {
   return (
@@ -2151,14 +2200,14 @@ const styles = StyleSheet.create({
 });
 ```
 
-Create `apps/mobile/app/_layout.tsx`:
+Create `apps/mobile/src/app/_layout.tsx`:
 
 ```tsx
 import { Stack, router } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { setUnauthorizedHandler } from "../src/api/http";
-import { clearClinicianToken, getClinicianToken } from "../src/auth/tokenStore";
+import { setUnauthorizedHandler } from "../api/http";
+import { clearClinicianToken, getClinicianToken } from "../auth/tokenStore";
 
 export default function RootLayout() {
   const [checked, setChecked] = useState(false);
@@ -2226,7 +2275,7 @@ If the build fails with a Program License Agreement error, the Apple Account Hol
 
 This is the single most important check — if it is wrong, every angle is wrong and nothing else will reveal it.
 
-Add a temporary log in `apps/mobile/app/capture.tsx` inside `onRecordingFinished`, after `buildSidecar`:
+Add a temporary log in `apps/mobile/src/app/capture.tsx` inside `onRecordingFinished`, after `buildSidecar`:
 
 ```tsx
 console.log("gravity[0]", sidecar.frames[0].gravity);
