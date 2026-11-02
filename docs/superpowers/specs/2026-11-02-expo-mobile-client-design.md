@@ -81,6 +81,23 @@ recorded**, or subjects get cut off in the clip the server actually measures.
 Select a capture format whose aspect ratio matches the display and record that
 format, rather than displaying a crop of a wider recording.
 
+### The ClipCapture sidecar needs per-frame gravity
+
+`clip-capture.schema.json` requires `frames[]` with `{index, t, gravity}` for
+every encoded frame — gravity being the unit gravity vector in camera
+coordinates, which is how the server knows which way is down. This is **device
+motion data, not pose data**, so P1 does not need an on-device pose model; it
+needs `expo-sensors`.
+
+The SwiftUI client gets this for free from AVFoundation sample-buffer callbacks.
+React Native has no equivalent per-frame hook during recording, so the approach
+is: sample `DeviceMotion` at a high rate with timestamps throughout the
+recording, then build `frames[]` by interpolating gravity at each frame time
+derived from the clip's real duration and frame rate. Gravity changes slowly
+relative to a 60 Hz sample rate, so interpolation is accurate — but the frame
+count must be derived from the **actual** recorded duration and fps, never
+assumed.
+
 ## Project breakdown
 
 Five projects, each producing a working app. Each gets its own plan.
@@ -124,8 +141,10 @@ animation. Those are P2–P5.
    (`GET /patients?q=`), plus create-new. A scan must attach to a patient, so this
    gates entry to capture.
 5. **Consent** — captured per visit before the session opens
-   (`POST /consent`), as the SwiftUI clinic mode already does. The clinic runs on
-   a shared device, so consent is per-visit rather than remembered.
+   (`POST /consent-records`, body `{subjectPseudoId, scopes}`), as the SwiftUI
+   clinic mode already does. The clinic runs on a shared device, so consent is
+   per-visit rather than remembered. The `derived_events` scope is required or
+   session creation is refused.
 6. **Capture** — full-bleed preview, static silhouette outline and written
    instructions per pose, countdown, record, repeat for front / left / right /
    back. Hold ring and live skeleton are P2.
@@ -147,9 +166,21 @@ Reuses the existing contract end to end:
 3. `GET /assessment-battery` for step ids and titles.
 4. Per step: `PUT /sessions/:id/clips/:stepId` — multipart `clip`
    (video/mp4 or quicktime, ≤100 MB) plus `sidecar` (ClipCapture JSON).
-5. Subscribe to the existing session WebSocket gateway
-   (`src/ws/session.gateway.ts`) for `metric-result` events, falling back to
-   polling `GET /sessions/:id/events` when the socket is unavailable.
+5. Poll `GET /sessions/:sessionId/events` and filter for `metric-result`.
+
+**Two tokens are required**, and this is easy to get wrong:
+
+- The **clinician JWT** (from login) authorises `/patients`, `/sessions`, and
+  `GET /sessions/:id/events`.
+- The **session token** returned by `POST /sessions` (`{session, sessionToken}`)
+  is the only thing that authorises clip upload. `SessionOwnershipGuard` requires
+  `role === "subject"` matching that session id and **rejects a clinician token**.
+
+The WebSocket gateway (`src/ws/session.gateway.ts`, socket.io, `?sessionId=` plus
+a token in the handshake auth) broadcasts `pose-landmark-frame`,
+`quality-gate-flag`, `calibrated-joint-frame`, `state` and `decision-event` — it
+does **not** broadcast `metric-result`. It is therefore useful for live capture
+feedback in P2, but results in P1 come from the events endpoint.
 
 Patient linkage uses the existing clinic-mode mechanism — the visit gets a fresh
 pseudonymous subject id, linked to the patient record, with identifying fields
