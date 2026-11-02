@@ -20,6 +20,8 @@
 
 **Known issue, not yet fixed (found in Task 3's code-quality review):** `colors.caution` (`#ff6b6b`) was carried over unchanged from the old dark theme. It had ~6.5:1 contrast (WCAG AA) against the old dark card background; against the new light `colors.surface`, it computes to roughly 2.8:1 — below the 4.5:1 AA threshold for normal text. It's used for inline error text (e.g. Login's `styles.error`) across every reskinned screen. Fixing it means picking a new token value in `src/theme/colors.ts` and is a cross-cutting change, not a one-screen patch — do not fix it inside an individual screen task. Flag to the user before shipping; not blocking task-by-task execution.
 
+**Known issue, not yet fixed (found in Task 5's code-quality review):** `colors.textFaint` (`#9397ab`) at normal (non-bold) text sizes computes to roughly 2.55:1 contrast against the light `colors.bgDeep`/near-white surfaces — also below the 4.5:1 AA threshold. It's used for low-emphasis text across multiple already-approved screens (Home's sign-out link, BottomTabBar's inactive tab labels, Login's placeholder text). Same category of issue as `colors.caution` above and the same fix shape applies: a token-file-level value change, not a per-screen patch. Tracking only; not blocking task-by-task execution.
+
 ---
 
 ## Task 1: Shared theme tokens
