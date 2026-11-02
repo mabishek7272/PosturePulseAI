@@ -40,6 +40,7 @@ export function toCameraFrameGravity(m: DeviceMotionMeasurement): Vector3 | null
  */
 export function startGravitySampling(intervalMs = 16): () => GravitySample[] {
   const samples: GravitySample[] = [];
+  let stopped = false;
   const startedAt = Date.now();
 
   DeviceMotion.setUpdateInterval(intervalMs);
@@ -49,7 +50,10 @@ export function startGravitySampling(intervalMs = 16): () => GravitySample[] {
   });
 
   return () => {
-    subscription.remove();
+    if (!stopped) {
+      stopped = true;
+      subscription.remove();
+    }
     return samples;
   };
 }

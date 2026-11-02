@@ -49,6 +49,7 @@ export default function CaptureScreen() {
   const inFlight = useRef(false);
   // Held in refs so the unmount cleanup can reach the live sampler and ticker.
   const activeStop = useRef<(() => unknown) | null>(null);
+  const activeRecorder = useRef<{ cancelRecording(): Promise<void> } | null>(null);
   const activeTicker = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(
@@ -57,6 +58,10 @@ export default function CaptureScreen() {
       activeTicker.current = null;
       activeStop.current?.();
       activeStop.current = null;
+      // Leaving the screen abandons the clip. Nothing useful can be done with a
+      // rejection here - the screen is already gone.
+      activeRecorder.current?.cancelRecording().catch(() => {});
+      activeRecorder.current = null;
     },
     []
   );
@@ -78,6 +83,7 @@ export default function CaptureScreen() {
       if (activeTicker.current) clearInterval(activeTicker.current);
       activeTicker.current = null;
       activeStop.current = null;
+      activeRecorder.current = null;
       inFlight.current = false;
       setRecording(false);
     }
@@ -86,6 +92,7 @@ export default function CaptureScreen() {
       // maxDuration ends the recording itself, so there is no setTimeout race
       // between stopping and the file being finalised.
       const recorder = await videoOutput.createRecorder({ maxDuration: CLIP_SECONDS });
+      activeRecorder.current = recorder;
 
       // recordedDuration reads 0 once recording stops, so sample it while live
       // and keep the last value. The real duration drives the sidecar's frame
