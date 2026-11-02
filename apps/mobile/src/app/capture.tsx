@@ -1,6 +1,6 @@
 import * as Device from "expo-device";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   Camera,
@@ -18,6 +18,13 @@ import { buildSidecar } from "../capture/sidecar";
 // 1080x1920 - portrait, so the preview fills a tall phone screen and what is
 // framed is what is recorded. A subject boxed into a letterboxed preview looks
 // like a toy and gets framed wrong.
+//
+// The sidecar reports this target, not the resolution the pipeline selected.
+// That is deliberate and safe: vision-camera prioritises the target's aspect
+// ratio over pixel count when it cannot be met exactly, and the server-side
+// angles depend on aspect ratio, not absolute scale (ml-service passes
+// width/height into analyze_observations). A 720x1280 recording described as
+// 1080x1920 yields identical angles. Do not "fix" this to the selected size.
 const TARGET_RESOLUTION = CommonResolutions.FHD_16_9;
 const TARGET_FPS = 30;
 
@@ -38,20 +45,40 @@ export default function CaptureScreen() {
     if (config.selectedFPS) actualFps.current = config.selectedFPS;
   }, []);
 
+  // Re-entry guard that, unlike `recording` state, is visible within a tick.
+  const inFlight = useRef(false);
+  // Held in refs so the unmount cleanup can reach the live sampler and ticker.
+  const activeStop = useRef<(() => unknown) | null>(null);
+  const activeTicker = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (activeTicker.current) clearInterval(activeTicker.current);
+      activeTicker.current = null;
+      activeStop.current?.();
+      activeStop.current = null;
+    },
+    []
+  );
+
   const pose = POSES[poseIndex];
 
   async function record() {
-    if (recording) return;
+    if (recording || inFlight.current) return;
+    inFlight.current = true;
     setRecording(true);
     setError(null);
 
     const stopSampling = startGravitySampling();
+    activeStop.current = stopSampling;
     const recordedAt = new Date().toISOString();
     let lastDuration = 0;
-    let durationTicker: ReturnType<typeof setInterval> | undefined;
 
     function cleanUp() {
-      if (durationTicker) clearInterval(durationTicker);
+      if (activeTicker.current) clearInterval(activeTicker.current);
+      activeTicker.current = null;
+      activeStop.current = null;
+      inFlight.current = false;
       setRecording(false);
     }
 
@@ -63,7 +90,7 @@ export default function CaptureScreen() {
       // recordedDuration reads 0 once recording stops, so sample it while live
       // and keep the last value. The real duration drives the sidecar's frame
       // count - assuming CLIP_SECONDS would be a fabricated measurement.
-      durationTicker = setInterval(() => {
+      activeTicker.current = setInterval(() => {
         if (recorder.recordedDuration > 0) lastDuration = recorder.recordedDuration;
       }, 100);
 
@@ -104,6 +131,14 @@ export default function CaptureScreen() {
       stopSampling();
       setError(err instanceof Error ? err.message : "Could not start recording.");
     }
+  }
+
+  if (!sessionId || !sessionToken) {
+    return (
+      <View style={styles.screen}>
+        <Text style={styles.instruction}>This assessment is missing its session. Go back and start the assessment again.</Text>
+      </View>
+    );
   }
 
   if (!device) return <View style={styles.screen}><Text style={styles.instruction}>No camera available.</Text></View>;
@@ -147,7 +182,7 @@ export default function CaptureScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#000" },
-  overlay: { ...StyleSheet.absoluteFill, justifyContent: "space-between" },
+  overlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "space-between" },
   header: { paddingTop: 60, paddingHorizontal: 20 },
   step: { color: "#39ffc4", fontSize: 12, fontWeight: "700", letterSpacing: 1 },
   title: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 4 },
