@@ -7,7 +7,7 @@ export default function HomeScreen() {
   const { titleSize, bodySize } = useResponsive();
   return (
     <Screen center>
-      <Text style={[styles.title, { fontSize: titleSize }]}>beAIve</Text>
+      <Text style={[styles.title, { fontSize: titleSize }]}>PosturePulse AI</Text>
       <Text style={[styles.subtitle, { fontSize: bodySize }]}>Clinic assessment</Text>
 
       <Pressable style={styles.button} onPress={() => router.push("/patient")}>

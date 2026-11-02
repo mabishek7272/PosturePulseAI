@@ -22,7 +22,7 @@ export default function PermissionsScreen() {
     <Screen center>
       <Text style={[styles.title, { fontSize: titleSize }]}>Camera access</Text>
       <Text style={[styles.body, { fontSize: bodySize, lineHeight: bodySize * 1.5 }]}>
-        beAIve records short video clips of each assessment pose. The clips are uploaded to your
+        PosturePulse AI records short video clips of each assessment pose. The clips are uploaded to your
         clinic's server for measurement and are never shared elsewhere.
       </Text>
       {mustUseSettings && (

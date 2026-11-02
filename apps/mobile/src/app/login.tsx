@@ -28,7 +28,7 @@ export default function LoginScreen() {
 
   return (
     <Screen center>
-      <Text style={[styles.title, { fontSize: titleSize }]}>beAIve</Text>
+      <Text style={[styles.title, { fontSize: titleSize }]}>PosturePulse AI</Text>
       <Text style={[styles.subtitle, { fontSize: bodySize }]}>Clinician sign in</Text>
 
       <TextInput
