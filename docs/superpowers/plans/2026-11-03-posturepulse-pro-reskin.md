@@ -18,6 +18,8 @@
 2. `npx jest`, `npx tsc --noEmit`, and `bash scripts/lint-claims.sh` (from the repo root) must be clean before and after every task. 39 tests pass today (corrected during execution - Task 1 found the plan's original baseline of 38 was off by one); each task's step lists the new expected count where it changes.
 3. These are visual-only changes to proven screens — no new automated tests are written for pure layout. Where a task adds real logic (the History API call, idle-lock), it gets a real test.
 
+**Known issue, not yet fixed (found in Task 3's code-quality review):** `colors.caution` (`#ff6b6b`) was carried over unchanged from the old dark theme. It had ~6.5:1 contrast (WCAG AA) against the old dark card background; against the new light `colors.surface`, it computes to roughly 2.8:1 — below the 4.5:1 AA threshold for normal text. It's used for inline error text (e.g. Login's `styles.error`) across every reskinned screen. Fixing it means picking a new token value in `src/theme/colors.ts` and is a cross-cutting change, not a one-screen patch — do not fix it inside an individual screen task. Flag to the user before shipping; not blocking task-by-task execution.
+
 ---
 
 ## Task 1: Shared theme tokens
