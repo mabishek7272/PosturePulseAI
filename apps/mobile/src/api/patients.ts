@@ -64,3 +64,15 @@ export function linkPatient(
     token,
   });
 }
+
+/** One session linked to a patient (GET /patients/:id/sessions, newest first). */
+export interface PatientSession {
+  id: string;
+  state: string;
+  createdAt: string;
+  protocolId: string;
+}
+
+export function listPatientSessions(patientId: string, token: string): Promise<PatientSession[]> {
+  return request<PatientSession[]>(`/patients/${encodeURIComponent(patientId)}/sessions`, { token });
+}

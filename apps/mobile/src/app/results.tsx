@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, G, Line, Path } from "react-native-svg";
 import { listMetricResults, MetricResult } from "../api/events";
 import { UnauthorizedError } from "../api/http";
+import { findPatientHistory, latestEarlierWithResults, type PatientHistory } from "../api/patientHistory";
+import type { PatientSession } from "../api/patients";
 import { getClinicianToken } from "../auth/tokenStore";
 import { BackButton } from "../components/ScreenHeader";
 import { PrimaryButton, SecondaryButton } from "../components/Buttons";
@@ -114,6 +116,35 @@ export default function ResultsScreen() {
   const [results, setResults] = useState<MetricResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  // Same-patient context: undefined = loading, null = patient not found.
+  const [history, setHistory] = useState<PatientHistory | null | undefined>(undefined);
+  const [previous, setPrevious] = useState<PatientSession | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getClinicianToken();
+        if (!token) return;
+        const found = await findPatientHistory(sessionId, token);
+        const prev = found ? await latestEarlierWithResults(found.sessions, sessionId, token) : null;
+        if (!cancelled) { setHistory(found); setPrevious(prev); }
+      } catch {
+        // Auth failures are handled by the results load; here the actions just stay disabled.
+        if (!cancelled) setHistory(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sessionId]);
+
+  function scanAgain() {
+    if (!history) return;
+    router.push({ pathname: "/consent", params: { patientId: history.patient.id, patientName: history.patient.name } });
+  }
+  const compareReason =
+    history === undefined ? "Checking for an earlier scan…"
+    : history === null ? "Patient not found for this scan"
+    : previous ? null : "No earlier scan with results for this patient";
 
   useEffect(() => {
     let cancelled = false;
@@ -233,6 +264,13 @@ export default function ResultsScreen() {
             </GlassCard>
 
             <PrimaryButton label="Sign off & close session" disabled />
+            <SecondaryButton label="Scan again" onPress={scanAgain} disabled={!history} />
+            <SecondaryButton
+              label="Compare with previous scan"
+              disabled={!!compareReason}
+              onPress={() => previous && router.push({ pathname: "/compare", params: { a: previous.id, b: sessionId } })}
+            />
+            {compareReason ? <Text style={styles.caption}>{compareReason}</Text> : null}
             <SecondaryButton label="Done" onPress={() => router.replace("/home")} />
             <Text style={styles.caption}>Camera-based estimates. Not a substitute for clinical examination.</Text>
           </>
