@@ -286,7 +286,7 @@ export default function CaptureScreen() {
             <CaptureGlass radius={11} ring={colors.captureRingSoft} style={styles.pill}>
               <View style={styles.pillInner} accessibilityLiveRegion="polite">
                 {detecting ? <PulseDot style={styles.dot} /> : <View style={[styles.dot, styles.dotIdle]} />}
-                <Text style={styles.pillText}>{statusText}</Text>
+                <Text style={styles.pillText} numberOfLines={1}>{statusText}</Text>
               </View>
             </CaptureGlass>
             <CaptureGlass
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     borderRadius: 26, borderWidth: 1, borderColor: colors.captureFrame,
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  pill: { height: 34 },
+  pill: { height: 34, flexShrink: 1 },
   levelPill: { marginLeft: "auto" },
   pillInner: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 13 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent400 },
