@@ -31,10 +31,12 @@ import { buildSidecar, clipIdFor } from "../capture/sidecar";
 import { starsFor } from "../capture/sqi";
 import { useCaptureAnalysis } from "../capture/use-capture-analysis";
 import { readVideoInfoFromFile } from "../capture/video-info-file";
-import { ArTarget, CentreGuides, CloseGlyph, GuidanceChips, ScanLine, Shutter, SquareGlassButton, ViewProgress, CaptureGlass } from "../components/CaptureChrome";
+import { ArTarget, CentreGuides, CloseGlyph, GuidanceChips, InfoButton, ScanLine, Shutter, SquareGlassButton, ViewProgress, CaptureGlass } from "../components/CaptureChrome";
 import { EdgeGlow, HoldToast, type ToastMessage } from "../components/HoldToast";
 import { PoseResultCard, RecordingHud } from "../components/CaptureHud";
-import { ringSize, ScanRing } from "../components/ScanRing";
+import { ScanRing } from "../components/ScanRing";
+import { computeCaptureLayout } from "../capture/layout";
+import { LinearGradient } from "expo-linear-gradient";
 import { GlassCard } from "../components/GlassCard";
 import { ClockIcon, LayoutIcon, RefreshIcon, SparkleIcon } from "../components/icons";
 import { PulseDot } from "../components/Motion";
@@ -225,7 +227,8 @@ export default function CaptureScreen() {
 
   const currentPose = POSES[poseIndex];
   // Top edge (screen y) of the bottom card + controls, so the framing hint stays above them.
-  const [bottomTop, setBottomTop] = useState<number | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+  useEffect(() => setInfoOpen(false), [poseIndex]);
 
   // Hold feedback: while recording, turn the live checks into at most a few
   // gentle nudges (haptic on iPhone, amber ring/edge glow and a small toast
@@ -463,6 +466,7 @@ export default function CaptureScreen() {
   if (!device) return <View style={styles.screen}><Text style={styles.message}>No camera available.</Text></View>;
 
   const busy = recording || countdown !== null;
+  const lay = computeCaptureLayout(winW, winH, { top: insets.top, bottom: insets.bottom });
   const shutterState = busy ? "recording" : cameraReady && !result ? "ready" : "preparing";
   const detecting = pointCount > 0 && modelState.state === "loaded" && !resizerState.error;
   const statusText = poseStatusText(modelState.state, !!resizerState.error, pointCount);
@@ -489,15 +493,29 @@ export default function CaptureScreen() {
       <ScanLine height={winH} />
       <CentreGuides width={winW} height={winH} />
       {guidanceOn ? (
-        <ArTarget width={winW} height={winH} aligned={guidance.available && guidance.aligned} view={currentPose.view} limitY={bottomTop ?? undefined} />
+        <ArTarget width={winW} height={winH} aligned={guidance.available && guidance.aligned} view={currentPose.view} />
       ) : (
         <View pointerEvents="none" style={styles.frame} />
       )}
       {skeletonOn ? <PoseOverlay pose={pose} /> : null}
       <EdgeGlow mode={recording && warnIssue ? "amber" : recording && greenFlash ? "green" : "none"} />
 
+      <LinearGradient
+        pointerEvents="none"
+        colors={["rgba(10,8,24,0)", "rgba(10,8,24,0.55)"]}
+        style={[styles.bottomScrim, { height: lay.bottomControls.h + 16 }]}
+      />
+
+      {busy && !result ? (
+        <View pointerEvents="none" style={{ position: "absolute", left: lay.ring.x, top: lay.ring.y, width: lay.ring.w, height: lay.ring.h }}>
+          <ScanRing size={lay.ring.w} startedAt={recording ? recordingStartedAt : null} totalSeconds={CLIP_SECONDS} countdown={recording ? null : countdown}
+            tone={recording && warnIssue ? "amber" : recording && greenFlash ? "green" : "violet"}
+            caption={recording && warnIssue ? ISSUE_TEXT[warnIssue] : null} />
+        </View>
+      ) : null}
+
       <View
-        style={[styles.overlay, { paddingTop: insets.top + 14, paddingBottom: Math.max(30, insets.bottom + 12) }]}
+        style={[styles.overlay, { paddingTop: insets.top + 14, paddingBottom: Math.max(8, insets.bottom) }]}
         pointerEvents="box-none"
       >
         <View style={styles.constrained} pointerEvents="box-none">
@@ -523,95 +541,90 @@ export default function CaptureScreen() {
           </View>
 
           <ViewProgress labels={VIEW_LABELS} current={poseIndex} />
+
+          {result ? null : recording && recordingStartedAt !== null ? (
+            <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={40} elevated={false} radius={14} style={styles.strip}>
+              <RecordingHud getLive={getLive} poseGuideRunning={poseGuideRunning} />
+            </GlassCard>
+          ) : busy ? null : (
+            <>
+              <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={40} elevated={false} radius={14} style={styles.strip}>
+                <View style={styles.stripBody}>
+                  <View style={styles.stripHead}>
+                    <Text style={styles.stripTitle} numberOfLines={1}>{currentPose.title}</Text>
+                    <InfoButton open={infoOpen} onPress={() => setInfoOpen((v) => !v)} />
+                  </View>
+                  {guidanceOn ? (
+                    <View accessibilityLiveRegion="polite">
+                      <Text style={[styles.guidance, guidance.aligned && styles.guidanceOk]} numberOfLines={2}>{guidance.message}</Text>
+                    </View>
+                  ) : null}
+                  {error ? <Text style={styles.error} numberOfLines={2}>{error} Press Start to record this pose again.</Text> : null}
+                  {guidanceOn && guidance.available ? (
+                    <GuidanceChips checks={guidance.checks} />
+                  ) : (
+                    <View style={styles.chips}>
+                      {currentPose.cues.map((c) => (
+                        <View key={c} style={styles.chip}>
+                          <Text style={styles.chipText}>{c}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </GlassCard>
+              {infoOpen ? (
+                <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={50} elevated={false} radius={14} style={styles.popover}>
+                  <View style={styles.stripBody}>
+                    <Text style={styles.cardBody}>{currentPose.instruction}</Text>
+                    {guidanceOn && guidance.available ? null : <Text style={styles.mountHint}>For a usable measurement, mount the iPad upright and keep it still (a stand works best).</Text>}
+                  </View>
+                </GlassCard>
+              ) : guidanceOn && !guidance.aligned ? (
+                <Text pointerEvents="none" style={styles.hint} numberOfLines={1}>Fit the whole body inside the outline, feet included</Text>
+              ) : null}
+            </>
+          )}
           <HoldToast toast={toast} />
         </View>
 
-        <View style={[styles.constrained, styles.bottom]} pointerEvents="box-none" onLayout={(e) => setBottomTop(e.nativeEvent.layout.y)}>
-          {busy && !result ? (
-            <ScanRing size={ringSize(winH)} startedAt={recording ? recordingStartedAt : null} totalSeconds={CLIP_SECONDS} countdown={recording ? null : countdown}
-              tone={recording && warnIssue ? "amber" : recording && greenFlash ? "green" : "violet"}
-              caption={recording && warnIssue ? ISSUE_TEXT[warnIssue] : null} />
-          ) : null}
-          <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={50} elevated={false} radius={18}>
-            {result ? (
-              <PoseResultCard title={result.title} stats={result.stats} last={result.last} onContinue={result.advance} />
-            ) : recording && recordingStartedAt !== null ? (
-              <RecordingHud
-                startedAt={recordingStartedAt}
-                totalSeconds={CLIP_SECONDS}
-                getLive={getLive}
-                poseGuideRunning={poseGuideRunning}
-              />
-            ) : (
-              <View style={styles.card}>
-                <View style={styles.cardHead}>
-                  <SparkleIcon size={15} color={colors.accent400} strokeWidth={1.9} />
-                  <Text style={styles.eyebrow}>POSE GUIDE</Text>
-                </View>
-                {guidanceOn && !busy ? (
-                  <View accessibilityLiveRegion="polite">
-                    <Text style={[styles.guidance, guidance.aligned && styles.guidanceOk]}>{guidance.message}</Text>
-                  </View>
-                ) : null}
-                <Text style={styles.cardBody}>
-                  <Text style={styles.cardStrong}>{currentPose.title}</Text>
-                  {" — "}
-                  {currentPose.instruction}
-                </Text>
-                {error && (
-                  <>
-                    <Text style={styles.error}>{error}</Text>
-                    {/* Recovery in P1 is re-recording this pose; earlier poses are
-                        already accepted server-side and are not re-uploaded. */}
-                    <Text style={styles.errorHint}>Press Start to record this pose again.</Text>
-                  </>
-                )}
-                {guidanceOn && guidance.available ? (
-                  <GuidanceChips checks={guidance.checks} />
-                ) : (
-                  <View style={styles.chips}>
-                    {currentPose.cues.map((c) => (
-                      <View key={c} style={styles.chip}>
-                        <Text style={styles.chipText}>{c}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                {guidanceOn && guidance.available ? null : <Text style={styles.mountHint}>For a usable measurement, mount the iPad upright and keep it still (a stand works best).</Text>}
-              </View>
-            )}
-          </GlassCard>
-
-          {result ? null : (
-            <>
-              <View style={styles.controls}>
-                <SquareGlassButton label="Grid (not available)" disabled>
-                  <LayoutIcon size={20} color={colors.accent300} strokeWidth={1.8} />
+        {result ? null : (
+          <View style={[styles.constrained, styles.bottom]} pointerEvents="box-none">
+            <View style={styles.controls}>
+              <SquareGlassButton label="Grid (not available)" disabled>
+                <LayoutIcon size={20} color={colors.accent300} strokeWidth={1.8} />
+              </SquareGlassButton>
+              <Shutter state={shutterState} onPress={begin} recordingStartedAt={recordingStartedAt} totalSeconds={CLIP_SECONDS} />
+              {busy ? (
+                <SquareGlassButton label="Stop and discard this clip" onPress={abandon}>
+                  <CloseGlyph />
                 </SquareGlassButton>
-                <Shutter state={shutterState} onPress={begin} recordingStartedAt={recordingStartedAt} totalSeconds={CLIP_SECONDS} />
-                {busy ? (
-                  <SquareGlassButton label="Stop and discard this clip" onPress={abandon}>
-                    <CloseGlyph />
-                  </SquareGlassButton>
-                ) : (
-                  <SquareGlassButton label="Reset (not available)" disabled>
-                    <RefreshIcon size={20} color={colors.accent300} strokeWidth={1.8} />
-                  </SquareGlassButton>
-                )}
-              </View>
-              <Text style={styles.caption}>
-                {countdown !== null
-                  ? "Get ready. Tap ✕ to cancel"
-                  : recording
-                    ? `Recording ${CLIP_SECONDS}-second hold · tap ✕ to stop and discard`
-                    : cameraReady
-                      ? `View ${poseIndex + 1} of ${POSES.length} · tap to start, then hold still for ${CLIP_SECONDS} seconds`
-                      : "Preparing camera…"}
-              </Text>
-            </>
-          )}
-        </View>
+              ) : (
+                <SquareGlassButton label="Reset (not available)" disabled>
+                  <RefreshIcon size={20} color={colors.accent300} strokeWidth={1.8} />
+                </SquareGlassButton>
+              )}
+            </View>
+            <Text style={styles.caption} numberOfLines={1}>
+              {countdown !== null
+                ? "Get ready. Tap ✕ to cancel"
+                : recording
+                  ? "Recording · tap ✕ to stop and discard"
+                  : cameraReady
+                    ? `View ${poseIndex + 1} of ${POSES.length} · tap to start, hold still ${CLIP_SECONDS} s`
+                    : "Preparing camera…"}
+            </Text>
+          </View>
+        )}
       </View>
+
+      {result ? (
+        <View style={styles.resultWrap} pointerEvents="box-none">
+          <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={50} elevated={false} radius={18} style={styles.resultCard}>
+            <PoseResultCard title={result.title} stats={result.stats} last={result.last} onContinue={result.advance} />
+          </GlassCard>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -635,23 +648,32 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent400 },
   dotIdle: { opacity: 0.22 },
   pillText: { color: colors.textOnDark, fontSize: 12, fontWeight: "600", letterSpacing: 0.48 },
-  bottom: { gap: 16 },
+  bottom: { gap: 6 },
+  bottomScrim: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  strip: { marginTop: 8 },
+  stripBody: { paddingVertical: 8, paddingHorizontal: 12, gap: 5 },
+  stripHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  stripTitle: { color: colors.accent300, fontSize: 12, fontWeight: "700", letterSpacing: 0.6, flexShrink: 1 },
+  popover: { marginTop: 6 },
+  hint: { marginTop: 6, textAlign: "center", color: colors.accent100, fontSize: 12.5, fontWeight: "600", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4 },
+  resultWrap: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
+  resultCard: { width: "100%", maxWidth: 340 },
   card: { paddingVertical: 15, paddingHorizontal: 16, gap: 9 },
   cardHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   eyebrow: { color: colors.accent400, fontSize: 11, fontWeight: "600", letterSpacing: 1.43 },
-  guidance: { color: colors.accent100, fontSize: 19, fontWeight: "600" },
+  guidance: { color: colors.accent100, fontSize: 14, fontWeight: "700" },
   guidanceOk: { color: colors.captureAligned },
   cardBody: { color: colors.captureBody, fontSize: 14.5, lineHeight: 21 },
   cardStrong: { color: colors.accent300, fontWeight: "600" },
-  chips: { flexDirection: "row", gap: 7, marginTop: 3 },
-  chip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radii.sm - 1, backgroundColor: colors.captureChip },
-  chipText: { color: colors.accent300, fontSize: 11, fontWeight: "600" },
+  chips: { flexDirection: "row", gap: 5 },
+  chip: { paddingVertical: 3, paddingHorizontal: 8, borderRadius: radii.sm - 1, backgroundColor: colors.captureChip },
+  chipText: { color: colors.accent300, fontSize: 10, fontWeight: "600" },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6 },
-  mountHint: { marginTop: 8, fontSize: 11.5, color: colors.captureGuide, letterSpacing: 0.3 },
-  caption: { textAlign: "center", fontSize: 11.5, color: colors.captureGuide, letterSpacing: 0.46 },
+  mountHint: { fontSize: 11.5, color: colors.captureGuide, letterSpacing: 0.3 },
+  caption: { textAlign: "center", fontSize: 11, color: colors.captureGuide, letterSpacing: 0.46 },
   permissionButton: { marginHorizontal: 20, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent700 },
   permissionButtonText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },
   message: { color: colors.textOnDark, fontSize: 15, lineHeight: 22, margin: 20, marginTop: 120 },
-  error: { color: colors.caution },
+  error: { color: colors.caution, fontSize: 12 },
   errorHint: { color: colors.accent300, fontSize: 13 },
 });

@@ -9,6 +9,8 @@ export function ringSize(winH: number): number {
   return Math.round(Math.min(180, Math.max(120, winH * 0.21)));
 }
 
+const capSize = (size: number) => Math.max(8, Math.min(12, Math.round(size * 0.075)));
+
 /**
  * Large progress ring shown during the 3-2-1 countdown and the hold. The arc is
  * elapsed / totalSeconds from a monotonic clock; the numerals are the time left.
@@ -62,12 +64,12 @@ export function ScanRing({
         {countdown !== null ? (
           <>
             <Text style={[styles.big, { fontSize: size * 0.42 }]}>{countdown}</Text>
-            <Text style={styles.cap}>Get ready</Text>
+            <Text style={[styles.cap, { fontSize: capSize(size) }]}>Get ready</Text>
           </>
         ) : (
           <>
             <Text style={[styles.big, { fontSize: size * 0.26 }]}>{remaining}</Text>
-            <Text style={[styles.cap, { color: capColor }]} numberOfLines={2}>{caption ?? "Hold still"}</Text>
+            <Text style={[styles.cap, { color: capColor, fontSize: capSize(size) }]} numberOfLines={2}>{caption ?? "Hold still"}</Text>
           </>
         )}
       </View>
@@ -78,5 +80,5 @@ export function ScanRing({
 const styles = StyleSheet.create({
   inner: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   big: { color: colors.white, fontWeight: "300", fontVariant: ["tabular-nums"], textShadowColor: colors.captureShutterGlow, textShadowRadius: 12 },
-  cap: { textAlign: "center", paddingHorizontal: 8, color: colors.accent300, fontSize: 12, fontWeight: "600", letterSpacing: 0.6, marginTop: 2 },
+  cap: { textAlign: "center", paddingHorizontal: 6, color: colors.accent300, fontSize: 12, fontWeight: "600", letterSpacing: 0.6, marginTop: 2 },
 });

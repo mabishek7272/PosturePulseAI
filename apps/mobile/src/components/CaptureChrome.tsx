@@ -127,7 +127,7 @@ export function CloseGlyph({ size = 20, color = colors.accent300 }: { size?: num
  * a centre line and a ground line at the feet. Neutral until every guidance
  * check passes, then violet-green. Aids framing only.
  */
-export function ArTarget({ width, height, aligned, view, limitY }: { width: number; height: number; aligned: boolean; view: string; limitY?: number }) {
+export function ArTarget({ width, height, aligned, view }: { width: number; height: number; aligned: boolean; view: string }) {
   const box = bodyGuideBox(width, height);
   if (!box) return null;
   const stroke = aligned ? colors.captureAligned : colors.captureTargetIdle;
@@ -141,24 +141,24 @@ export function ArTarget({ width, height, aligned, view, limitY }: { width: numb
         <Line x1={cx} y1={head - 24} x2={cx} y2={feet + 8} stroke={stroke} strokeWidth={1} strokeDasharray="3 8" opacity={0.6} />
         <Line x1={cx - box.w * 0.6} y1={feet + 2} x2={cx + box.w * 0.6} y2={feet + 2} stroke={stroke} strokeWidth={aligned ? 2.2 : 1.4} strokeLinecap="round" opacity={0.8} />
       </Svg>
-      {aligned ? null : (
-        <Text
-          pointerEvents="none"
-          style={{
-            position: "absolute", left: 24, right: 24, textAlign: "center", color: colors.accent100, fontSize: 14, fontWeight: "600",
-            // Under the outline's feet, but never hidden behind the bottom card.
-            top: Math.min(feet + 12, (limitY ?? Infinity) - 30),
-            textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4,
-          }}
-        >
-          Fit the whole body inside the outline, feet included
-        </Text>
-      )}
     </>
   );
 }
 
-/** Small tick/dot chips for the guidance checks. */
+/** Small round "i" button that toggles the full pose instruction. */
+export function InfoButton({ open, onPress }: { open: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button" accessibilityLabel={open ? "Hide pose instructions" : "Show pose instructions"}
+      accessibilityState={{ expanded: open }} onPress={onPress} hitSlop={10}
+      style={[styles.info, open && styles.infoOpen]}
+    >
+      <Text style={styles.infoText}>i</Text>
+    </Pressable>
+  );
+}
+
+/** Small tick/dot chips for the guidance checks (compact: one wrapped row, 10 px text). */
 export function GuidanceChips({ checks }: { checks: GuidanceCheck[] }) {
   return (
     <View style={styles.checks} accessibilityLabel={checks.map((c) => `${c.label} ${c.ok ? "ok" : "not yet"}`).join(", ")}>
@@ -243,12 +243,15 @@ export function ViewProgress({ labels, current }: { labels: string[]; current: n
 }
 
 const styles = StyleSheet.create({
-  checks: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  check: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, backgroundColor: colors.captureChip, opacity: 0.8 },
+  info: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.captureRingButton },
+  infoOpen: { backgroundColor: "rgba(255,255,255,0.18)" },
+  infoText: { color: colors.accent300, fontSize: 13, fontWeight: "700", fontStyle: "italic" },
+  checks: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
+  check: { flexDirection: "row", alignItems: "center", gap: 3, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 7, backgroundColor: colors.captureChip, opacity: 0.8 },
   checkOk: { opacity: 1, backgroundColor: "rgba(143,227,192,0.18)" },
-  checkMark: { color: colors.captureGuide, fontSize: 10, fontWeight: "700" },
+  checkMark: { color: colors.captureGuide, fontSize: 9, fontWeight: "700" },
   checkMarkOk: { color: colors.captureAligned },
-  checkText: { color: colors.captureGuide, fontSize: 11, fontWeight: "600" },
+  checkText: { color: colors.captureGuide, fontSize: 10, fontWeight: "600" },
   checkTextOk: { color: colors.captureBody },
   countdown: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: 10 },
   countdownText: { color: colors.accent100, fontSize: 132, fontWeight: "200", textShadowColor: colors.captureShutterGlow, textShadowRadius: 24 },
