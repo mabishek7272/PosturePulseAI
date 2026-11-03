@@ -85,6 +85,29 @@ describe("poseStatusText", () => {
   });
 });
 
+describe("personPresent (lateral)", () => {
+  const all = (score: number) => Array.from({ length: 17 * 3 }, (_, i) => (i % 3 === 2 ? score : 0.5));
+
+  it("accepts a side-on person whose far shoulder and hip are hidden", () => {
+    const raw = all(0.1);
+    // Near side only: ear, shoulder, elbow, wrist, hip, knee, ankle + nose.
+    for (const k of [0, 3, 5, 7, 9, 11, 13, 15]) raw[k * 3 + 2] = 0.8;
+    expect(personPresent(raw, true)).toBe(true);
+    // The same frame is still rejected when a frontal view is expected.
+    expect(personPresent(raw, false)).toBe(false);
+  });
+
+  it("still rejects a junk scene in a lateral view", () => {
+    expect(personPresent(all(0.25), true)).toBe(false);
+  });
+
+  it("rejects a lateral frame with a shoulder but no hip", () => {
+    const raw = all(0.1);
+    for (const k of [0, 3, 5, 7, 9, 13, 15] ) raw[k * 3 + 2] = 0.8;
+    expect(personPresent(raw, true)).toBe(false);
+  });
+});
+
 describe("personPresent", () => {
   const all = (score: number) => Array.from({ length: 17 * 3 }, (_, i) => (i % 3 === 2 ? score : 0.5));
 

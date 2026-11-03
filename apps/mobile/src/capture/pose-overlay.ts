@@ -89,6 +89,12 @@ export function decodeMoveNet(raw: ArrayLike<number>, fw: number, fh: number): n
 export const PERSON_KEYPOINT_SCORE = 0.4;
 /** Fewest confident keypoints (of 17) before the frame is treated as showing a person. */
 export const PERSON_MIN_POINTS = 8;
+/**
+ * Side-on, the far ear, shoulder, elbow, wrist, hip, knee and ankle are hidden
+ * behind the body and score low, so a lateral pose can never reach the frontal
+ * count or show 3 of 4 torso points.
+ */
+export const PERSON_MIN_POINTS_LATERAL = 6;
 /** Torso keypoints: shoulders 5-6 and hips 11-12; at least this many must be confident. */
 export const PERSON_MIN_TORSO_POINTS = 3;
 
@@ -98,17 +104,20 @@ export const PERSON_MIN_TORSO_POINTS = 3;
  * frame looks like it contains a person: enough confident keypoints overall
  * and most of the torso. Without this, junk scenes show a ghost skeleton.
  */
-export function personPresent(raw: ArrayLike<number>): boolean {
+export function personPresent(raw: ArrayLike<number>, lateral: boolean = false): boolean {
   'worklet';
   let confident = 0;
   for (let i = 0; i < KEYPOINT_COUNT; i++) if (raw[i * 3 + 2] >= PERSON_KEYPOINT_SCORE) confident++;
-  if (confident < PERSON_MIN_POINTS) return false;
-  let torso = 0;
-  if (raw[5 * 3 + 2] >= PERSON_KEYPOINT_SCORE) torso++;
-  if (raw[6 * 3 + 2] >= PERSON_KEYPOINT_SCORE) torso++;
-  if (raw[11 * 3 + 2] >= PERSON_KEYPOINT_SCORE) torso++;
-  if (raw[12 * 3 + 2] >= PERSON_KEYPOINT_SCORE) torso++;
-  return torso >= PERSON_MIN_TORSO_POINTS;
+  if (confident < (lateral ? PERSON_MIN_POINTS_LATERAL : PERSON_MIN_POINTS)) return false;
+  const lSho = raw[5 * 3 + 2] >= PERSON_KEYPOINT_SCORE;
+  const rSho = raw[6 * 3 + 2] >= PERSON_KEYPOINT_SCORE;
+  const lHip = raw[11 * 3 + 2] >= PERSON_KEYPOINT_SCORE;
+  const rHip = raw[12 * 3 + 2] >= PERSON_KEYPOINT_SCORE;
+  // Side-on only the near shoulder and hip are reliable, so one of each is the
+  // most a real person can offer; front-on all four are visible and demanding
+  // three keeps junk scenes from drawing a ghost skeleton.
+  if (lateral) return (lSho || rSho) && (lHip || rHip);
+  return (lSho ? 1 : 0) + (rSho ? 1 : 0) + (lHip ? 1 : 0) + (rHip ? 1 : 0) >= PERSON_MIN_TORSO_POINTS;
 }
 
 /** Mean MoveNet score over the keypoints at or above the visibility threshold; 0 when none. */

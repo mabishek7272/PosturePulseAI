@@ -20,7 +20,7 @@ import { useResizer } from "react-native-vision-camera-resizer";
 import { uploadClip } from "../api/clips";
 import { startGravitySampling } from "../capture/gravity";
 import { createFeedback, ISSUE_TEXT, type FeedbackEvent, type Issue } from "../capture/feedback";
-import { distanceState, PITCH_TOLERANCE_DEG, ROLL_TOLERANCE_DEG } from "../capture/guidance";
+import { distanceState, isLateral, PITCH_TOLERANCE_DEG, ROLL_TOLERANCE_DEG } from "../capture/guidance";
 import { useDeviceTilt } from "../capture/level";
 import { recordingStartHaptic, recoveredHaptic, milestoneHaptic, tickHaptic, warnHaptic } from "../capture/haptics";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
@@ -128,6 +128,9 @@ export default function CaptureScreen() {
   const modelState = useTensorflowModel(POSE_MODEL, []);
   const tflite = modelState.state === "loaded" ? modelState.model : undefined;
   const pose = useSharedValue<PoseSnapshot>(EMPTY_POSE);
+  // The far side of the body is hidden in a lateral pose, so the presence test
+  // is relaxed for those views (see personPresent).
+  const lateralView = isLateral(POSES[poseIndex].view);
   const onFrame = useCallback(
     (frame: Frame) => {
       "worklet";
@@ -142,7 +145,7 @@ export default function CaptureScreen() {
           try {
             const outputs = tflite.runSync([gpu.getPixelBuffer()]);
             const raw = new Float32Array(outputs[0]);
-            pose.value = { pts: personPresent(raw) ? decodeMoveNet(raw, fw, fh) : EMPTY_POSE.pts, w: fw, h: fh, n: (pose.value.n ?? 0) + 1, conf: meanVisibleScore(raw), scores: keypointScores(raw) };
+            pose.value = { pts: personPresent(raw, lateralView) ? decodeMoveNet(raw, fw, fh) : EMPTY_POSE.pts, w: fw, h: fh, n: (pose.value.n ?? 0) + 1, conf: meanVisibleScore(raw), scores: keypointScores(raw) };
           } finally {
             gpu.dispose();
           }
@@ -153,7 +156,7 @@ export default function CaptureScreen() {
         frame.dispose();
       }
     },
-    [resizer, tflite, pose],
+    [resizer, tflite, pose, lateralView],
   );
   const frameOutput = useFrameOutput({
     pixelFormat: "yuv",
