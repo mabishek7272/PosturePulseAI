@@ -11,10 +11,12 @@ export interface AvatarProps {
   size?: number;
   /** solid: violet gradient + white text. soft: lavender chip. neutral: pale grey chip. */
   variant?: AvatarVariant;
+  /** Corner radius override (patient rows use 14 at size 46). Default size * 0.32. */
+  radius?: number;
 }
 
-export function Avatar({ initials, size = 38, variant = "soft" }: AvatarProps) {
-  const radius = Math.round(size * 0.32);
+export function Avatar({ initials, size = 38, variant = "soft", radius: radiusProp }: AvatarProps) {
+  const radius = radiusProp ?? Math.round(size * 0.32);
   const fontSize = size >= 44 ? 14 : size >= 40 ? 13 : 12.5;
   const label = initials.slice(0, 2).toUpperCase();
   const text = (

@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   Alcohol,
   createPatient,
@@ -12,18 +12,32 @@ import {
 } from "../api/patients";
 import { getClinicianToken } from "../auth/tokenStore";
 import { BottomTabBar } from "../components/BottomTabBar";
-import { Screen, useResponsive } from "../components/Screen";
+import { Avatar } from "../components/Avatar";
+import { PrimaryButton } from "../components/Buttons";
+import { FadeUp } from "../components/FadeUp";
+import { GlassCard } from "../components/GlassCard";
+import { ChevronRightIcon, PlusIcon, SearchIcon } from "../components/icons";
+import { BackButton } from "../components/ScreenHeader";
+import { initialsOf, patientMeta } from "../lib/homeData";
 import { colors } from "../theme/colors";
 
 /** Matches the backend's own check (patients.service.ts `dateOfBirth`). */
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Only "All" is backed by the API; the other filters render disabled. */
+const FILTERS = [
+  { label: "Today", enabled: false },
+  { label: "Active", enabled: false },
+  { label: "Flagged", enabled: false },
+  { label: "All", enabled: true },
+];
+
 export default function PatientPickerScreen() {
-  const { titleSize, bodySize } = useResponsive();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PatientRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -70,46 +84,98 @@ export default function PatientPickerScreen() {
     }
   }
 
+  const trimmed = query.trim();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bgDeep }}>
-      <Screen style={styles.screen}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.back}>Back</Text>
-        </Pressable>
-        <Text style={[styles.title, { fontSize: titleSize }]}>Who are you assessing?</Text>
-        <TextInput
-          style={[styles.input, { fontSize: bodySize + 1 }]}
-          placeholder="Search by name"
-          placeholderTextColor="#9d93ae"
-          autoFocus
-          value={query}
-          onChangeText={setQuery}
-        />
-        {error && <Text style={styles.error}>{error}</Text>}
+    <View style={styles.root}>
+      <View style={styles.flex}>
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <BackButton />
+            <Text accessibilityRole="header" style={styles.h1}>Patients</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="New patient"
+              onPress={() => setFormOpen((v) => !v)}
+              style={({ pressed }) => [styles.newPill, pressed && { backgroundColor: colors.accent200 }]}
+            >
+              <PlusIcon size={15} color={colors.accent700} />
+              <Text style={styles.newPillText}>New</Text>
+            </Pressable>
+          </View>
+          <View style={styles.search}>
+            <SearchIcon size={17} color={colors.textFaint} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name"
+              placeholderTextColor={colors.textFaint}
+              autoCorrect={false}
+              value={query}
+              onChangeText={setQuery}
+            />
+          </View>
+          <View style={styles.filters}>
+            {FILTERS.map((f) => (
+              <View
+                key={f.label}
+                accessibilityRole="button"
+                accessibilityLabel={f.label}
+                accessibilityState={{ disabled: !f.enabled, selected: f.enabled }}
+                style={[styles.filter, f.enabled ? styles.filterOn : styles.filterOff, !f.enabled && styles.filterDisabled]}
+              >
+                <Text style={[styles.filterText, f.enabled ? styles.filterTextOn : styles.filterTextOff]}>{f.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
         <FlatList
           data={results}
           keyExtractor={(p) => p.id}
-          renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => choose(item)}>
-              <View style={styles.rowAvatar}>
-                <Text style={styles.rowAvatarText}>
-                  {item.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
-                </Text>
-              </View>
-              <View>
-                <Text style={[styles.rowName, { fontSize: bodySize + 2 }]}>{item.name}</Text>
-                <Text style={styles.rowMeta}>{item.dateOfBirth}</Text>
-              </View>
-            </Pressable>
+          contentContainerStyle={styles.list}
+          keyboardShouldPersistTaps="handled"
+          ItemSeparatorComponent={() => <View style={{ height: 9 }} />}
+          ListHeaderComponent={
+            <View>
+              {formOpen ? (
+                <NewPatientForm
+                  initialName={trimmed}
+                  busy={creating}
+                  onCreate={createAndChoose}
+                  onCancel={() => setFormOpen(false)}
+                />
+              ) : null}
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              {results.length > 0 || formOpen ? <View style={{ height: formOpen ? 9 : 0 }} /> : null}
+            </View>
+          }
+          renderItem={({ item, index }) => (
+            <FadeUp delay={index * 60} duration={600}>
+              <Pressable accessibilityRole="button" accessibilityLabel={item.name} onPress={() => choose(item)}>
+                {({ pressed }) => (
+                  <GlassCard fill={pressed ? colors.accent100 : colors.glassStrong} radius={18} elevated={false} intensity={30}>
+                    <View style={styles.row}>
+                      <Avatar initials={initialsOf(item.name)} size={46} radius={14} variant="soft" />
+                      <View style={styles.rowText}>
+                        <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.rowMeta}>{patientMeta(item.dateOfBirth, new Date())}</Text>
+                      </View>
+                      <View style={styles.rowChevron}>
+                        <ChevronRightIcon size={16} color={colors.textFaint} />
+                      </View>
+                    </View>
+                  </GlassCard>
+                )}
+              </Pressable>
+            </FadeUp>
           )}
           ListEmptyComponent={
-            query.trim().length >= 2 ? <Text style={styles.empty}>No matching patient.</Text> : undefined
-          }
-          ListFooterComponent={
-            <NewPatientForm initialName={query.trim()} busy={creating} onCreate={createAndChoose} />
+            formOpen ? undefined : (
+              <Text style={styles.empty}>
+                {trimmed.length >= 2 ? "No matching patient." : "Type at least two letters to search patients."}
+              </Text>
+            )
           }
         />
-      </Screen>
+      </View>
       <BottomTabBar />
     </View>
   );
@@ -119,13 +185,13 @@ function NewPatientForm({
   initialName,
   busy,
   onCreate,
+  onCancel,
 }: {
   initialName: string;
   busy: boolean;
   onCreate: (name: string, dateOfBirth: string, intake: PatientIntake | undefined) => void;
+  onCancel: () => void;
 }) {
-  const { bodySize, gutter } = useResponsive();
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState(initialName);
   const [dob, setDob] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -142,14 +208,6 @@ function NewPatientForm({
   const [physicalProblems, setPhysicalProblems] = useState("");
   const [recentAccident, setRecentAccident] = useState(false);
   const [accidentDetails, setAccidentDetails] = useState("");
-
-  if (!open) {
-    return (
-      <Pressable style={styles.newButton} onPress={() => { setName(initialName); setOpen(true); }}>
-        <Text style={styles.newButtonText}>+ New patient</Text>
-      </Pressable>
-    );
-  }
 
   function buildIntake(): PatientIntake | undefined {
     const intake: PatientIntake = {};
@@ -185,19 +243,20 @@ function NewPatientForm({
   }
 
   return (
-    <View style={[styles.formWrap, { paddingHorizontal: gutter }]}>
+    <GlassCard fill={colors.glassStrong} radius={18} intensity={30}>
+    <View style={styles.formWrap}>
       <Text style={styles.formTitle}>New patient</Text>
       <TextInput
-        style={[styles.input, { fontSize: bodySize + 1 }]}
+        style={styles.input}
         placeholder="Full name"
-        placeholderTextColor="#9d93ae"
+        placeholderTextColor={colors.textFaint}
         value={name}
         onChangeText={setName}
       />
       <TextInput
-        style={[styles.input, { fontSize: bodySize + 1 }]}
+        style={styles.input}
         placeholder="Date of birth (YYYY-MM-DD)"
-        placeholderTextColor="#9d93ae"
+        placeholderTextColor={colors.textFaint}
         keyboardType="numbers-and-punctuation"
         value={dob}
         onChangeText={setDob}
@@ -213,17 +272,17 @@ function NewPatientForm({
 
           <View style={styles.row2}>
             <TextInput
-              style={[styles.input, styles.half, { fontSize: bodySize + 1 }]}
+              style={[styles.input, styles.half]}
               placeholder="Height (cm)"
-              placeholderTextColor="#9d93ae"
+              placeholderTextColor={colors.textFaint}
               keyboardType="decimal-pad"
               value={heightCm}
               onChangeText={setHeightCm}
             />
             <TextInput
-              style={[styles.input, styles.half, { fontSize: bodySize + 1 }]}
+              style={[styles.input, styles.half]}
               placeholder="Weight (kg)"
-              placeholderTextColor="#9d93ae"
+              placeholderTextColor={colors.textFaint}
               keyboardType="decimal-pad"
               value={weightKg}
               onChangeText={setWeightKg}
@@ -266,9 +325,9 @@ function NewPatientForm({
 
           <Text style={styles.fieldLabel}>Any physical problem</Text>
           <TextInput
-            style={[styles.input, styles.note, { fontSize: bodySize }]}
+            style={[styles.input, styles.note]}
             placeholder="E.g. lower back pain for two weeks"
-            placeholderTextColor="#9d93ae"
+            placeholderTextColor={colors.textFaint}
             multiline
             value={physicalProblems}
             onChangeText={setPhysicalProblems}
@@ -286,9 +345,9 @@ function NewPatientForm({
           </Pressable>
           {recentAccident && (
             <TextInput
-              style={[styles.input, styles.note, { fontSize: bodySize }]}
+              style={[styles.input, styles.note]}
               placeholder="Details (optional)"
-              placeholderTextColor="#9d93ae"
+              placeholderTextColor={colors.textFaint}
               multiline
               value={accidentDetails}
               onChangeText={setAccidentDetails}
@@ -298,13 +357,12 @@ function NewPatientForm({
       )}
 
       {localError && <Text style={styles.error}>{localError}</Text>}
-      <Pressable style={styles.button} onPress={submit} disabled={busy}>
-        {busy ? <ActivityIndicator color={colors.textOnDark} /> : <Text style={styles.buttonText}>Create and select</Text>}
-      </Pressable>
-      <Pressable onPress={() => setOpen(false)} disabled={busy}>
+      <PrimaryButton label="Create and select" onPress={submit} loading={busy} />
+      <Pressable onPress={onCancel} disabled={busy}>
         <Text style={styles.cancel}>Cancel</Text>
       </Pressable>
     </View>
+    </GlassCard>
   );
 }
 
@@ -336,63 +394,68 @@ function ChipRow<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  back: { color: colors.textFaint, fontSize: 15, marginBottom: 12 },
-  screen: { paddingTop: 58, paddingBottom: 110 },
-  title: { color: colors.text, fontWeight: "600", marginBottom: 16 },
-  input: {
-    backgroundColor: colors.surfaceSolid, color: colors.text,
-    borderRadius: 13, padding: 15,
-    borderWidth: 1, borderColor: colors.hairline,
-    marginBottom: 14,
+  root: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
+  header: {
+    paddingTop: 58, paddingHorizontal: 22, paddingBottom: 16, gap: 14,
+    backgroundColor: colors.glassHeader, borderBottomWidth: 1, borderBottomColor: colors.hairline,
   },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  h1: { fontSize: 21, fontWeight: "600", letterSpacing: -0.525, color: colors.text },
+  newPill: {
+    marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 15,
+    borderRadius: 12, backgroundColor: colors.accent100, borderWidth: 1, borderColor: colors.accent300,
+  },
+  newPillText: { fontSize: 13, fontWeight: "600", color: colors.accent700 },
+  search: {
+    flexDirection: "row", alignItems: "center", gap: 10, height: 46, paddingHorizontal: 14, borderRadius: 13,
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline,
+  },
+  searchInput: { flex: 1, fontSize: 14.5, color: colors.text, padding: 0 },
+  filters: { flexDirection: "row", gap: 7 },
+  filter: { paddingVertical: 7, paddingHorizontal: 13, borderRadius: 9 },
+  filterOn: { backgroundColor: colors.accent700 },
+  filterOff: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline },
+  filterDisabled: { opacity: 0.5 },
+  filterText: { fontSize: 12 },
+  filterTextOn: { fontWeight: "600", color: colors.accent100 },
+  filterTextOff: { fontWeight: "500", color: colors.textSecondary },
+  list: { paddingTop: 16, paddingHorizontal: 22, paddingBottom: 110 },
+
+  row: { flexDirection: "row", alignItems: "center", gap: 13, padding: 15 },
+  rowText: { gap: 3, flexShrink: 1 },
+  rowName: { fontSize: 15.5, fontWeight: "600", letterSpacing: -0.23, color: colors.text },
+  rowMeta: { fontSize: 12.5, color: colors.textMuted },
+  rowChevron: { marginLeft: "auto" },
+  empty: { color: colors.textFaint, fontSize: 13 },
   error: { color: colors.caution, marginBottom: 10 },
-  row: {
-    flexDirection: "row", alignItems: "center", gap: 13, padding: 15, borderRadius: 18,
-    backgroundColor: colors.surfaceSolid, borderWidth: 1, borderColor: colors.hairline,
-    marginBottom: 9,
+
+  input: {
+    backgroundColor: colors.white, color: colors.text, fontSize: 14.5,
+    borderRadius: 13, paddingHorizontal: 14, paddingVertical: 13,
+    borderWidth: 1, borderColor: colors.hairline, marginBottom: 12,
   },
-  rowAvatar: {
-    width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center",
-    backgroundColor: colors.accent200,
-  },
-  rowAvatarText: { color: colors.accent700, fontWeight: "600", fontSize: 13 },
-  rowName: { color: colors.text, fontWeight: "600" },
-  rowMeta: { color: colors.textMuted, fontSize: 12.5, marginTop: 2 },
-  empty: { color: colors.textFaint, marginTop: 20 },
-  newButton: {
-    borderWidth: 1, borderColor: colors.accent600, borderRadius: 13,
-    padding: 15, alignItems: "center", marginTop: 18,
-  },
-  newButtonText: { color: colors.accent700, fontWeight: "700", fontSize: 15 },
-  // A plain View, not <Screen>: this renders inside a FlatList footer, which
-  // isn't a flex container - Screen's flex:1 column would collapse to zero
-  // height here.
-  formWrap: { paddingTop: 18, paddingBottom: 40 },
-  formTitle: { color: colors.text, fontSize: 18, fontWeight: "700", marginBottom: 12 },
-  button: { backgroundColor: colors.accent700, borderRadius: 13, padding: 16, alignItems: "center", marginTop: 4 },
-  buttonText: { color: colors.textOnDark, fontWeight: "700", fontSize: 16 },
-  cancel: { color: colors.textFaint, textAlign: "center", marginTop: 14 },
+  formWrap: { padding: 16 },
+  formTitle: { color: colors.text, fontSize: 16, fontWeight: "600", letterSpacing: -0.2, marginBottom: 12 },
+  cancel: { color: colors.textFaint, textAlign: "center", marginTop: 14, fontSize: 13 },
 
   intakeToggle: { paddingVertical: 10 },
-  intakeToggleText: { color: colors.accent600, fontSize: 14, fontWeight: "600" },
-  intakeSection: {
-    borderTopWidth: 1, borderTopColor: colors.hairline,
-    marginTop: 4, marginBottom: 14, paddingTop: 14,
-  },
-  intakeLabel: { color: colors.textMuted, fontSize: 12, fontWeight: "700", letterSpacing: 0.5, marginBottom: 10 },
+  intakeToggleText: { color: colors.accent600, fontSize: 13, fontWeight: "600" },
+  intakeSection: { borderTopWidth: 1, borderTopColor: colors.hairline, marginTop: 4, marginBottom: 14, paddingTop: 14 },
+  intakeLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "600", letterSpacing: 1.32, marginBottom: 10 },
   fieldLabel: { color: colors.text, fontSize: 13, fontWeight: "600", marginBottom: 8, marginTop: 2 },
   row2: { flexDirection: "row", gap: 10 },
   half: { flex: 1 },
   note: { minHeight: 60, textAlignVertical: "top" },
 
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 12 },
   chip: {
-    borderWidth: 1, borderColor: colors.hairline, borderRadius: 20,
-    paddingVertical: 8, paddingHorizontal: 14,
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline, borderRadius: 9,
+    paddingVertical: 7, paddingHorizontal: 13,
   },
-  chipOn: { backgroundColor: colors.accent600, borderColor: colors.accent600 },
-  chipText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
-  chipTextOn: { color: colors.textOnDark },
+  chipOn: { backgroundColor: colors.accent700, borderColor: colors.accent700 },
+  chipText: { color: colors.textSecondary, fontSize: 12, fontWeight: "500" },
+  chipTextOn: { color: colors.accent100, fontWeight: "600" },
 
   checkboxRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   checkbox: {
