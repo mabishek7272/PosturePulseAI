@@ -6,14 +6,15 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "posturepulse",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.beaive.mobile",
       "infoPlist": {
-        "NSCameraUsageDescription": "beAIve needs the camera to record the assessment poses.",
+        "NSCameraUsageDescription": "PosturePulse AI needs the camera to record the assessment poses.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "requireFullScreen": true
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +26,6 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.beaive.mobile",
       "permissions": [
-        "android.permission.CAMERA",
         "android.permission.CAMERA"
       ]
     },

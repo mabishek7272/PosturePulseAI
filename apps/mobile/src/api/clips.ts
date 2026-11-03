@@ -1,3 +1,4 @@
+import { File } from "expo-file-system";
 import type { ClipCapture } from "../capture/sidecar";
 import { assertOk } from "./http";
 import { BACKEND_URL } from "./config";
@@ -34,11 +35,16 @@ export async function uploadClip(input: {
 }): Promise<{ clipId: string; status: string }> {
   const { extension, contentType } = clipMediaType(input.videoPath);
 
+  // Expo's fetch (SDK 58) rejects React Native's `{ uri, name, type }` file
+  // object with "Unsupported FormDataPart implementation"; it only accepts a
+  // part that exposes bytes(). Name and type stay explicit so the server
+  // still sees the real content type rather than one guessed from the path.
+  const file = new File(input.videoPath.startsWith("file://") ? input.videoPath : `file://${input.videoPath}`);
   const form = new FormData();
   form.append("clip", {
-    uri: input.videoPath.startsWith("file://") ? input.videoPath : `file://${input.videoPath}`,
     name: `${input.stepId}.${extension}`,
     type: contentType,
+    bytes: () => file.bytes(),
   } as unknown as Blob);
   form.append("sidecar", JSON.stringify(input.sidecar));
 

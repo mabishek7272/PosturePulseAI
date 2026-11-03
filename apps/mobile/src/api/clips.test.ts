@@ -1,4 +1,10 @@
 import { clipMediaType, uploadClip } from "./clips";
+
+jest.mock("expo-file-system", () => ({
+  File: jest.fn().mockImplementation(() => ({
+    bytes: () => Promise.resolve(new Uint8Array([1, 2, 3])),
+  })),
+}));
 import type { ClipCapture } from "../capture/sidecar";
 
 const sidecar = { clipId: "c-1", sessionId: "s-1", stepId: "static.anterior" } as unknown as ClipCapture;
@@ -84,5 +90,31 @@ describe("uploadClip", () => {
         videoPath: "file:///tmp/clip.mov", sidecar, token: "subj-tok",
       })
     ).rejects.toThrow("This step already has an accepted clip.");
+  });
+
+  it("sends the clip as a part exposing bytes(), the only shape Expo's fetch accepts", async () => {
+    // Node's FormData flattens object parts, so record what uploadClip appends.
+    const RealFormData = global.FormData;
+    global.FormData = class {
+      parts: Record<string, unknown> = {};
+      append(key: string, value: unknown) { this.parts[key] = value; }
+    } as unknown as typeof FormData;
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ clipId: "c-1", status: "accepted" }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await uploadClip({
+      sessionId: "s-1", stepId: "static.anterior",
+      videoPath: "/tmp/clip.mov", sidecar, token: "subj-tok",
+    });
+
+    const form = fetchMock.mock.calls[0][1].body as unknown as { parts: Record<string, unknown> };
+    const part = form.parts.clip as { name: string; type: string; bytes: () => Promise<Uint8Array> };
+    expect(part).not.toHaveProperty("uri");
+    expect(part.name).toBe("static.anterior.mov");
+    expect(part.type).toBe("video/quicktime");
+    expect(Array.from(await part.bytes())).toEqual([1, 2, 3]);
+    global.FormData = RealFormData;
   });
 });
