@@ -22,6 +22,7 @@ import { formatLevel, useDeviceLevel } from "../capture/level";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
 import { buildSidecar, clipIdFor } from "../capture/sidecar";
+import { readVideoInfoFromFile } from "../capture/video-info-file";
 import { CentreGuides, ScanLine, Shutter, SquareGlassButton, ViewProgress, CaptureGlass } from "../components/CaptureChrome";
 import { GlassCard } from "../components/GlassCard";
 import { ClockIcon, LayoutIcon, RefreshIcon, SparkleIcon } from "../components/icons";
@@ -42,22 +43,26 @@ const POSE_FRAME_RESOLUTION = CommonResolutions.VGA_4_3;
 const POSE_MODEL = require("../../assets/models/movenet_lightning.tflite");
 const VIEW_LABELS = ["FRONT", "LEFT", "RIGHT", "BACK"];
 
-// 1440x1920 - portrait 4:3, because iPad is the primary device and iPad and
-// iPhone rear cameras are natively 4:3.
+// Portrait 4:3, because iPad is the primary device and iPad and iPhone rear
+// cameras are natively 4:3. 4:3 uses the whole sensor (16:9 would crop the sides
+// off, leaving less room for a standing subject with arms out) and matches the
+// iPad screen, so the full-bleed preview shows what is recorded.
 //
-// 4:3 uses the whole sensor. Asking for 16:9 crops the sides off it, giving
-// the same 1920 height but only 1080 of width - less room for a standing
-// subject with feet apart and arms at their sides, and so more out-of-frame
-// failures. 4:3 also matches an iPad screen, so the full-bleed preview really
-// does show what is being recorded rather than a crop of it.
+// 1080x1440 at a 6 Mbps target: a CLIP_SECONDS (45 s) clip is then about
+// 34 MB (6 Mb/s * 45 s / 8) - under the ~40 MB budget - while the long edge
+// stays 1440 px, comfortably above what landmark detection needs. This is only
+// a TARGET: vision-camera prioritises the aspect ratio over pixel count when
+// the exact size is unavailable, and the encoder treats the bit rate as a
+// reference ("may or may not encode with exactly this bit-rate"). That is why
+// NOTHING below trusts these numbers.
 //
-// The sidecar reports this target, not the resolution the pipeline selected.
-// That is deliberate and safe: vision-camera prioritises the target's aspect
-// ratio over pixel count when it cannot be met exactly, and the server-side
-// angles depend on aspect ratio, not absolute scale (ml-service passes
-// width/height into analyze_observations). A 1080x1440 recording described as
-// 1440x1920 yields identical angles. Do not "fix" this to the selected size.
-const TARGET_RESOLUTION = CommonResolutions.FHD_4_3;
+// The sidecar is built from the recorded FILE (readVideoInfoFromFile): its
+// oriented width/height and one entry per encoded frame at its real time. The
+// server decodes the clip, applies the container's rotation, and rejects the
+// whole clip ("insufficient_frames" for every metric) if the decoded size
+// differs from the sidecar's width x height, so a mismatch is NOT harmless.
+const TARGET_RESOLUTION = { width: 1080, height: 1440 };
+const TARGET_BIT_RATE = 6_000_000;
 const TARGET_FPS = 30;
 
 export default function CaptureScreen() {
@@ -77,7 +82,11 @@ export default function CaptureScreen() {
   // <Camera> wires its own preview output internally (see Camera.tsx:
   // `outputs: [previewOutput, ...outputs]`) - passing a second one here
   // duplicated the output and left it unconnected to any PreviewView.
-  const videoOutput = useVideoOutput({ targetResolution: TARGET_RESOLUTION, enableAudio: false });
+  const videoOutput = useVideoOutput({
+    targetResolution: TARGET_RESOLUTION,
+    targetBitRate: TARGET_BIT_RATE,
+    enableAudio: false,
+  });
 
   // The pipeline resolves constraints to a concrete config; the sidecar must
   // report the fps actually recorded, not the one we asked for.
@@ -142,19 +151,16 @@ export default function CaptureScreen() {
 
   // Re-entry guard that, unlike `recording` state, is visible within a tick.
   const inFlight = useRef(false);
-  // Held in refs so the unmount cleanup can reach the live sampler and ticker.
+  // Held in refs so the unmount cleanup can reach the live sampler and recorder.
   const activeStop = useRef<(() => unknown) | null>(null);
   const activeRecorder = useRef<Recorder | null>(null);
   const isMounted = useRef(true);
-  const activeTicker = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // Set again on mount so a dev-mode remount does not stay marked unmounted.
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (activeTicker.current) clearInterval(activeTicker.current);
-      activeTicker.current = null;
       activeStop.current?.();
       activeStop.current = null;
       // Leaving the screen abandons the clip. Nothing useful can be done with a
@@ -175,11 +181,8 @@ export default function CaptureScreen() {
     const stopSampling = startGravitySampling();
     activeStop.current = stopSampling;
     const recordedAt = new Date().toISOString();
-    let lastDuration = 0;
 
     function cleanUp() {
-      if (activeTicker.current) clearInterval(activeTicker.current);
-      activeTicker.current = null;
       activeStop.current = null;
       activeRecorder.current = null;
       inFlight.current = false;
@@ -192,13 +195,6 @@ export default function CaptureScreen() {
       const recorder = await videoOutput.createRecorder({ maxDuration: CLIP_SECONDS });
       activeRecorder.current = recorder;
 
-      // recordedDuration reads 0 once recording stops, so sample it while live
-      // and keep the last value. The real duration drives the sidecar's frame
-      // count - assuming CLIP_SECONDS would be a fabricated measurement.
-      activeTicker.current = setInterval(() => {
-        if (recorder.recordedDuration > 0) lastDuration = recorder.recordedDuration;
-      }, 100);
-
       await recorder.startRecording(
         async (filePath) => {
           // The screen was left, so the clip is abandoned regardless of which
@@ -207,6 +203,16 @@ export default function CaptureScreen() {
           cleanUp();
           const gravitySamples = stopSampling();
           try {
+            // Size and frame timing come from what was actually written. If the
+            // file cannot be read the clip is NOT uploaded and the requested
+            // resolution is never substituted (CLAUDE.md rule 3).
+            let info;
+            try {
+              info = await readVideoInfoFromFile(filePath);
+            } catch {
+              setError("Could not read the recorded video's size, so it was not uploaded.");
+              return;
+            }
             const sidecar = buildSidecar({
               clipId: clipIdFor(sessionId, currentPose.stepId),
               sessionId,
@@ -214,9 +220,9 @@ export default function CaptureScreen() {
               view: currentPose.view,
               recordedAt,
               fps: actualFps.current,
-              width: TARGET_RESOLUTION.width,
-              height: TARGET_RESOLUTION.height,
-              durationSeconds: lastDuration,
+              width: info.width,
+              height: info.height,
+              frameTimes: info.frameTimes,
               gravitySamples,
               device: { model: Device.modelId ?? "unknown", lens: "back_wide", appVersion: "1.0.0" },
             });

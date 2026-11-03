@@ -46,16 +46,37 @@ export interface ClipCapture {
   };
 }
 
+/**
+ * Thrown when the recorded file's frame timing is unusable (no frames, or a
+ * non-finite / decreasing time). The sidecar's frames must describe the frames
+ * that were really encoded, so there is nothing safe to fall back to.
+ */
+export class InvalidFrameTimingError extends Error {
+  constructor(message = "The recorded video has no usable frame timing; it cannot be uploaded.") {
+    super(message);
+    this.name = "InvalidFrameTimingError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 export interface BuildSidecarInput {
   clipId: string;
   sessionId: string;
   stepId: string;
   view: string;
   recordedAt: string;
+  /** Nominal (selected) frame rate; informational only, frame timing comes from `frameTimes`. */
   fps: number;
+  /** ORIENTED width of the recorded file (see readVideoInfo), not the requested resolution. */
   width: number;
+  /** ORIENTED height of the recorded file. */
   height: number;
-  durationSeconds: number;
+  /**
+   * One presentation time in seconds per frame actually encoded in the file,
+   * in presentation order, first frame at 0 (see readVideoInfo). The server
+   * pairs decoded frame i with sidecar frame i and uses these as timestamps.
+   */
+  frameTimes: number[];
   gravitySamples: GravitySample[];
   device: ClipCapture["device"];
 }
@@ -94,13 +115,15 @@ const MIN_COVERAGE_FRACTION = 0.5;
 export function buildSidecar(input: BuildSidecarInput): ClipCapture {
   if (input.gravitySamples.length === 0) throw new MissingGravityError();
 
-  // A zero or non-finite duration would yield a one-frame or empty sidecar that
-  // still passes schema validation while misdescribing the recording.
-  if (!Number.isFinite(input.durationSeconds) || input.durationSeconds <= 0) {
-    throw new MissingGravityError(
-      `Clip duration was ${input.durationSeconds}; the recording length is unknown, so per-frame gravity cannot be built.`,
-    );
+  const { frameTimes } = input;
+  if (frameTimes.length === 0) throw new InvalidFrameTimingError();
+  for (let i = 0; i < frameTimes.length; i += 1) {
+    const t = frameTimes[i];
+    if (!Number.isFinite(t) || t < 0 || (i > 0 && t < frameTimes[i - 1])) {
+      throw new InvalidFrameTimingError(`Frame ${i} has an invalid time (${t}); the video cannot be uploaded.`);
+    }
   }
+  const durationSeconds = frameTimes[frameTimes.length - 1];
 
   // Sort a copy by time. gravityAt assumes ascending t; out-of-order samples
   // (e.g. Date.now() stepping backwards under an NTP adjustment) would
@@ -110,22 +133,18 @@ export function buildSidecar(input: BuildSidecarInput): ClipCapture {
 
   // One sample (or a burst covering a sliver of the clip) held across the whole
   // recording would be fabricated per-frame data (CLAUDE.md rule 3).
-  if (input.durationSeconds > COVERAGE_CHECK_MIN_DURATION_S) {
+  if (durationSeconds > COVERAGE_CHECK_MIN_DURATION_S) {
     const span = samples[samples.length - 1].t - samples[0].t;
-    if (samples.length < 2 || span < input.durationSeconds * MIN_COVERAGE_FRACTION) {
+    if (samples.length < 2 || span < durationSeconds * MIN_COVERAGE_FRACTION) {
       throw new MissingGravityError(
-        `Gravity readings cover only ${span.toFixed(2)}s of a ${input.durationSeconds.toFixed(2)}s clip; it cannot be uploaded.`,
+        `Gravity readings cover only ${span.toFixed(2)}s of a ${durationSeconds.toFixed(2)}s clip; it cannot be uploaded.`,
       );
     }
   }
 
-  // Frame count comes from the clip's real duration and frame rate - never a
-  // fixed assumption, because recordings are rarely exactly the requested length.
-  const frameCount = Math.max(1, Math.round(input.durationSeconds * input.fps));
-  const frames = Array.from({ length: frameCount }, (_unused, index) => {
-    const t = index / input.fps;
-    return { index, t, gravity: gravityAt(samples, t) };
-  });
+  // One entry per frame actually encoded, at its real time: never a count or
+  // spacing derived from duration * fps.
+  const frames = frameTimes.map((t, index) => ({ index, t, gravity: gravityAt(samples, t) }));
 
   return {
     clipId: input.clipId,
