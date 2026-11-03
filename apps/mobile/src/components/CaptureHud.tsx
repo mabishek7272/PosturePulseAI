@@ -23,9 +23,7 @@ export function RecordingHud({
   return (
     <View style={styles.hud}>
       <View style={styles.topRow}>
-        <Text style={styles.time} accessibilityLabel={`${formatRemaining(elapsed, totalSeconds)} remaining`}>
-          {formatRemaining(elapsed, totalSeconds)}
-        </Text>
+        <Text style={styles.label}>RECORDING · {formatRemaining(elapsed, totalSeconds)} LEFT</Text>
         <View style={[styles.steady, poseGuideRunning && live.steadyNow && styles.steadyOk]} accessibilityLiveRegion="polite">
           <Text style={[styles.steadyText, poseGuideRunning && live.steadyNow && styles.steadyTextOk]}>
             {!poseGuideRunning ? "Hold still" : live.steadyNow ? "Steady" : "Hold still"}
@@ -86,7 +84,6 @@ export function PoseResultCard({
 const styles = StyleSheet.create({
   hud: { paddingVertical: 14, paddingHorizontal: 16, gap: 8 },
   topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  time: { color: colors.accent100, fontSize: 44, fontWeight: "200", fontVariant: ["tabular-nums"] },
   steady: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.captureChip },
   steadyOk: { backgroundColor: "rgba(143,227,192,0.18)" },
   steadyText: { color: colors.accent300, fontSize: 13, fontWeight: "600" },

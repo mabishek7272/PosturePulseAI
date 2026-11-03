@@ -29,8 +29,9 @@ import { buildSidecar, clipIdFor } from "../capture/sidecar";
 import { starsFor } from "../capture/sqi";
 import { useCaptureAnalysis } from "../capture/use-capture-analysis";
 import { readVideoInfoFromFile } from "../capture/video-info-file";
-import { ArTarget, CentreGuides, CloseGlyph, CountdownOverlay, GuidanceChips, ScanLine, Shutter, SquareGlassButton, ViewProgress, CaptureGlass } from "../components/CaptureChrome";
+import { ArTarget, CentreGuides, CloseGlyph, GuidanceChips, ScanLine, Shutter, SquareGlassButton, ViewProgress, CaptureGlass } from "../components/CaptureChrome";
 import { PoseResultCard, RecordingHud } from "../components/CaptureHud";
+import { ringSize, ScanRing } from "../components/ScanRing";
 import { GlassCard } from "../components/GlassCard";
 import { ClockIcon, LayoutIcon, RefreshIcon, SparkleIcon } from "../components/icons";
 import { PulseDot } from "../components/Motion";
@@ -411,12 +412,11 @@ export default function CaptureScreen() {
       <ScanLine height={winH} />
       <CentreGuides width={winW} height={winH} />
       {guidanceOn ? (
-        <ArTarget width={winW} height={winH} aligned={guidance.available && guidance.aligned} />
+        <ArTarget width={winW} height={winH} aligned={guidance.available && guidance.aligned} view={currentPose.view} />
       ) : (
         <View pointerEvents="none" style={styles.frame} />
       )}
       {skeletonOn ? <PoseOverlay pose={pose} /> : null}
-      {countdown !== null ? <CountdownOverlay value={countdown} /> : null}
 
       <View
         style={[styles.overlay, { paddingTop: insets.top + 14, paddingBottom: Math.max(30, insets.bottom + 12) }]}
@@ -448,6 +448,9 @@ export default function CaptureScreen() {
         </View>
 
         <View style={[styles.constrained, styles.bottom]} pointerEvents="box-none">
+          {busy && !result ? (
+            <ScanRing size={ringSize(winH)} startedAt={recording ? recordingStartedAt : null} totalSeconds={CLIP_SECONDS} countdown={recording ? null : countdown} />
+          ) : null}
           <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={50} elevated={false} radius={18}>
             {result ? (
               <PoseResultCard title={result.title} stats={result.stats} last={result.last} onContinue={result.advance} />
