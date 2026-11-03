@@ -159,7 +159,7 @@ export default function PatientPickerScreen() {
                   onCancel={() => setFormOpen(false)}
                 />
               ) : null}
-              {error && view === "list" ? <Text style={styles.error}>{error}</Text> : null}
+              {error && (view === "list" || formOpen) ? <Text style={styles.error}>{error}</Text> : null}
               {results.length > 0 || formOpen ? <View style={{ height: formOpen ? 9 : 0 }} /> : null}
             </View>
           }
