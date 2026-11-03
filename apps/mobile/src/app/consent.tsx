@@ -20,7 +20,6 @@ import { ScreenHeader } from "../components/ScreenHeader";
 import { initialsOf } from "../lib/homeData";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
-import { shadows } from "../theme/shadows";
 
 // Reviewed consent copy - word-for-word, split only at existing sentence boundaries.
 const CONSENT_POINTS = [
