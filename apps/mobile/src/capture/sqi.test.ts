@@ -95,10 +95,10 @@ describe("milestones and formatting", () => {
     expect(milestoneCrossed(0, 0.5)).toBeNull();
   });
   it("formats remaining time", () => {
-    expect(formatRemaining(0, 45)).toBe("0:45");
-    expect(formatRemaining(0.2, 45)).toBe("0:45");
-    expect(formatRemaining(44.1, 45)).toBe("0:01");
-    expect(formatRemaining(50, 45)).toBe("0:00");
+    expect(formatRemaining(0, 30)).toBe("0:30");
+    expect(formatRemaining(0.2, 30)).toBe("0:30");
+    expect(formatRemaining(29.1, 30)).toBe("0:01");
+    expect(formatRemaining(50, 30)).toBe("0:00");
     expect(formatRemaining(0, 75)).toBe("1:15");
   });
 });

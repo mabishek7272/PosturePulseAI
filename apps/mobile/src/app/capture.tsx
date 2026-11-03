@@ -19,12 +19,13 @@ import { useTensorflowModel } from "react-native-fast-tflite";
 import { useResizer } from "react-native-vision-camera-resizer";
 import { uploadClip } from "../api/clips";
 import { startGravitySampling } from "../capture/gravity";
-import { formatLevel, useDeviceLevel } from "../capture/level";
+import { PITCH_LIMIT_DEG } from "../capture/guidance";
+import { formatLevel, useDeviceTilt } from "../capture/level";
 import { startHaptic, tickHaptic } from "../capture/haptics";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
   personPresent, meanVisibleScore, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
-import { meanRollFromSamples, recordClipStats, type ClipStats } from "../capture/session-stats";
+import { meanRollFromSamples, medianPitchFromSamples, recordClipStats, type ClipStats } from "../capture/session-stats";
 import { buildSidecar, clipIdFor } from "../capture/sidecar";
 import { starsFor } from "../capture/sqi";
 import { useCaptureAnalysis } from "../capture/use-capture-analysis";
@@ -57,8 +58,8 @@ const VIEW_LABELS = ["FRONT", "LEFT", "RIGHT", "BACK"];
 // off, leaving less room for a standing subject with arms out) and matches the
 // iPad screen, so the full-bleed preview shows what is recorded.
 //
-// 1080x1440 at a 6 Mbps target: a CLIP_SECONDS (45 s) clip is then about
-// 34 MB (6 Mb/s * 45 s / 8) - under the ~40 MB budget - while the long edge
+// 1080x1440 at a 6 Mbps target: a CLIP_SECONDS (30 s) clip is then about
+// 22 MB (6 Mb/s * 30 s / 8) - under the ~40 MB budget - while the long edge
 // stays 1440 px, comfortably above what landmark detection needs. This is only
 // a TARGET: vision-camera prioritises the aspect ratio over pixel count when
 // the exact size is unavailable, and the encoder treats the bit rate as a
@@ -166,10 +167,13 @@ export default function CaptureScreen() {
     const id = setInterval(() => setPointCount(visibleCount(pose.value.pts)), 250);
     return () => clearInterval(id);
   }, [pose]);
-  const roll = useDeviceLevel();
-  const levelText = formatLevel(roll);
+  const { roll, pitch } = useDeviceTilt();
+  const tilted = pitch !== null && pitch > PITCH_LIMIT_DEG;
+  const levelText = tilted ? "Tilted" : formatLevel(roll);
   const rollRef = useRef<number | null>(null);
   rollRef.current = roll;
+  const pitchRef = useRef<number | null>(null);
+  pitchRef.current = pitch;
   const [skeletonOn] = useSkeletonOverlayPref();
   const [guidanceOn] = useCaptureGuidancePref();
   const poseGuideRunning = modelState.state === "loaded" && !resizerState.error && !!resizer;
@@ -179,6 +183,7 @@ export default function CaptureScreen() {
     view: POSES[poseIndex].view,
     available: poseGuideRunning,
     rollRef,
+    pitchRef,
   });
 
   // performance.now() when the recorder actually started (monotonic); drives the ring and timer.
@@ -318,7 +323,7 @@ export default function CaptureScreen() {
             await uploadClip({ sessionId, stepId: currentPose.stepId, videoPath: filePath, sidecar, token: sessionToken });
 
             // The clip is saved; everything below is display-only and cannot affect it.
-            const stats: ClipStats = { ...summary, stars: starsFor(summary.sqi), meanRollDegrees: meanRollFromSamples(gravitySamples) };
+            const stats: ClipStats = { ...summary, stars: starsFor(summary.sqi), meanRollDegrees: meanRollFromSamples(gravitySamples), meanPitchDegrees: medianPitchFromSamples(gravitySamples) };
             recordClipStats(sessionId, currentPose.stepId, stats);
             const last = poseIndex + 1 >= POSES.length;
             const advance = () => {
@@ -437,9 +442,9 @@ export default function CaptureScreen() {
               ring={colors.captureAccentPillRing}
               style={[styles.pill, styles.levelPill]}
             >
-              <View style={[styles.pillInner, { gap: 6, paddingHorizontal: 11 }]} accessibilityLabel={`Device tilt ${levelText}`}>
-                <ClockIcon size={13} color={colors.accent300} strokeWidth={2.2} />
-                <Text style={styles.pillText}>{levelText}</Text>
+              <View style={[styles.pillInner, { gap: 6, paddingHorizontal: 11 }]} accessibilityLabel={tilted ? "iPad is tilted forward or back" : `Device tilt ${levelText}`}>
+                <ClockIcon size={13} color={tilted ? TILT_AMBER : colors.accent300} strokeWidth={2.2} />
+                <Text style={[styles.pillText, tilted && { color: TILT_AMBER }]}>{levelText}</Text>
               </View>
             </CaptureGlass>
           </View>
@@ -496,6 +501,7 @@ export default function CaptureScreen() {
                     ))}
                   </View>
                 )}
+                <Text style={styles.mountHint}>For a usable measurement, mount the iPad upright and keep it still (a stand works best).</Text>
               </View>
             )}
           </GlassCard>
@@ -534,6 +540,9 @@ export default function CaptureScreen() {
   );
 }
 
+/** Warning tint for the tilt pill; not a theme colour because it is used only here. */
+const TILT_AMBER = "#F5B544";
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgDark },
   scrim: { backgroundColor: colors.captureScrim },
@@ -562,6 +571,7 @@ const styles = StyleSheet.create({
   chip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: radii.sm - 1, backgroundColor: colors.captureChip },
   chipText: { color: colors.accent300, fontSize: 11, fontWeight: "600" },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6 },
+  mountHint: { marginTop: 8, fontSize: 11.5, color: colors.captureGuide, letterSpacing: 0.3 },
   caption: { textAlign: "center", fontSize: 11.5, color: colors.captureGuide, letterSpacing: 0.46 },
   permissionButton: { marginHorizontal: 20, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent700 },
   permissionButtonText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },

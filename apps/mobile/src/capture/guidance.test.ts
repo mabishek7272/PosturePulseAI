@@ -1,5 +1,5 @@
 import { HIDDEN } from "./pose-overlay";
-import { MotionTracker, bodySpan, evaluateGuidance, unavailableGuidance } from "./guidance";
+import { MotionTracker, bodySpan, PITCH_LIMIT_DEG, PITCH_MESSAGE, evaluateGuidance, unavailableGuidance } from "./guidance";
 
 /** Standing person facing the camera, centred, head y=top, ankles y=bottom. */
 function standing(top = 0.12, bottom = 0.84, cx = 0.5): number[] {
@@ -29,7 +29,7 @@ function standing(top = 0.12, bottom = 0.84, cx = 0.5): number[] {
   return p;
 }
 
-const ok = { rollDeg: 0.5, motion: 0.003, view: "anterior" };
+const ok = { rollDeg: 0.5, pitchDeg: 1 as number | null, motion: 0.003, view: "anterior" };
 
 describe("evaluateGuidance", () => {
   it("passes every check for a well framed, level, steady subject", () => {
@@ -63,6 +63,26 @@ describe("evaluateGuidance", () => {
   it("level beats steady, unknown roll asks for upright", () => {
     expect(evaluateGuidance({ pts: standing(), ...ok, rollDeg: 5, motion: 0.5 }).message).toBe("Raise the phone level");
     expect(evaluateGuidance({ pts: standing(), ...ok, rollDeg: null }).message).toBe("Hold the phone upright");
+  });
+  it("warns about forward/back tilt above the pre-record limit, outranking everything but no person", () => {
+    const tilted = evaluateGuidance({ pts: standing(), ...ok, pitchDeg: 9, rollDeg: 5, motion: 0.5 });
+    expect(tilted.message).toBe(PITCH_MESSAGE);
+    expect(tilted.checks.find((c) => c.id === "level")!.ok).toBe(false);
+    expect(tilted.aligned).toBe(false);
+    expect(evaluateGuidance({ pts: standing(0.3, 0.7), ...ok, pitchDeg: 9 }).message).toBe(PITCH_MESSAGE);
+    expect(evaluateGuidance({ pts: new Array(34).fill(HIDDEN), ...ok, pitchDeg: 9 }).message).toBe("Looking for a person");
+  });
+  it("pitch exactly at the limit passes, just above fails", () => {
+    expect(evaluateGuidance({ pts: standing(), ...ok, pitchDeg: PITCH_LIMIT_DEG }).aligned).toBe(true);
+    expect(evaluateGuidance({ pts: standing(), ...ok, pitchDeg: PITCH_LIMIT_DEG + 0.01 }).aligned).toBe(false);
+  });
+  it("unknown pitch never counts as level", () => {
+    for (const p of [null, NaN]) {
+      const g = evaluateGuidance({ pts: standing(), ...ok, pitchDeg: p });
+      expect(g.checks.find((c) => c.id === "level")!.ok).toBe(false);
+      expect(g.aligned).toBe(false);
+      expect(g.message).toBe("Hold the phone upright");
+    }
   });
   it("asks to hold still when moving or when motion is unknown", () => {
     expect(evaluateGuidance({ pts: standing(), ...ok, motion: 0.05 }).message).toBe("Hold still");

@@ -22,6 +22,8 @@ interface Options {
   available: boolean;
   /** Latest phone roll in degrees (null when unknown). */
   rollRef: { current: number | null };
+  /** Latest phone forward/back tilt in degrees (null when unknown). */
+  pitchRef: { current: number | null };
 }
 
 /**
@@ -31,7 +33,7 @@ interface Options {
  * quality tally. Re-renders only when the guidance message / ticks change.
  * Entirely best-effort: nothing here can affect the recording.
  */
-export function useCaptureAnalysis({ pose, view, available, rollRef }: Options) {
+export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }: Options) {
   const [guidance, setGuidance] = useState<Guidance>(unavailableGuidance);
   const keyRef = useRef("");
   const tracker = useRef(new MotionTracker()).current;
@@ -69,7 +71,7 @@ export function useCaptureAnalysis({ pose, view, available, rollRef }: Options) 
         const tMs = performance.now();
         tracker.push(snap.pts, tMs);
         const motion = tracker.motion();
-        const g = evaluateGuidance({ pts: snap.pts, view: viewRef.current, rollDeg: rollRef.current, motion });
+        const g = evaluateGuidance({ pts: snap.pts, view: viewRef.current, rollDeg: rollRef.current, pitchDeg: pitchRef.current, motion });
         const steady = g.checks[5].ok; // "steady" implies a person; framing is separate
         steadyNow.current = steady && g.inFrame && g.personOk;
         publish(g);
@@ -87,7 +89,7 @@ export function useCaptureAnalysis({ pose, view, available, rollRef }: Options) 
       }
     }, SAMPLE_MS);
     return () => clearInterval(id);
-  }, [available, pose, rollRef, tracker]);
+  }, [available, pose, rollRef, pitchRef, tracker]);
 
   const beginRecording = useCallback(() => {
     acc.current = emptyAccumulator();

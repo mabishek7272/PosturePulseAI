@@ -3,7 +3,7 @@
  * ON-DEVICE PRE-CHECK values only (see sqi.ts): not persisted, not uploaded,
  * lost when the app restarts, and not a clinical result.
  */
-import { rollDegrees } from "./level";
+import { pitchDegrees, rollDegrees } from "./level";
 import type { GravitySample } from "./gravity";
 import type { SqiBand } from "./sqi";
 
@@ -17,6 +17,8 @@ export interface ClipStats {
   longestSteadySeconds: number;
   /** Mean signed phone roll over the clip's gravity samples; null if none had a valid roll. */
   meanRollDegrees: number | null;
+  /** Median forward/back tilt over the clip's gravity samples (the server rejects above 12); optional for older records. */
+  meanPitchDegrees?: number | null;
 }
 
 const store = new Map<string, Map<string, ClipStats>>();
@@ -33,6 +35,19 @@ export function meanRollFromSamples(samples: readonly GravitySample[]): number |
     }
   }
   return n > 0 ? sum / n : null;
+}
+
+/** Median of pitchDegrees over the recorded gravity samples (null when none is valid). */
+export function medianPitchFromSamples(samples: readonly GravitySample[]): number | null {
+  const v: number[] = [];
+  for (const s of samples) {
+    const p = pitchDegrees(s.g);
+    if (p !== null && Number.isFinite(p)) v.push(p);
+  }
+  if (v.length === 0) return null;
+  v.sort((a, b) => a - b);
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
 }
 
 export function recordClipStats(sessionId: string, stepId: string, stats: ClipStats): void {

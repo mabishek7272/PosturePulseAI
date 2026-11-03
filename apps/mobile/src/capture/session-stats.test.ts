@@ -1,4 +1,4 @@
-import { clearSessionStats, getClipStats, getSessionStats, meanRollFromSamples, recordClipStats, type ClipStats } from "./session-stats";
+import { clearSessionStats, getClipStats, getSessionStats, meanRollFromSamples, medianPitchFromSamples, recordClipStats, type ClipStats } from "./session-stats";
 
 const stats = (sqi: number | null): ClipStats => ({
   sqi, band: sqi === null ? null : "Good", stars: sqi === null ? null : 2,
@@ -41,5 +41,17 @@ describe("session stats store", () => {
       { t: 1, g: [Math.sin(0.1), Math.cos(0.1), 0] },
     ]);
     expect(r).toBeCloseTo((0.1 * 180) / Math.PI / 2, 4);
+  });
+});
+
+describe("medianPitchFromSamples", () => {
+  const at = (deg: number) => ({ t: 0, g: [0, Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)] as [number, number, number] });
+  it("is null with no valid sample", () => {
+    expect(medianPitchFromSamples([])).toBeNull();
+    expect(medianPitchFromSamples([{ t: 0, g: [0, 0, 0] }])).toBeNull();
+  });
+  it("takes the median, robust to an outlier", () => {
+    expect(medianPitchFromSamples([at(2), at(4), at(60)])).toBeCloseTo(4);
+    expect(medianPitchFromSamples([at(2), at(4)])).toBeCloseTo(3);
   });
 });

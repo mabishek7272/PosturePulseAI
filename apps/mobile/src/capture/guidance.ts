@@ -42,6 +42,12 @@ export const MARGIN_Y = 0.03;
 export const CENTRE_TOLERANCE = 0.08;
 /** Phone roll tolerance, degrees. */
 export const LEVEL_TOLERANCE_DEG = 2;
+/**
+ * Pre-record pitch (forward/back tilt) limit, degrees. The server rejects a
+ * clip as camera_not_level above 2 x levelToleranceDegrees = 12 degrees using
+ * the same pitch formula; warning at 8 leaves margin for drift while recording.
+ */
+export const PITCH_LIMIT_DEG = 8;
 /** RMS keypoint wander (fraction of frame height) over the window below which the subject is "steady". */
 export const STEADY_THRESHOLD = 0.012;
 export const STEADY_WINDOW_MS = 1000;
@@ -80,6 +86,7 @@ const CHECK_LABELS: Record<CheckId, string> = {
 };
 const ORDER: CheckId[] = ["person", "frame", "distance", "centred", "level", "steady"];
 
+export const PITCH_MESSAGE = "Stand the iPad upright. It is tilted forward or back";
 export const UNAVAILABLE_MESSAGE = "Pose guide unavailable. You can still record.";
 
 export function isLateral(view: string): boolean {
@@ -152,6 +159,8 @@ export interface GuidanceInput {
   view: string;
   /** Phone roll in degrees, or null when unknown (flat / no sensor). */
   rollDeg: number | null;
+  /** Phone forward/back tilt in degrees (asin(|gz|/|g|)), or null when unknown. Unknown is NOT level. */
+  pitchDeg: number | null;
   /** Keypoint wander from MotionTracker, or null when not enough history. */
   motion: number | null;
 }
@@ -168,7 +177,7 @@ export function unavailableGuidance(): Guidance {
 }
 
 export function evaluateGuidance(input: GuidanceInput): Guidance {
-  const { pts, view, rollDeg, motion } = input;
+  const { pts, view, rollDeg, pitchDeg, motion } = input;
   const lateral = isLateral(view);
   const personOk = visibleCount(pts) >= (lateral ? MIN_POINTS_LATERAL : MIN_POINTS_FRONTAL);
 
@@ -189,7 +198,9 @@ export function evaluateGuidance(input: GuidanceInput): Guidance {
   const offset = cx === null ? null : cx - 0.5;
   const centredOk = offset !== null && Math.abs(offset) <= CENTRE_TOLERANCE;
 
-  const levelOk = rollDeg !== null && Math.abs(rollDeg) <= LEVEL_TOLERANCE_DEG;
+  const pitchKnown = pitchDeg !== null && Number.isFinite(pitchDeg);
+  const pitchOk = pitchKnown && pitchDeg! <= PITCH_LIMIT_DEG;
+  const levelOk = rollDeg !== null && Math.abs(rollDeg) <= LEVEL_TOLERANCE_DEG && pitchOk;
   const steadyOk = personOk && motion !== null && motion <= STEADY_THRESHOLD;
 
   const ok: Record<CheckId, boolean> = {
@@ -203,11 +214,12 @@ export function evaluateGuidance(input: GuidanceInput): Guidance {
 
   let message: string;
   if (!personOk) message = "Looking for a person";
+  else if (pitchKnown && !pitchOk) message = PITCH_MESSAGE;
   else if (!wholeBody) message = "Step back a little";
   else if (tooFar) message = "Move closer";
   else if (tooClose) message = "Step back a little";
   else if (!centredOk) message = offset! > 0 ? "Move toward the left of the screen" : "Move toward the right of the screen";
-  else if (!levelOk) message = rollDeg === null ? "Hold the phone upright" : "Raise the phone level";
+  else if (!levelOk) message = rollDeg === null || !pitchKnown ? "Hold the phone upright" : "Raise the phone level";
   else if (!steadyOk) message = "Hold still";
   else message = "Aligned. Ready when you are";
 

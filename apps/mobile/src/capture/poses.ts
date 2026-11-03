@@ -44,9 +44,9 @@ export const POSES: Pose[] = [
 ];
 
 /**
- * Length of every assessment clip, in seconds. The clinician wants 45-60 s
+ * Length of every assessment clip, in seconds. The clinician wants 30 s
  * holds; change it here and the recorder limit and on-screen copy follow.
  * Keep the capture bit rate (capture.tsx TARGET_BIT_RATE) in step: file size is
  * roughly bit rate * CLIP_SECONDS / 8, and the server's upload limit applies.
  */
-export const CLIP_SECONDS = 45;
+export const CLIP_SECONDS = 30;
