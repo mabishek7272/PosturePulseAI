@@ -46,6 +46,8 @@ export interface PoseSnapshot {
   h: number;
   /** Frames the model has processed so far (monotonic); lets JS tell a new frame from a re-read. */
   n?: number;
+  /** MoveNet score per keypoint (17), so framing can demand comfortably confident joints. */
+  scores?: number[];
   /** Mean MoveNet score of the visible keypoints in this frame (0 when none are visible). */
   conf?: number;
 }
@@ -122,6 +124,14 @@ export function meanVisibleScore(raw: ArrayLike<number>): number {
     }
   }
   return n > 0 ? sum / n : 0;
+}
+
+/** Per-keypoint MoveNet scores as a plain array (17). */
+export function keypointScores(raw: ArrayLike<number>): number[] {
+  'worklet';
+  const out: number[] = new Array(KEYPOINT_COUNT);
+  for (let i = 0; i < KEYPOINT_COUNT; i++) out[i] = raw[i * 3 + 2];
+  return out;
 }
 
 /** Number of keypoints currently visible (0-17). */

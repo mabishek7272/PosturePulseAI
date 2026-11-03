@@ -127,7 +127,7 @@ export function CloseGlyph({ size = 20, color = colors.accent300 }: { size?: num
  * a centre line and a ground line at the feet. Neutral until every guidance
  * check passes, then violet-green. Aids framing only.
  */
-export function ArTarget({ width, height, aligned, view }: { width: number; height: number; aligned: boolean; view: string }) {
+export function ArTarget({ width, height, aligned, view, limitY }: { width: number; height: number; aligned: boolean; view: string; limitY?: number }) {
   const box = bodyGuideBox(width, height);
   if (!box) return null;
   const stroke = aligned ? colors.captureAligned : colors.captureTargetIdle;
@@ -141,6 +141,19 @@ export function ArTarget({ width, height, aligned, view }: { width: number; heig
         <Line x1={cx} y1={head - 24} x2={cx} y2={feet + 8} stroke={stroke} strokeWidth={1} strokeDasharray="3 8" opacity={0.6} />
         <Line x1={cx - box.w * 0.6} y1={feet + 2} x2={cx + box.w * 0.6} y2={feet + 2} stroke={stroke} strokeWidth={aligned ? 2.2 : 1.4} strokeLinecap="round" opacity={0.8} />
       </Svg>
+      {aligned ? null : (
+        <Text
+          pointerEvents="none"
+          style={{
+            position: "absolute", left: 24, right: 24, textAlign: "center", color: colors.accent100, fontSize: 14, fontWeight: "600",
+            // Under the outline's feet, but never hidden behind the bottom card.
+            top: Math.min(feet + 12, (limitY ?? Infinity) - 30),
+            textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 4,
+          }}
+        >
+          Fit the whole body inside the outline, feet included
+        </Text>
+      )}
     </>
   );
 }

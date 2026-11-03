@@ -24,7 +24,7 @@ import { LEVEL_TOLERANCE_DEG, PITCH_LIMIT_DEG } from "../capture/guidance";
 import { formatLevel, useDeviceTilt } from "../capture/level";
 import { recordingStartHaptic, recoveredHaptic, milestoneHaptic, tickHaptic, warnHaptic } from "../capture/haptics";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
-  personPresent, meanVisibleScore, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
+  personPresent, meanVisibleScore, keypointScores, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
 import { meanRollFromSamples, medianPitchFromSamples, recordClipStats, type ClipStats } from "../capture/session-stats";
 import { buildSidecar, clipIdFor } from "../capture/sidecar";
@@ -138,7 +138,7 @@ export default function CaptureScreen() {
           try {
             const outputs = tflite.runSync([gpu.getPixelBuffer()]);
             const raw = new Float32Array(outputs[0]);
-            pose.value = { pts: personPresent(raw) ? decodeMoveNet(raw, fw, fh) : EMPTY_POSE.pts, w: fw, h: fh, n: (pose.value.n ?? 0) + 1, conf: meanVisibleScore(raw) };
+            pose.value = { pts: personPresent(raw) ? decodeMoveNet(raw, fw, fh) : EMPTY_POSE.pts, w: fw, h: fh, n: (pose.value.n ?? 0) + 1, conf: meanVisibleScore(raw), scores: keypointScores(raw) };
           } finally {
             gpu.dispose();
           }
@@ -224,6 +224,8 @@ export default function CaptureScreen() {
   }, []);
 
   const currentPose = POSES[poseIndex];
+  // Top edge (screen y) of the bottom card + controls, so the framing hint stays above them.
+  const [bottomTop, setBottomTop] = useState<number | null>(null);
 
   // Hold feedback: while recording, turn the live checks into at most a few
   // gentle nudges (haptic on iPhone, amber ring/edge glow and a small toast
@@ -487,7 +489,7 @@ export default function CaptureScreen() {
       <ScanLine height={winH} />
       <CentreGuides width={winW} height={winH} />
       {guidanceOn ? (
-        <ArTarget width={winW} height={winH} aligned={guidance.available && guidance.aligned} view={currentPose.view} />
+        <ArTarget width={winW} height={winH} aligned={guidance.available && guidance.aligned} view={currentPose.view} limitY={bottomTop ?? undefined} />
       ) : (
         <View pointerEvents="none" style={styles.frame} />
       )}
@@ -524,7 +526,7 @@ export default function CaptureScreen() {
           <HoldToast toast={toast} />
         </View>
 
-        <View style={[styles.constrained, styles.bottom]} pointerEvents="box-none">
+        <View style={[styles.constrained, styles.bottom]} pointerEvents="box-none" onLayout={(e) => setBottomTop(e.nativeEvent.layout.y)}>
           {busy && !result ? (
             <ScanRing size={ringSize(winH)} startedAt={recording ? recordingStartedAt : null} totalSeconds={CLIP_SECONDS} countdown={recording ? null : countdown}
               tone={recording && warnIssue ? "amber" : recording && greenFlash ? "green" : "violet"}
@@ -575,7 +577,7 @@ export default function CaptureScreen() {
                     ))}
                   </View>
                 )}
-                <Text style={styles.mountHint}>For a usable measurement, mount the iPad upright and keep it still (a stand works best).</Text>
+                {guidanceOn && guidance.available ? null : <Text style={styles.mountHint}>For a usable measurement, mount the iPad upright and keep it still (a stand works best).</Text>}
               </View>
             )}
           </GlassCard>

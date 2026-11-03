@@ -70,7 +70,7 @@ export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }:
         const tMs = performance.now();
         tracker.push(snap.pts, tMs);
         const motion = tracker.motion();
-        const g = evaluateGuidance({ pts: snap.pts, view: viewRef.current, rollDeg: rollRef.current, pitchDeg: pitchRef.current, motion });
+        const g = evaluateGuidance({ pts: snap.pts, view: viewRef.current, rollDeg: rollRef.current, pitchDeg: pitchRef.current, motion, scores: snap.scores });
         const steady = g.checks[5].ok; // "steady" implies a person; framing is separate
         steadyNow.current = steady && g.inFrame && g.personOk;
         publish(g);

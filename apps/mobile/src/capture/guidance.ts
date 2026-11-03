@@ -28,16 +28,43 @@ export type GuidanceView = "anterior" | "posterior" | "left_lateral" | "right_la
 export const MIN_POINTS_FRONTAL = 10;
 export const MIN_POINTS_LATERAL = 6;
 /**
- * Keypoint span (highest head point to lowest ankle) as a fraction of frame
- * height. Keypoints sit inside the body (nose is below the crown, ankles above
- * the soles), so the span reads ~10% under true height; the band is shifted
- * down from a 0.65-0.92 body-height band to match.
+ * SAFE INNER BOX. The server's frame gate (ml-service clip_quality.py,
+ * FRAME_MARGIN_FRACTION = 0.02, MIN_VISIBILITY = 0.5) only uses a frame if EVERY
+ * required MediaPipe landmark (nose; both sides' ear, shoulder, hip, knee, ankle
+ * and HEEL for frontal views, near side + nose for lateral views) lies inside
+ * [2 %, 98 %] of the frame in both axes and is visible. The on-device MoveNet
+ * guide has no heel points, so the box is deliberately tighter than the server:
  */
-export const DISTANCE_MIN = 0.6;
-export const DISTANCE_MAX = 0.88;
-/** Points must sit inside these margins (fraction of the frame) to count as in frame. */
-export const MARGIN_X = 0.04;
-export const MARGIN_Y = 0.03;
+/** Head points (nose, ears) must be at or below this y: head not cut off (server: >= 0.02). */
+export const SAFE_HEAD_Y_MIN = 0.05;
+/** MediaPipe heels sit about 0.04-0.06 of the frame below the ankle. */
+export const HEEL_ALLOWANCE_Y = 0.06;
+/** Ankles must be at or above this y so heels stay under 0.96 < server 0.98. */
+export const SAFE_ANKLE_Y_MAX = 0.9;
+/** Ear/shoulder/hip/knee/ankle x must lie inside [SAFE_X_MIN, SAFE_X_MAX] (server: [0.02, 0.98]). */
+export const SAFE_X_MIN = 0.05;
+export const SAFE_X_MAX = 0.95;
+/**
+ * Required keypoints need a MoveNet score at least this (person threshold is
+ * 0.4, draw threshold 0.3) so that occlusion, which the server sees as
+ * visibility < 0.5, is less likely.
+ */
+export const MIN_KEY_SCORE = 0.45;
+/**
+ * Target for the lowest ankle point when standing in the band, and where the
+ * on-screen outline's feet end: SAFE_ANKLE_Y_MAX minus a margin.
+ */
+export const BAND_FEET_Y = 0.88;
+/** Nominal head-keypoint y when standing at the near edge of the band (SAFE_HEAD_Y_MIN + margin). */
+const BAND_HEAD_Y_NEAR = SAFE_HEAD_Y_MIN + 0.05;
+/**
+ * Keypoint span (highest head point to lowest ankle) as a fraction of frame
+ * height. Keypoints sit inside the body, so this reads ~10% under true height.
+ * The near limit puts the head at BAND_HEAD_Y_NEAR with the ankles on BAND_FEET_Y,
+ * so a person inside the band, feet near BAND_FEET_Y, satisfies the safe box.
+ */
+export const DISTANCE_MAX = BAND_FEET_Y - BAND_HEAD_Y_NEAR; // 0.78
+export const DISTANCE_MIN = 0.55;
 /** Torso midpoint may be this far from the horizontal frame centre (fraction of frame width). */
 export const CENTRE_TOLERANCE = 0.08;
 /** Phone roll tolerance, degrees. */
@@ -97,12 +124,6 @@ function seen(pts: readonly number[], i: number): boolean {
   return pts[2 * i] >= 0 && pts[2 * i + 1] >= 0;
 }
 
-function within(pts: readonly number[], i: number): boolean {
-  const x = pts[2 * i];
-  const y = pts[2 * i + 1];
-  return x >= MARGIN_X && x <= 1 - MARGIN_X && y >= MARGIN_Y && y <= 1 - MARGIN_Y;
-}
-
 /** MoveNet indices per side: [ear, shoulder, hip, knee, ankle]. */
 const LEFT_SIDE = [3, 5, 11, 13, 15];
 const RIGHT_SIDE = [4, 6, 12, 14, 16];
@@ -113,6 +134,57 @@ function visibleSide(pts: readonly number[]): readonly number[] {
   for (const i of LEFT_SIDE) if (seen(pts, i)) l++;
   for (const i of RIGHT_SIDE) if (seen(pts, i)) r++;
   return r > l ? RIGHT_SIDE : LEFT_SIDE;
+}
+
+/**
+ * MoveNet keypoints matching the server's required landmarks: the nose, plus
+ * for frontal views both sides' ear/shoulder/hip/knee/ankle, for lateral views
+ * the near side's (the side with more visible points).
+ */
+export function requiredKeypoints(pts: readonly number[], view: string): number[] {
+  if (isLateral(view)) return [0, ...visibleSide(pts)];
+  return [0, ...LEFT_SIDE, ...RIGHT_SIDE];
+}
+
+export type FramingProblem = "feet" | "head" | "left" | "right" | "wide";
+
+export interface Framing {
+  ok: boolean;
+  /** Highest-priority problem when not ok (feet, head, then sides). */
+  problem: FramingProblem | null;
+}
+
+/**
+ * SINGLE SOURCE OF TRUTH for "in frame" (guidance, messages and SQI inFrame).
+ * Every required keypoint must be detected with score >= MIN_KEY_SCORE (when
+ * scores are supplied) and inside the safe box. `left`/`right` are the SCREEN
+ * side the person is too close to.
+ */
+export function checkFraming(pts: readonly number[], view: string, scores?: readonly number[]): Framing {
+  let feet = false;
+  let head = false;
+  let left = false;
+  let right = false;
+  for (const i of requiredKeypoints(pts, view)) {
+    const isHead = i <= 4;
+    const isAnkle = i === 15 || i === 16;
+    if (!seen(pts, i) || (scores !== undefined && !(scores[i] >= MIN_KEY_SCORE))) {
+      // Missing or low-confidence: attribute to the end of the body it belongs to.
+      if (isAnkle) feet = true;
+      else if (isHead) head = true;
+      else { feet = true; head = true; }
+      continue;
+    }
+    const x = pts[2 * i];
+    const y = pts[2 * i + 1];
+    if (isAnkle && y > SAFE_ANKLE_Y_MAX) feet = true;
+    if (y < SAFE_HEAD_Y_MIN) head = true;
+    if (x < SAFE_X_MIN) left = true;
+    if (x > SAFE_X_MAX) right = true;
+    if (!isAnkle && y > SAFE_ANKLE_Y_MAX) feet = true;
+  }
+  const problem: FramingProblem | null = feet ? "feet" : head ? "head" : left && right ? "wide" : left ? "left" : right ? "right" : null;
+  return { ok: problem === null, problem };
 }
 
 interface Body {
@@ -163,6 +235,19 @@ export interface GuidanceInput {
   pitchDeg: number | null;
   /** Keypoint wander from MotionTracker, or null when not enough history. */
   motion: number | null;
+  /** MoveNet score per keypoint (17). When given, required keypoints must reach MIN_KEY_SCORE. */
+  scores?: readonly number[];
+}
+
+function framingMessage(problem: FramingProblem | null): string {
+  switch (problem) {
+    case "feet": return "Step back — your feet are cut off";
+    case "head": return "Step back — your head is cut off";
+    // The person is too close to this edge of the screen: move toward the other side.
+    case "left": return "Move toward the right of the screen";
+    case "right": return "Move toward the left of the screen";
+    default: return "Step back a little";
+  }
 }
 
 export function unavailableGuidance(): Guidance {
@@ -177,17 +262,13 @@ export function unavailableGuidance(): Guidance {
 }
 
 export function evaluateGuidance(input: GuidanceInput): Guidance {
-  const { pts, view, rollDeg, pitchDeg, motion } = input;
+  const { pts, view, rollDeg, pitchDeg, motion, scores } = input;
   const lateral = isLateral(view);
   const personOk = visibleCount(pts) >= (lateral ? MIN_POINTS_LATERAL : MIN_POINTS_FRONTAL);
 
   const body = bodyFor(pts, view);
-  const wholeBody =
-    personOk &&
-    body.head.length > 0 &&
-    body.ankles.every((i) => seen(pts, i) && within(pts, i)) &&
-    body.torso.every((i) => seen(pts, i)) &&
-    body.head.every((i) => within(pts, i));
+  const framing = checkFraming(pts, view, scores);
+  const wholeBody = personOk && body.head.length > 0 && body.torso.every((i) => seen(pts, i)) && framing.ok;
 
   const span = wholeBody ? bodySpan(pts, view) : null;
   const tooFar = span !== null && span < DISTANCE_MIN;
@@ -215,7 +296,7 @@ export function evaluateGuidance(input: GuidanceInput): Guidance {
   let message: string;
   if (!personOk) message = "Looking for a person";
   else if (pitchKnown && !pitchOk) message = PITCH_MESSAGE;
-  else if (!wholeBody) message = "Step back a little";
+  else if (!wholeBody) message = framingMessage(framing.problem);
   else if (tooFar) message = "Move closer";
   else if (tooClose) message = "Step back a little";
   else if (!centredOk) message = offset! > 0 ? "Move toward the left of the screen" : "Move toward the right of the screen";

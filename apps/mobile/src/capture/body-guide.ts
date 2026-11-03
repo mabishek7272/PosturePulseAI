@@ -1,4 +1,4 @@
-import { DISTANCE_MAX, DISTANCE_MIN } from "./guidance";
+import { BAND_FEET_Y, DISTANCE_MAX, DISTANCE_MIN } from "./guidance";
 import { coverMap } from "./pose-overlay";
 
 /** Path data lives in a 100 x 240 box (head top at y=6, soles at y=232). */
@@ -12,12 +12,14 @@ export interface GuideBox { x: number; y: number; w: number; h: number }
  * Where the framing outline sits in a view of the given size. The camera
  * frame is 3:4 and cover-mapped. Head-to-feet spans the middle of the
  * guidance distance band (keypoint span DISTANCE_MIN..DISTANCE_MAX of the
- * frame height), centred on the frame both ways. A framing aid, not a measurement.
+ * frame height), centred horizontally, with the feet ending at BAND_FEET_Y of
+ * the frame height: the lowest an ankle may sit so the server still sees the
+ * heels inside its frame. A framing aid, not a measurement.
  */
 export function bodyGuideBox(viewW: number, viewH: number): GuideBox | null {
   const span = (DISTANCE_MIN + DISTANCE_MAX) / 2;
-  const top = coverMap(0.5, 0.5 - span / 2, 3, 4, viewW, viewH);
-  const bottom = coverMap(0.5, 0.5 + span / 2, 3, 4, viewW, viewH);
+  const top = coverMap(0.5, BAND_FEET_Y - span, 3, 4, viewW, viewH);
+  const bottom = coverMap(0.5, BAND_FEET_Y, 3, 4, viewW, viewH);
   if (!top || !bottom) return null;
   const bodyH = bottom[1] - top[1];
   const h = bodyH / BODY_SPAN;
