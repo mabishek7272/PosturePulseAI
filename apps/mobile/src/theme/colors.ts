@@ -61,6 +61,27 @@ export const colors = {
   barRing: "rgba(210,206,253,0.9)",
   accentRing: "rgba(121,108,191,0.5)",
 
+  // Capture screen (camera overlay, section 07 of the design)
+  captureScrim: "rgba(23,22,42,0.32)",
+  captureGlass: "rgba(255,255,255,0.1)",
+  captureGlassStrong: "rgba(255,255,255,0.12)",
+  captureRing: "rgba(210,206,253,0.28)",
+  captureRingSoft: "rgba(210,206,253,0.22)",
+  captureRingButton: "rgba(210,206,253,0.24)",
+  captureRingShutter: "rgba(210,206,253,0.4)",
+  captureAccentPill: "rgba(121,108,191,0.3)",
+  captureAccentPillRing: "rgba(181,171,252,0.45)",
+  captureCard: "rgba(23,22,42,0.55)",
+  captureChip: "rgba(181,171,252,0.16)",
+  captureFrame: "rgba(181,171,252,0.28)",
+  captureGuide: "#9690c9",
+  captureSegOff: "rgba(210,206,253,0.25)",
+  captureShutterRing: "rgba(181,171,252,0.55)",
+  captureShutterGlow: "rgba(121,108,191,0.55)",
+  captureScanClear: "rgba(181,171,252,0)",
+  captureScanGlow: "rgba(181,171,252,0.5)",
+  captureBody: "#f3f5fe",
+
   // Status (unchanged from P1 - no new semantics introduced)
   caution: "#ff6b6b",
 } as const;

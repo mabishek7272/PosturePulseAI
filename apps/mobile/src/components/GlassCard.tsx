@@ -16,6 +16,8 @@ export interface GlassCardProps {
   /** Blur strength (CSS px blur ~ intensity). 0 disables the blur. */
   intensity?: number;
   elevated?: boolean;
+  /** Blur tint; "dark" for cards over the camera. Default light. */
+  tint?: "light" | "dark";
 }
 
 /**
@@ -30,12 +32,13 @@ export function GlassCard({
   radius = radii.card,
   intensity = 40,
   elevated = true,
+  tint = "light",
 }: GlassCardProps) {
   const blur = intensity > 0 && Platform.OS === "ios";
   return (
     <View style={[elevated && shadows.card, { borderRadius: radius }, style]}>
-      <View style={[styles.clip, { borderRadius: radius, backgroundColor: blur ? undefined : colors.glassStrong }]}>
-        {blur ? <BlurView intensity={intensity} tint="light" style={StyleSheet.absoluteFill} /> : null}
+      <View style={[styles.clip, { borderRadius: radius, backgroundColor: blur ? undefined : tint === "dark" ? colors.captureCard : colors.glassStrong }]}>
+        {blur ? <BlurView intensity={intensity} tint={tint} style={StyleSheet.absoluteFill} /> : null}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: blur ? fill : "transparent" }]} />
         {children}
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.ring, { borderRadius: radius, borderColor: ring }]} />

@@ -1,6 +1,7 @@
+import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "../theme/colors";
 import { type } from "../theme/typography";
 import { BackIcon } from "./icons";
@@ -31,7 +32,8 @@ export function StepBar({ current, total }: { current: number; total: number }) 
   );
 }
 
-export function BackButton({ onPress, variant = "white" }: { onPress?: () => void; variant?: "white" | "tint" }) {
+export function BackButton({ onPress, variant = "white" }: { onPress?: () => void; variant?: "white" | "tint" | "glass" }) {
+  const glass = variant === "glass";
   return (
     <Pressable
       accessibilityRole="button"
@@ -39,11 +41,12 @@ export function BackButton({ onPress, variant = "white" }: { onPress?: () => voi
       onPress={onPress ?? (() => router.back())}
       style={({ pressed }) => [
         styles.back,
-        variant === "white" ? styles.backWhite : styles.backTint,
-        pressed && { backgroundColor: colors.accent200 },
+        variant === "white" ? styles.backWhite : variant === "tint" ? styles.backTint : styles.backGlass,
+        pressed && { backgroundColor: glass ? colors.glassOnDark : colors.accent200 },
       ]}
     >
-      <BackIcon size={18} color={colors.textSecondary} />
+      {glass && Platform.OS === "ios" ? <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} /> : null}
+      <BackIcon size={18} color={glass ? colors.textOnDark : colors.textSecondary} />
     </Pressable>
   );
 }
@@ -78,6 +81,7 @@ const styles = StyleSheet.create({
   back: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   backWhite: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline },
   backTint: { backgroundColor: colors.bgTint, borderWidth: 1, borderColor: colors.hairline },
+  backGlass: { backgroundColor: colors.captureGlass, borderWidth: 1, borderColor: colors.captureRing, overflow: "hidden" },
   steps: { flexDirection: "row", gap: 4 },
   dash: { width: 22, height: 4, borderRadius: 2 },
 });

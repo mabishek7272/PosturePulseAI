@@ -1,0 +1,86 @@
+import {
+  BONES, EMPTY_POSE, HIDDEN, NECK_INDEX, boneSegment, coverMap, decodeMoveNet, jointPosition, poseStatusText, visibleCount,
+} from "./pose-overlay";
+
+function raw(points: Record<number, [number, number, number]>): number[] {
+  const a = new Array(51).fill(0);
+  for (const [i, [y, x, s]] of Object.entries(points)) {
+    a[Number(i) * 3] = y;
+    a[Number(i) * 3 + 1] = x;
+    a[Number(i) * 3 + 2] = s;
+  }
+  return a;
+}
+
+describe("decodeMoveNet", () => {
+  it("undoes letterbox padding for a portrait 3:4 frame", () => {
+    // 3:4 portrait in 192 box: scale .. rw = 144, rh = 192, ox = 24, oy = 0.
+    const out = decodeMoveNet(raw({ 0: [0.5, 0.5, 0.9], 5: [0.25, 24 / 192, 0.9] }), 480, 640);
+    expect(out[0]).toBeCloseTo(0.5);
+    expect(out[1]).toBeCloseTo(0.5);
+    expect(out[10]).toBeCloseTo(0); // left edge of the real image
+    expect(out[11]).toBeCloseTo(0.25);
+  });
+  it("hides low-score and padding points", () => {
+    const out = decodeMoveNet(raw({ 0: [0.5, 0.5, 0.29], 1: [0.5, 0.05, 0.9] }), 480, 640);
+    expect(out[0]).toBe(HIDDEN);
+    expect(out[2]).toBe(HIDDEN); // x=0.05*192 is inside padding
+  });
+});
+
+describe("visibleCount", () => {
+  it("counts only visible points", () => {
+    expect(visibleCount(EMPTY_POSE.pts)).toBe(0);
+    const pts = EMPTY_POSE.pts.slice();
+    pts[0] = 0.5; pts[1] = 0.5; pts[4] = 0.1; pts[5] = 0.2;
+    expect(visibleCount(pts)).toBe(2);
+  });
+});
+
+describe("coverMap", () => {
+  it("is identity-scaled when aspects match", () => {
+    expect(coverMap(0.5, 0.5, 480, 640, 768, 1024)).toEqual([384, 512]);
+  });
+  it("crops the sides of a wider-than-frame view's height overflow", () => {
+    // frame 3:4, view 1:1 -> scale by width, top/bottom cropped
+    const p = coverMap(0.5, 0, 300, 400, 300, 300)!;
+    expect(p[0]).toBeCloseTo(150);
+    expect(p[1]).toBeCloseTo(-50);
+  });
+  it("is null with unknown frame size", () => {
+    expect(coverMap(0.5, 0.5, 0, 0, 100, 100)).toBeNull();
+  });
+});
+
+describe("bones", () => {
+  const snap = (pts: number[]) => ({ pts, w: 100, h: 100 });
+  it("has the neck bone from the nose to the shoulder midpoint", () => {
+    expect(BONES).toContainEqual([0, NECK_INDEX]);
+    expect(BONES).toHaveLength(13);
+  });
+  it("computes the shoulder midpoint", () => {
+    const pts = EMPTY_POSE.pts.slice();
+    pts[10] = 0.4; pts[11] = 0.4; pts[12] = 0.6; pts[13] = 0.4;
+    expect(jointPosition(snap(pts), NECK_INDEX, 100, 100)).toEqual([50, 40]);
+  });
+  it("hides a bone when either end is hidden", () => {
+    const pts = EMPTY_POSE.pts.slice();
+    pts[10] = 0.4; pts[11] = 0.4;
+    expect(boneSegment(snap(pts), [5, 6], 100, 100)).toBeNull();
+    pts[12] = 0.6; pts[13] = 0.4;
+    expect(boneSegment(snap(pts), [5, 6], 100, 100)).toEqual([40, 40, 60, 40]);
+  });
+});
+
+describe("poseStatusText", () => {
+  it("never claims more points than detected", () => {
+    expect(poseStatusText("loaded", false, 17)).toBe("Pose guide · 17 points");
+    expect(poseStatusText("loaded", false, 9)).toBe("Pose guide · 9 of 17 points");
+    expect(poseStatusText("loaded", false, 0)).toBe("Pose guide · looking for a person");
+    expect(poseStatusText("loading", false, 0)).toBe("Pose guide · looking for a person");
+  });
+  it("reports unavailable on model or resizer failure", () => {
+    expect(poseStatusText("error", false, 0)).toBe("Pose guide unavailable");
+    expect(poseStatusText("loaded", true, 0)).toBe("Pose guide unavailable");
+  });
+});
