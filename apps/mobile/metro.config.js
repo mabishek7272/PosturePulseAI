@@ -12,4 +12,7 @@ const { getDefaultConfig } = require("expo/metro-config");
  * then consider the resolver options - disableHierarchicalLookup is what
  * caused the breakage.
  */
-module.exports = getDefaultConfig(__dirname);
+const config = getDefaultConfig(__dirname);
+config.resolver.assetExts.push("tflite");
+
+module.exports = config;
