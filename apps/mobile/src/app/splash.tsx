@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Circle, G, Path } from "react-native-svg";
+import { VisionCamera } from "react-native-vision-camera";
 import { getClinicianToken } from "../auth/tokenStore";
 import { DARK_BLOBS, DriftingBlobs } from "../components/DriftingBlobs";
 import { EASE_OUT, EASE_OUT_EXPO, FadeUp } from "../components/FadeUp";
@@ -137,7 +138,16 @@ export default function SplashScreen() {
         token = null;
       }
       await minWait;
-      if (!cancelled) router.replace(token ? "/home" : "/login");
+      // The sign-in token survives an app reinstall (Keychain) but the camera
+      // permission does not, so a signed-in clinician without camera access
+      // goes through the permissions screen instead of landing on a dead camera.
+      let cameraAllowed = true;
+      try {
+        cameraAllowed = VisionCamera.cameraPermissionStatus === "authorized";
+      } catch {
+        cameraAllowed = true;
+      }
+      if (!cancelled) router.replace(!token ? "/login" : cameraAllowed ? "/home" : "/permissions");
     })();
     return () => {
       cancelled = true;

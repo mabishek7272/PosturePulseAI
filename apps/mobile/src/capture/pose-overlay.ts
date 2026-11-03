@@ -83,6 +83,32 @@ export function decodeMoveNet(raw: ArrayLike<number>, fw: number, fh: number): n
   return out;
 }
 
+/** A keypoint counts toward "a person is here" at or above this score (higher than the draw threshold). */
+export const PERSON_KEYPOINT_SCORE = 0.4;
+/** Fewest confident keypoints (of 17) before the frame is treated as showing a person. */
+export const PERSON_MIN_POINTS = 8;
+/** Torso keypoints: shoulders 5-6 and hips 11-12; at least this many must be confident. */
+export const PERSON_MIN_TORSO_POINTS = 3;
+
+/**
+ * MoveNet is single-pose: it returns 17 keypoints for ANY image, including an
+ * empty desk or a screen, with low scores. A skeleton is only drawn when the
+ * frame looks like it contains a person: enough confident keypoints overall
+ * and most of the torso. Without this, junk scenes show a ghost skeleton.
+ */
+export function personPresent(raw: ArrayLike<number>): boolean {
+  'worklet';
+  let confident = 0;
+  for (let i = 0; i < KEYPOINT_COUNT; i++) if (raw[i * 3 + 2] >= PERSON_KEYPOINT_SCORE) confident++;
+  if (confident < PERSON_MIN_POINTS) return false;
+  let torso = 0;
+  if (raw[5 * 3 + 2] >= PERSON_KEYPOINT_SCORE) torso++;
+  if (raw[6 * 3 + 2] >= PERSON_KEYPOINT_SCORE) torso++;
+  if (raw[11 * 3 + 2] >= PERSON_KEYPOINT_SCORE) torso++;
+  if (raw[12 * 3 + 2] >= PERSON_KEYPOINT_SCORE) torso++;
+  return torso >= PERSON_MIN_TORSO_POINTS;
+}
+
 /** Mean MoveNet score over the keypoints at or above the visibility threshold; 0 when none. */
 export function meanVisibleScore(raw: ArrayLike<number>): number {
   'worklet';

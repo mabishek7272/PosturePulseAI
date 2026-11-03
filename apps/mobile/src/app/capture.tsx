@@ -1,13 +1,14 @@
 import * as Device from "expo-device";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Camera,
   CommonResolutions,
   useCameraDevice,
+  useCameraPermission,
   useFrameOutput,
   useVideoOutput,
   type CameraSessionConfig,
@@ -20,7 +21,8 @@ import { uploadClip } from "../api/clips";
 import { startGravitySampling } from "../capture/gravity";
 import { formatLevel, useDeviceLevel } from "../capture/level";
 import { startHaptic, tickHaptic } from "../capture/haptics";
-import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet, meanVisibleScore, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
+import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
+  personPresent, meanVisibleScore, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
 import { meanRollFromSamples, recordClipStats, type ClipStats } from "../capture/session-stats";
 import { buildSidecar, clipIdFor } from "../capture/sidecar";
@@ -86,6 +88,7 @@ export default function CaptureScreen() {
   const [cameraReady, setCameraReady] = useState(false);
   const onConfigured = useCallback(() => setCameraReady(true), []);
 
+  const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice("back");
   // <Camera> wires its own preview output internally (see Camera.tsx:
   // `outputs: [previewOutput, ...outputs]`) - passing a second one here
@@ -131,7 +134,7 @@ export default function CaptureScreen() {
           try {
             const outputs = tflite.runSync([gpu.getPixelBuffer()]);
             const raw = new Float32Array(outputs[0]);
-            pose.value = { pts: decodeMoveNet(raw, fw, fh), w: fw, h: fh, n: (pose.value.n ?? 0) + 1, conf: meanVisibleScore(raw) };
+            pose.value = { pts: personPresent(raw) ? decodeMoveNet(raw, fw, fh) : EMPTY_POSE.pts, w: fw, h: fh, n: (pose.value.n ?? 0) + 1, conf: meanVisibleScore(raw) };
           } finally {
             gpu.dispose();
           }
@@ -360,6 +363,25 @@ export default function CaptureScreen() {
     );
   }
 
+  if (!hasPermission) {
+    return (
+      <View style={styles.screen}>
+        <Text style={styles.message}>
+          {canRequestPermission
+            ? "Camera access is needed to record the assessment poses."
+            : "Camera access was turned off. Enable it in Settings to record the assessment poses."}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.permissionButton}
+          onPress={() => (canRequestPermission ? void requestPermission() : void Linking.openSettings())}
+        >
+          <Text style={styles.permissionButtonText}>{canRequestPermission ? "Allow camera" : "Open Settings"}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (!device) return <View style={styles.screen}><Text style={styles.message}>No camera available.</Text></View>;
 
   const busy = recording || countdown !== null;
@@ -374,6 +396,11 @@ export default function CaptureScreen() {
         style={StyleSheet.absoluteFill}
         isActive
         device={device}
+        // The UI is locked to portrait. Orient every output (preview, recorded
+        // video, pose frames) by the interface, not the physical device: with the
+        // default 'device' source a tilted iPad gave the pose model sideways
+        // frames while the preview looked fine, so the skeleton missed the body.
+        orientationSource="interface"
         outputs={[videoOutput, frameOutput]}
         constraints={[{ fps: TARGET_FPS }]}
         onSessionConfigSelected={onSessionConfigSelected}
@@ -533,6 +560,8 @@ const styles = StyleSheet.create({
   chipText: { color: colors.accent300, fontSize: 11, fontWeight: "600" },
   controls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6 },
   caption: { textAlign: "center", fontSize: 11.5, color: colors.captureGuide, letterSpacing: 0.46 },
+  permissionButton: { marginHorizontal: 20, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: colors.accent700 },
+  permissionButtonText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },
   message: { color: colors.textOnDark, fontSize: 15, lineHeight: 22, margin: 20, marginTop: 120 },
   error: { color: colors.caution },
   errorHint: { color: colors.accent300, fontSize: 13 },

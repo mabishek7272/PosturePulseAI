@@ -1,5 +1,5 @@
 import {
-  BONES, EMPTY_POSE, HIDDEN, NECK_INDEX, boneSegment, coverMap, decodeMoveNet, jointPosition, poseStatusText, visibleCount,
+  BONES, EMPTY_POSE, personPresent, HIDDEN, NECK_INDEX, boneSegment, coverMap, decodeMoveNet, jointPosition, poseStatusText, visibleCount,
 } from "./pose-overlay";
 
 function raw(points: Record<number, [number, number, number]>): number[] {
@@ -82,5 +82,29 @@ describe("poseStatusText", () => {
   it("reports unavailable on model or resizer failure", () => {
     expect(poseStatusText("error", false, 0)).toBe("Pose guide unavailable");
     expect(poseStatusText("loaded", true, 0)).toBe("Pose guide unavailable");
+  });
+});
+
+describe("personPresent", () => {
+  const all = (score: number) => Array.from({ length: 17 * 3 }, (_, i) => (i % 3 === 2 ? score : 0.5));
+
+  it("accepts a frame with many confident keypoints including the torso", () => {
+    expect(personPresent(all(0.7))).toBe(true);
+  });
+
+  it("rejects a junk scene where every score is low", () => {
+    expect(personPresent(all(0.25))).toBe(false);
+  });
+
+  it("rejects few confident points even when they are high", () => {
+    const raw = all(0.1);
+    for (const k of [0, 1, 2, 5, 6, 11]) raw[k * 3 + 2] = 0.9;
+    expect(personPresent(raw)).toBe(false);
+  });
+
+  it("rejects many confident points when the torso is not among them", () => {
+    const raw = all(0.7);
+    for (const k of [5, 6, 11, 12]) raw[k * 3 + 2] = 0.1;
+    expect(personPresent(raw)).toBe(false);
   });
 });
