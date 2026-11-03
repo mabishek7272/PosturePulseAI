@@ -11,7 +11,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.beaive.mobile",
       "infoPlist": {
-        "NSCameraUsageDescription": "beAIve needs the camera to record the assessment poses."
+        "NSCameraUsageDescription": "beAIve needs the camera to record the assessment poses.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -24,6 +25,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.beaive.mobile",
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.CAMERA"
       ]
     },
@@ -55,6 +57,12 @@
         "projectId": "822a48dc-e755-45c7-94cb-0c9c65bff511"
       }
     },
-    "owner": "airivuinnovationmachina"
+    "owner": "airivuinnovationmachina",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/822a48dc-e755-45c7-94cb-0c9c65bff511"
+    }
   }
 }
