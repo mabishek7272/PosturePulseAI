@@ -1,7 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Svg, { Line } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { linkPatient } from "../api/patients";
 import {
@@ -17,7 +16,9 @@ import { CheckIcon } from "../components/icons";
 import { GlassCard } from "../components/GlassCard";
 import { MAX_CONTENT_WIDTH, useResponsive } from "../components/Screen";
 import { ScreenHeader } from "../components/ScreenHeader";
+import { SignaturePad } from "../components/SignaturePad";
 import { initialsOf } from "../lib/homeData";
+import { hasMinimumInk, type Stroke } from "../lib/signature";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 
@@ -34,6 +35,10 @@ export default function ConsentScreen() {
   const insets = useSafeAreaInsets();
   const { patientId, patientName } = useLocalSearchParams<{ patientId: string; patientName: string }>();
   const [busy, setBusy] = useState(false);
+  const [attested, setAttested] = useState(false);
+  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [drawing, setDrawing] = useState(false);
+  const canSubmit = attested && hasMinimumInk(strokes);
   const [error, setError] = useState<string | null>(null);
   // Held across retries so a mid-flow failure resumes the same visit instead of
   // creating a second consent record and session. A new visit is a new screen
@@ -43,7 +48,7 @@ export default function ConsentScreen() {
   const credentialsRef = useRef<SessionCredentials | null>(null);
 
   async function agree() {
-    if (busy) return;
+    if (busy || !canSubmit) return;
     setBusy(true);
     setError(null);
     try {
@@ -99,7 +104,7 @@ export default function ConsentScreen() {
           onBack={busy ? () => {} : undefined}
         />
       </View>
-      <ScrollView style={styles.flex} contentContainerStyle={[styles.content, column, { paddingHorizontal: gutter - 2 }]}>
+      <ScrollView style={styles.flex} scrollEnabled={!drawing} contentContainerStyle={[styles.content, column, { paddingHorizontal: gutter - 2 }]}>
         <View style={styles.patientCard}>
           <Avatar initials={initialsOf(patientName ?? "")} size={40} variant="solid" radius={13} />
           <Text style={styles.patientName} numberOfLines={1}>{patientName}</Text>
@@ -119,19 +124,26 @@ export default function ConsentScreen() {
           </View>
         </GlassCard>
 
+        <Pressable
+          style={[styles.attest, attested && styles.attestOn]}
+          onPress={() => setAttested((v) => !v)}
+          disabled={busy}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: attested, disabled: busy }}
+          accessibilityLabel="I have read the above to the patient and they consent to this assessment."
+        >
+          <View style={[styles.box, attested && styles.boxOn]}>
+            {attested && <CheckIcon size={14} color={colors.white} />}
+          </View>
+          <Text style={styles.attestText}>I have read the above to the patient and they consent to this assessment.</Text>
+        </Pressable>
+
         <View style={styles.sigWrap}>
           <Text style={styles.sigLabel}>Patient signature</Text>
-          <View style={styles.sigPad} accessibilityLabel="Signature capture is not available yet">
-            <View style={styles.sigLine}>
-              <Svg width="100%" height={1} style={styles.sigSvg}>
-                <Line x1="0" y1="0.5" x2="100%" y2="0.5" stroke={colors.hairlineStrong} strokeWidth={1} strokeDasharray="3 4" />
-              </Svg>
-            </View>
-            <Text style={styles.sigNote}>Signature capture is not available yet</Text>
-            <View style={styles.clear} accessibilityRole="button" accessibilityState={{ disabled: true }}>
-              <Text style={styles.clearText}>Clear</Text>
-            </View>
-          </View>
+          <SignaturePad strokes={strokes} onChange={setStrokes} onDrawingChange={(d) => setDrawing(d)} disabled={busy} />
+          <Text style={styles.sigCaption}>
+            Signature confirms consent on this device for this session. It is not stored on the server yet.
+          </Text>
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -139,7 +151,7 @@ export default function ConsentScreen() {
 
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 16) + 14 }]}>
         <View style={[column, { paddingHorizontal: gutter - 2 }]}>
-          <PrimaryButton label="Record consent & start capture" onPress={agree} loading={busy} disabled={busy} />
+          <PrimaryButton label="Record consent & start capture" onPress={agree} loading={busy} disabled={busy || !canSubmit} accessibilityLabel={canSubmit ? undefined : "Record consent and start capture. Unavailable until the attestation is ticked and the patient has signed."} />
         </View>
       </View>
     </View>
@@ -166,18 +178,18 @@ const styles = StyleSheet.create({
   bulletText: { flex: 1, fontSize: 13, lineHeight: 19.5, color: colors.textBody },
   sigWrap: { gap: 9 },
   sigLabel: { fontSize: 12, fontWeight: "600", letterSpacing: 0.24, color: colors.textSecondary },
-  sigPad: {
-    height: 150, borderRadius: radii.lg, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.hairline,
-    overflow: "hidden", alignItems: "center", justifyContent: "center",
+  sigCaption: { fontSize: 11.5, lineHeight: 16, color: colors.textMuted },
+  attest: {
+    flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 15, borderRadius: radii.lg,
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline,
   },
-  sigLine: { position: "absolute", left: 34, right: 34, top: 124, height: 1 },
-  sigSvg: { position: "absolute" },
-  sigNote: { fontSize: 12, color: colors.textFaint },
-  clear: {
-    position: "absolute", right: 11, top: 11, height: 30, paddingHorizontal: 11, borderRadius: radii.sm,
-    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.hairline, justifyContent: "center", opacity: 0.5,
+  attestOn: { borderWidth: 1.5, borderColor: colors.accent400 },
+  box: {
+    width: 24, height: 24, borderRadius: 7, alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5, borderColor: colors.hairlineStrong, backgroundColor: colors.white,
   },
-  clearText: { fontSize: 11.5, fontWeight: "600", color: colors.textMuted },
+  boxOn: { backgroundColor: colors.accent600, borderColor: colors.accent600 },
+  attestText: { flex: 1, fontSize: 13.5, lineHeight: 20, color: colors.text },
   error: { color: colors.caution, fontSize: 13 },
   bar: {
     paddingTop: 14, backgroundColor: colors.glassStrong, borderTopWidth: 1, borderTopColor: colors.hairline,
