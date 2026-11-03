@@ -1,6 +1,9 @@
-import { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import { colors } from "../theme/colors";
+import { GlassCard } from "./GlassCard";
+import { CheckIcon } from "./icons";
+import { Spin, TypeDot } from "./Motion";
 
 /**
  * Six stages, each literally true of the server pipeline: upload, frame
@@ -17,6 +20,8 @@ export const STAGES = [
   "Comparing with references",
 ];
 
+type StageState = "pending" | "active" | "done";
+
 export function AnalysisStages({ activeStage }: { activeStage: number }) {
   return (
     <View style={styles.list}>
@@ -27,35 +32,69 @@ export function AnalysisStages({ activeStage }: { activeStage: number }) {
   );
 }
 
-function Stage({ label, state }: { label: string; state: "pending" | "active" | "done" }) {
-  const opacity = useRef(new Animated.Value(0.3)).current;
-
-  useEffect(() => {
-    Animated.timing(opacity, {
-      toValue: state === "active" ? 1 : state === "done" ? 0.55 : 0.3,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, [state, opacity]);
-
-  return (
-    <Animated.View style={[styles.row, { opacity }]}>
-      <View style={[styles.tick, state !== "pending" && styles.tickOn]}>
-        <Text style={styles.tickText}>{state === "done" ? "✓" : ""}</Text>
+function Stage({ label, state }: { label: string; state: StageState }) {
+  if (state === "pending") {
+    return (
+      <View style={[styles.row, styles.pendingRow]} accessibilityLabel={`${label}, waiting`}>
+        <View style={styles.emptyCircle} />
+        <Text style={[styles.label, styles.pendingLabel]}>{label}</Text>
       </View>
-      <Text style={styles.label}>{label}</Text>
-    </Animated.View>
+    );
+  }
+  const active = state === "active";
+  return (
+    <GlassCard
+      tint="dark"
+      elevated={false}
+      radius={15}
+      intensity={18}
+      fill={active ? colors.analysisActiveFill : colors.analysisGlass}
+      ring={active ? colors.analysisActiveRing : colors.analysisRing}
+      style={styles.card}
+    >
+      <View style={styles.row} accessibilityLabel={`${label}, ${active ? "in progress" : "done"}`}>
+        {active ? (
+          <Spin duration={1100} style={styles.icon}>
+            <Svg width={24} height={24} viewBox="0 0 24 24">
+              <Circle cx={12} cy={12} r={9.5} fill="none" stroke={colors.analysisTrackSmall} strokeWidth={2.4} />
+              <Circle cx={12} cy={12} r={9.5} fill="none" stroke={colors.accent300} strokeWidth={2.4} strokeLinecap="round" strokeDasharray="20 40" />
+            </Svg>
+          </Spin>
+        ) : (
+          <View style={[styles.icon, styles.doneCircle]}>
+            <CheckIcon size={13} color={colors.white} strokeWidth={3} />
+          </View>
+        )}
+        <Text style={[styles.label, active ? styles.activeLabel : styles.doneLabel]}>{label}</Text>
+        {active ? (
+          <View style={styles.dots}>
+            <TypeDot style={styles.dot} />
+            <TypeDot delay={150} style={styles.dot} />
+            <TypeDot delay={300} style={styles.dot} />
+          </View>
+        ) : null}
+      </View>
+    </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { marginTop: 28, alignSelf: "stretch" },
-  row: { flexDirection: "row", alignItems: "center", paddingVertical: 7 },
-  tick: {
-    width: 20, height: 20, borderRadius: 10, borderWidth: 1.6,
-    borderColor: colors.accent700, marginRight: 12, alignItems: "center", justifyContent: "center",
+  list: { alignSelf: "stretch", gap: 10 },
+  card: { alignSelf: "stretch" },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 15 },
+  pendingRow: {
+    borderRadius: 15,
+    backgroundColor: colors.analysisGlassDim,
+    borderWidth: 1,
+    borderColor: colors.analysisRingDim,
   },
-  tickOn: { borderColor: colors.accent400, backgroundColor: "rgba(181,171,252,0.16)" },
-  tickText: { color: colors.accent400, fontSize: 11, fontWeight: "800" },
-  label: { color: colors.textOnDark, fontSize: 14 },
+  icon: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
+  doneCircle: { borderRadius: 12, backgroundColor: colors.accent600 },
+  emptyCircle: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: colors.analysisRingEmpty },
+  label: { flex: 1, fontSize: 14 },
+  doneLabel: { fontWeight: "500", color: colors.accent200 },
+  activeLabel: { fontWeight: "600", color: colors.accent100 },
+  pendingLabel: { fontWeight: "500", color: colors.darkAccentB },
+  dots: { flexDirection: "row", gap: 3, marginLeft: "auto" },
+  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: colors.accent300 },
 });

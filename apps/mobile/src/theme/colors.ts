@@ -82,6 +82,24 @@ export const colors = {
   captureScanGlow: "rgba(181,171,252,0.5)",
   captureBody: "#f3f5fe",
 
+  // Analysis screen (section 08, dark glass)
+  analysisGlass: "rgba(255,255,255,0.06)",
+  analysisGlassStrong: "rgba(255,255,255,0.08)",
+  analysisGlassButton: "rgba(255,255,255,0.1)",
+  analysisGlassDim: "rgba(255,255,255,0.03)",
+  analysisRing: "rgba(210,206,253,0.16)",
+  analysisRingDisc: "rgba(210,206,253,0.26)",
+  analysisRingButton: "rgba(210,206,253,0.32)",
+  analysisRingDim: "rgba(210,206,253,0.1)",
+  analysisRingEmpty: "rgba(210,206,253,0.22)",
+  analysisTrack: "rgba(210,206,253,0.14)",
+  analysisTrackSmall: "rgba(210,206,253,0.25)",
+  analysisHaloA: "rgba(181,171,252,0.3)",
+  analysisHaloB: "rgba(181,171,252,0.2)",
+  analysisActiveFill: "rgba(121,108,191,0.2)",
+  analysisActiveRing: "rgba(181,171,252,0.42)",
+  analysisTitle: "#f3f5fe",
+
   // Status (unchanged from P1 - no new semantics introduced)
   caution: "#ff6b6b",
 } as const;
