@@ -6,7 +6,6 @@ import {
   Camera,
   CommonResolutions,
   useCameraDevice,
-  usePreviewOutput,
   useVideoOutput,
   type CameraSessionConfig,
   type Recorder,
@@ -42,9 +41,16 @@ export default function CaptureScreen() {
   const [poseIndex, setPoseIndex] = useState(0);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The native session connects its outputs asynchronously after mount;
+  // recording before onConfigured fires throws "VideoOutput is not yet
+  // connected to the CameraSession!" in vision-camera.
+  const [cameraReady, setCameraReady] = useState(false);
+  const onConfigured = useCallback(() => setCameraReady(true), []);
 
   const device = useCameraDevice("back");
-  const previewOutput = usePreviewOutput();
+  // <Camera> wires its own preview output internally (see Camera.tsx:
+  // `outputs: [previewOutput, ...outputs]`) - passing a second one here
+  // duplicated the output and left it unconnected to any PreviewView.
   const videoOutput = useVideoOutput({ targetResolution: TARGET_RESOLUTION, enableAudio: false });
 
   // The pipeline resolves constraints to a concrete config; the sidecar must
@@ -81,7 +87,7 @@ export default function CaptureScreen() {
   const pose = POSES[poseIndex];
 
   async function record() {
-    if (recording || inFlight.current) return;
+    if (recording || inFlight.current || !cameraReady) return;
     inFlight.current = true;
     setRecording(true);
     setError(null);
@@ -174,9 +180,10 @@ export default function CaptureScreen() {
         style={StyleSheet.absoluteFill}
         isActive
         device={device}
-        outputs={[previewOutput, videoOutput]}
+        outputs={[videoOutput]}
         constraints={[{ fps: TARGET_FPS }]}
         onSessionConfigSelected={onSessionConfigSelected}
+        onConfigured={onConfigured}
       />
 
       <View style={styles.overlay} pointerEvents="box-none">
@@ -198,8 +205,14 @@ export default function CaptureScreen() {
               <Text style={styles.errorHint}>Press Start to record this pose again.</Text>
             </>
           )}
-          <Pressable style={[styles.shutter, recording && styles.shutterActive]} onPress={record} disabled={recording}>
-            <Text style={styles.shutterText}>{recording ? "Recording…" : "Start"}</Text>
+          <Pressable
+            style={[styles.shutter, recording && styles.shutterActive]}
+            onPress={record}
+            disabled={recording || !cameraReady}
+          >
+            <Text style={styles.shutterText}>
+              {recording ? "Recording…" : cameraReady ? "Start" : "Preparing camera…"}
+            </Text>
           </Pressable>
           </View>
         </View>
