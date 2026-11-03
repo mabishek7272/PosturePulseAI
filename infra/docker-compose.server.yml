@@ -8,6 +8,11 @@
 #
 #   docker compose -f infra/docker-compose.yml -f infra/docker-compose.server.yml \
 #     --env-file infra/.env up -d --build
+#
+# Host: 16 cores / 31G, shared with other projects. The limits below reserve
+# 10 cores and 12G, leaving the rest for everything else on the box. ml-service
+# gets the largest share because clip analysis (MediaPipe over every frame of a
+# 30 s clip) is the only CPU-bound step.
 name: posturepulse
 
 services:
@@ -18,7 +23,7 @@ services:
     restart: unless-stopped
     deploy:
       resources:
-        limits: { cpus: "1.5", memory: 1536M }
+        limits: { cpus: "2", memory: 2G }
 
   # Not used by any code path (ADR-003); kept out of the shared host.
   redis:
@@ -29,7 +34,7 @@ services:
     restart: unless-stopped
     deploy:
       resources:
-        limits: { cpus: "2", memory: 2G }
+        limits: { cpus: "6", memory: 8G }
 
   backend-api:
     ports: !override
@@ -38,7 +43,10 @@ services:
       DATABASE_URL: postgresql://beaive:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}@postgres:5432/beaive
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in infra/.env}
       PATIENT_DATA_KEY: ${PATIENT_DATA_KEY:?set PATIENT_DATA_KEY in infra/.env}
+      # One worker per ~1.5 ml-service cores: four clips of a session analyse
+      # together instead of two at a time.
+      ANALYSIS_CONCURRENCY: "4"
     restart: unless-stopped
     deploy:
       resources:
-        limits: { cpus: "1", memory: 1G }
+        limits: { cpus: "2", memory: 2G }
