@@ -130,3 +130,11 @@ export const gradients = {
   timeline: [colors.accent400, colors.hairline],
   sheen: ["rgba(255,255,255,0)", "rgba(255,255,255,0.3)", "rgba(255,255,255,0)"],
 } as const;
+
+/** Report-generation sequence (analysis screen) additions. */
+export const reportColors = {
+  card: "rgba(255,255,255,0.07)",
+  cardRing: "rgba(210,206,253,0.22)",
+  filtered: "rgba(210,206,253,0.28)",
+  tag: "rgba(255,255,255,0.12)",
+} as const;

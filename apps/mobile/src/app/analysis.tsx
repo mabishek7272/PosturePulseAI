@@ -11,6 +11,7 @@ import { POSES } from "../capture/poses";
 import { DriftingBlobs, type BlobSpec } from "../components/DriftingBlobs";
 import { GlassCard } from "../components/GlassCard";
 import { PulseDot, RingPulse, Spin } from "../components/Motion";
+import { ReportSequence } from "../components/report/ReportSequence";
 import { formatElapsed } from "../lib/elapsed";
 import { colors } from "../theme/colors";
 
@@ -126,6 +127,10 @@ export default function AnalysisScreen() {
             <Text style={styles.sub}>Your clips were uploaded to the clinic server and are being measured there.</Text>
           </View>
 
+          <View style={styles.report}>
+            <ReportSequence sessionId={sessionId} />
+          </View>
+
           <View style={styles.stages}>
             <AnalysisStages activeStage={stage} />
           </View>
@@ -162,7 +167,8 @@ const styles = StyleSheet.create({
   titleBlock: { marginTop: 34, alignItems: "center", gap: 7 },
   title: { fontSize: 23, fontWeight: "600", letterSpacing: -0.69, color: colors.analysisTitle },
   sub: { maxWidth: 270, textAlign: "center", fontSize: 13.5, lineHeight: 20.25, color: colors.darkAccentA },
-  stages: { marginTop: 32 },
+  report: { marginTop: 26 },
+  stages: { marginTop: 26 },
   button: { height: 52, alignItems: "center", justifyContent: "center" },
   buttonText: { fontSize: 14.5, fontWeight: "600", color: colors.accent100 },
   error: { color: colors.caution, marginTop: 20, lineHeight: 20, textAlign: "center" },
