@@ -15,7 +15,7 @@ import {
   AutoCaptureIcon, GuidanceIcon, LockDeviceIcon, OverlayIcon, PrivacyIcon, SparkleSingleIcon, VoiceIcon,
 } from "../components/profileIcons";
 import { initialsOf, usernameFromToken } from "../lib/homeData";
-import { useSkeletonOverlayPref } from "../settings/prefs";
+import { useCaptureGuidancePref, useSkeletonOverlayPref } from "../settings/prefs";
 import { colors } from "../theme/colors";
 import { shadows } from "../theme/shadows";
 import { type } from "../theme/typography";
@@ -33,6 +33,7 @@ async function lockDevice() {
 export default function SettingsScreen() {
   const [username, setUsername] = useState<string | null>(null);
   const [skeleton, setSkeleton] = useSkeletonOverlayPref();
+  const [guidance, setGuidance] = useCaptureGuidancePref();
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +81,7 @@ export default function SettingsScreen() {
         <Group tone="lavender">
           <Row Icon={SparkleSingleIcon} label="Draft clinical notes" caption="Coming soon" disabled tone="lavender" />
           <Divider tone="lavender" />
-          <Row Icon={GuidanceIcon} label="Live capture guidance" caption="Coming soon" disabled tone="lavender" />
+          <Row Icon={GuidanceIcon} label="Live capture guidance" caption="Framing hints on the capture screen" value={guidance} onChange={setGuidance} tone="lavender" />
           <Text style={styles.disclaimer}>All AI output is a draft. Nothing enters the record without your sign-off.</Text>
         </Group>
 

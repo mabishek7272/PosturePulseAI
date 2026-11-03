@@ -44,6 +44,10 @@ export interface PoseSnapshot {
   /** Upright (portrait) frame size in pixels; 0 until a frame has been processed. */
   w: number;
   h: number;
+  /** Frames the model has processed so far (monotonic); lets JS tell a new frame from a re-read. */
+  n?: number;
+  /** Mean MoveNet score of the visible keypoints in this frame (0 when none are visible). */
+  conf?: number;
 }
 
 export const EMPTY_POSE: PoseSnapshot = { pts: new Array(KEYPOINT_COUNT * 2).fill(HIDDEN), w: 0, h: 0 };
@@ -77,6 +81,21 @@ export function decodeMoveNet(raw: ArrayLike<number>, fw: number, fh: number): n
     out[2 * i + 1] = inside ? y : HIDDEN;
   }
   return out;
+}
+
+/** Mean MoveNet score over the keypoints at or above the visibility threshold; 0 when none. */
+export function meanVisibleScore(raw: ArrayLike<number>): number {
+  'worklet';
+  let sum = 0;
+  let n = 0;
+  for (let i = 0; i < KEYPOINT_COUNT; i++) {
+    const s = raw[i * 3 + 2];
+    if (s >= VISIBILITY_THRESHOLD) {
+      sum += s;
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : 0;
 }
 
 /** Number of keypoints currently visible (0-17). */

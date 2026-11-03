@@ -1,9 +1,11 @@
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import Svg, { G, Line } from "react-native-svg";
+import Svg, { Circle, G, Line, Path, Rect } from "react-native-svg";
+import { coverMap } from "../capture/pose-overlay";
+import type { GuidanceCheck } from "../capture/guidance";
 import { colors } from "../theme/colors";
 import { RingPulse } from "./Motion";
 
@@ -36,8 +38,14 @@ export function SquareGlassButton({
 
 /** Big ringed shutter: gradient core, pulsing ring (ppRing). */
 export function Shutter({
-  state, onPress,
-}: { state: "preparing" | "ready" | "recording"; onPress: () => void }) {
+  state, onPress, recordingStartedAt = null, totalSeconds = 0,
+}: {
+  state: "preparing" | "ready" | "recording";
+  onPress: () => void;
+  /** performance.now() at which recording began; draws the progress ring from real elapsed time. */
+  recordingStartedAt?: number | null;
+  totalSeconds?: number;
+}) {
   const label = state === "recording" ? "Recording" : state === "preparing" ? "Preparing camera" : "Start recording this pose";
   return (
     <Pressable
@@ -58,7 +66,115 @@ export function Shutter({
         </View>
       </CaptureGlass>
       {state !== "preparing" ? <RingPulse duration={2600} style={styles.ring} /> : null}
+      {state === "recording" && recordingStartedAt !== null && totalSeconds > 0 ? (
+        <ProgressRing startedAt={recordingStartedAt} totalSeconds={totalSeconds} />
+      ) : null}
     </Pressable>
+  );
+}
+
+/** Seconds elapsed since `startedAt` (performance.now(), monotonic), ticking every `intervalMs`; 0 when null. */
+export function useElapsedSeconds(startedAt: number | null, intervalMs = 100): number {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (startedAt === null) {
+      setElapsed(0);
+      return;
+    }
+    const tick = () => setElapsed(Math.max(0, (performance.now() - startedAt) / 1000));
+    tick();
+    const id = setInterval(tick, intervalMs);
+    return () => clearInterval(id);
+  }, [startedAt, intervalMs]);
+  return elapsed;
+}
+
+const RING_SIZE = 100;
+const RING_R = 47;
+const RING_C = 2 * Math.PI * RING_R;
+
+/** Arc around the shutter: elapsed / total, from a monotonic clock. */
+function ProgressRing({ startedAt, totalSeconds }: { startedAt: number; totalSeconds: number }) {
+  const elapsed = useElapsedSeconds(startedAt);
+  const p = Math.min(1, elapsed / totalSeconds);
+  return (
+    <Svg
+      width={RING_SIZE} height={RING_SIZE} pointerEvents="none"
+      style={{ position: "absolute", top: (82 - RING_SIZE) / 2, left: (82 - RING_SIZE) / 2 }}
+    >
+      <Circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R} stroke={colors.captureSegOff} strokeWidth={3} fill="none" />
+      <Circle
+        cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_R} stroke={colors.accent400} strokeWidth={3.5} fill="none"
+        strokeLinecap="round" strokeDasharray={`${RING_C} ${RING_C}`} strokeDashoffset={RING_C * (1 - p)}
+        rotation={-90} origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+      />
+    </Svg>
+  );
+}
+
+/** Stop / discard glyph for the abandon-clip button. */
+export function CloseGlyph({ size = 20, color = colors.accent300 }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round">
+      <Path d="M6 6l12 12M18 6 6 18" />
+    </Svg>
+  );
+}
+
+/**
+ * AR framing target over the camera: rounded outline, ground line and centre
+ * line, laid out in the 3:4 camera frame (cover-mapped to the view). Neutral
+ * until every guidance check passes, then violet-green. Aids framing only.
+ */
+export function ArTarget({ width, height, aligned }: { width: number; height: number; aligned: boolean }) {
+  const tl = coverMap(0.2, 0.07, 3, 4, width, height);
+  const br = coverMap(0.8, 0.94, 3, 4, width, height);
+  const top = coverMap(0.5, 0.07, 3, 4, width, height);
+  const bottom = coverMap(0.5, 0.94, 3, 4, width, height);
+  if (!tl || !br || !top || !bottom) return null;
+  const stroke = aligned ? colors.captureAligned : colors.captureTargetIdle;
+  return (
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Rect
+        x={tl[0]} y={tl[1]} width={br[0] - tl[0]} height={br[1] - tl[1]} rx={28}
+        stroke={stroke} strokeWidth={aligned ? 2.2 : 1.4} strokeDasharray={aligned ? undefined : "10 8"} fill="none"
+      />
+      <Line x1={top[0]} y1={top[1]} x2={bottom[0]} y2={bottom[1]} stroke={stroke} strokeWidth={1} strokeDasharray="3 8" opacity={0.7} />
+      <Line x1={tl[0] - 8} y1={br[1]} x2={br[0] + 8} y2={br[1]} stroke={stroke} strokeWidth={aligned ? 2.4 : 1.6} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+/** Small tick/dot chips for the guidance checks. */
+export function GuidanceChips({ checks }: { checks: GuidanceCheck[] }) {
+  return (
+    <View style={styles.checks} accessibilityLabel={checks.map((c) => `${c.label} ${c.ok ? "ok" : "not yet"}`).join(", ")}>
+      {checks.map((c) => (
+        <View key={c.id} style={[styles.check, c.ok && styles.checkOk]}>
+          <Text style={[styles.checkMark, c.ok && styles.checkMarkOk]}>{c.ok ? "✓" : "○"}</Text>
+          <Text style={[styles.checkText, c.ok && styles.checkTextOk]}>{c.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Big 3-2-1 before the hold starts. */
+export function CountdownOverlay({ value }: { value: number }) {
+  return (
+    <View style={styles.countdown} pointerEvents="none" accessibilityLiveRegion="polite" accessibilityLabel={`Starting in ${value}`}>
+      <Text style={styles.countdownText}>{value}</Text>
+      <Text style={styles.countdownHint}>Hold still. Recording starts now</Text>
+    </View>
+  );
+}
+
+/** Filled / empty stars for the per-pose card. */
+export function Stars({ count }: { count: 1 | 2 | 3 }) {
+  return (
+    <Text style={styles.stars} accessibilityLabel={`${count} of 3 stars for capture quality`}>
+      {[1, 2, 3].map((i) => (i <= count ? "★" : "☆")).join(" ")}
+    </Text>
   );
 }
 
@@ -114,6 +230,17 @@ export function ViewProgress({ labels, current }: { labels: string[]; current: n
 }
 
 const styles = StyleSheet.create({
+  checks: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  check: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8, backgroundColor: colors.captureChip, opacity: 0.8 },
+  checkOk: { opacity: 1, backgroundColor: "rgba(143,227,192,0.18)" },
+  checkMark: { color: colors.captureGuide, fontSize: 10, fontWeight: "700" },
+  checkMarkOk: { color: colors.captureAligned },
+  checkText: { color: colors.captureGuide, fontSize: 11, fontWeight: "600" },
+  checkTextOk: { color: colors.captureBody },
+  countdown: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", gap: 10 },
+  countdownText: { color: colors.accent100, fontSize: 132, fontWeight: "200", textShadowColor: colors.captureShutterGlow, textShadowRadius: 24 },
+  countdownHint: { color: colors.captureBody, fontSize: 14, letterSpacing: 0.5 },
+  stars: { color: colors.accent300, fontSize: 30, letterSpacing: 4 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   disabled: { opacity: 0.4 },
   square: { width: 48, height: 48 },

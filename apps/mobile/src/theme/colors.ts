@@ -81,6 +81,9 @@ export const colors = {
   captureScanClear: "rgba(181,171,252,0)",
   captureScanGlow: "rgba(181,171,252,0.5)",
   captureBody: "#f3f5fe",
+  captureAligned: "#8fe3c0", // AR framing target once every guidance check passes (violet-green)
+  captureAlignedSoft: "rgba(143,227,192,0.55)",
+  captureTargetIdle: "rgba(210,206,253,0.42)",
 
   // Analysis screen (section 08, dark glass)
   analysisGlass: "rgba(255,255,255,0.06)",
