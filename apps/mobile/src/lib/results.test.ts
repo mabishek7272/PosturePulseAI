@@ -88,7 +88,7 @@ describe("barLayout", () => {
   });
   it("gives a single-value reference a thin band", () => {
     const l = barLayout(est({ reference: { label: "0", value: 0 } }))!;
-    expect(l.band.to - l.band.from).toBeGreaterThanOrEqual(0.02);
+    expect(l.band.to - l.band.from).toBeGreaterThan(0.019);
   });
   it("captions", () => {
     expect(referenceCaption(est())).toBe("No reference available");

@@ -73,7 +73,7 @@ function MetricCard({ r }: { r: MetricResult }) {
   if (kind !== "estimate" || !parts) {
     // Same card shell; explicit text, no value, no bar.
     return (
-      <GlassCard radius={15} fill={colors.glassStrong} intensity={30} style={styles.metricShell}>
+      <GlassCard radius={15} fill={colors.glassStrong} intensity={30}>
         <View style={styles.metricPad}>
           <Text style={styles.metricTitle}>{metricLabel(r)}</Text>
           <Text style={styles.unmeasured}>{formatResult(r)}</Text>
@@ -83,7 +83,7 @@ function MetricCard({ r }: { r: MetricResult }) {
   }
   const bar = barLayout(r);
   return (
-    <GlassCard radius={15} fill={colors.glassStrong} intensity={30} style={styles.metricShell}>
+    <GlassCard radius={15} fill={colors.glassStrong} intensity={30}>
       <View style={styles.metricPad}>
         <View style={styles.valueRow}>
           <Text style={[styles.metricTitle, styles.flexShrink]}>{metricLabel(r)}</Text>
@@ -274,7 +274,6 @@ const styles = StyleSheet.create({
   metricsTitle: { fontSize: 13, fontWeight: "600", letterSpacing: -0.13, color: colors.text },
   metricsCaption: { fontSize: 11.5, color: colors.textFaint },
   metricList: { gap: 9 },
-  metricShell: {},
   metricPad: { paddingVertical: 14, paddingHorizontal: 15 },
   valueRow: { flexDirection: "row", alignItems: "baseline", gap: 8 },
   flexShrink: { flex: 1 },
