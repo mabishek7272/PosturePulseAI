@@ -104,6 +104,14 @@ export const colors = {
   heroRingTrack: "rgba(210,206,253,0.2)",
   heroGlow: "rgba(181,171,252,0.42)",
 
+  // History / Trends / Profile (sections 10-12)
+  glassCard: "rgba(255,255,255,0.84)",
+  glassStat: "rgba(255,255,255,0.82)",
+  glassLavender: "rgba(245,244,255,0.88)",
+  glassHeaderBar: "rgba(248,249,255,0.88)",
+  bubbleShadow: "rgba(93,82,148,0.26)",
+  highlightShadow: "rgba(93,82,148,0.1)",
+
   // Status (unchanged from P1 - no new semantics introduced)
   caution: "#ff6b6b",
 } as const;
@@ -115,5 +123,7 @@ export const gradients = {
   /** Dark hero card (home "next session"). */
   hero: [colors.accent900, colors.accent800, colors.accent700],
   progress: [colors.accent600, colors.accent400],
+  /** History timeline connector (top to bottom). */
+  timeline: [colors.accent400, colors.hairline],
   sheen: ["rgba(255,255,255,0)", "rgba(255,255,255,0.3)", "rgba(255,255,255,0)"],
 } as const;

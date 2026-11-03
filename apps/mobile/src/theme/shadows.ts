@@ -7,6 +7,12 @@ type Shadow = Pick<ViewStyle, "shadowColor" | "shadowOpacity" | "shadowRadius" |
 export const shadows = {
   /** Cards: 0 8px 22px rgba(22,24,38,.05) */
   card: { shadowColor: colors.text, shadowOpacity: 0.05, shadowRadius: 11, shadowOffset: { width: 0, height: 8 }, elevation: 2 },
+  /** Large cards: 0 10px 26px rgba(22,24,38,.05) */
+  cardLg: { shadowColor: colors.text, shadowOpacity: 0.05, shadowRadius: 13, shadowOffset: { width: 0, height: 10 }, elevation: 2 },
+  /** Timeline bubble: 0 8px 18px rgba(93,82,148,.26) */
+  bubble: { shadowColor: colors.accent700, shadowOpacity: 0.26, shadowRadius: 9, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
+  /** Highlighted timeline card: 0 8px 22px rgba(93,82,148,.1) */
+  highlight: { shadowColor: colors.accent700, shadowOpacity: 0.1, shadowRadius: 11, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
   /** Tab bar: 0 14px 34px rgba(22,24,38,.12) */
   bar: { shadowColor: colors.text, shadowOpacity: 0.12, shadowRadius: 17, shadowOffset: { width: 0, height: 14 }, elevation: 8 },
   /** Primary button: 0 10px 26px rgba(93,82,148,.32) */

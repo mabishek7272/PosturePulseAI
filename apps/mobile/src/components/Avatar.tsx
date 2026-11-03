@@ -17,7 +17,7 @@ export interface AvatarProps {
 
 export function Avatar({ initials, size = 38, variant = "soft", radius: radiusProp }: AvatarProps) {
   const radius = radiusProp ?? Math.round(size * 0.32);
-  const fontSize = size >= 44 ? 14 : size >= 40 ? 13 : 12.5;
+  const fontSize = size >= 52 ? 16 : size >= 44 ? 14 : size >= 40 ? 13 : 12.5;
   const label = initials.slice(0, 2).toUpperCase();
   const text = (
     <Text style={[styles.text, { fontSize, color: variant === "solid" ? colors.accent100 : variant === "soft" ? colors.accent700 : colors.textMuted }]}>
