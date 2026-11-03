@@ -100,6 +100,10 @@ export const colors = {
   analysisActiveRing: "rgba(181,171,252,0.42)",
   analysisTitle: "#f3f5fe",
 
+  // Results screen (section 09)
+  heroRingTrack: "rgba(210,206,253,0.2)",
+  heroGlow: "rgba(181,171,252,0.42)",
+
   // Status (unchanged from P1 - no new semantics introduced)
   caution: "#ff6b6b",
 } as const;

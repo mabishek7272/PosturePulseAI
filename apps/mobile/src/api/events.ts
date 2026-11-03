@@ -14,6 +14,13 @@ export interface MetricResult {
   estimate?: { value: number; uncertainty: number } | null;
   unsupported?: { reasons: string[] } | null;
   notMeasurable?: { reason: string } | null;
+  /**
+   * Reference comparison, present only when the server includes it (the report
+   * rows carry it; the raw metric-result events do not today). Absent means
+   * "no reference known" - the screen never invents one.
+   */
+  position?: "below" | "within" | "above" | "indeterminate" | "no_reference" | "not_applicable" | null;
+  reference?: { label: string; value?: number; min?: number; max?: number } | null;
 }
 
 interface EventRecord {
