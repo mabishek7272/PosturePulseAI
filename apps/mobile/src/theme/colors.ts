@@ -83,6 +83,7 @@ export const colors = {
   captureBody: "#f3f5fe",
   captureAligned: "#8fe3c0", // AR framing target once every guidance check passes (violet-green)
   captureAlignedSoft: "rgba(143,227,192,0.55)",
+  captureGuideStroke: "#d2cefd", // framing silhouette stroke (drawn at 30% opacity)
   captureTargetIdle: "rgba(210,206,253,0.42)",
 
   // Analysis screen (section 08, dark glass)

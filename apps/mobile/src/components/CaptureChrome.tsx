@@ -3,10 +3,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState, type ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import Svg, { Circle, G, Line, Path, Rect } from "react-native-svg";
-import { coverMap } from "../capture/pose-overlay";
+import Svg, { Circle, G, Line, Path } from "react-native-svg";
+import { bodyGuideBox, GUIDE_VIEWBOX } from "../capture/body-guide";
 import type { GuidanceCheck } from "../capture/guidance";
 import { colors } from "../theme/colors";
+import { BodyGuide } from "./BodyGuide";
 import { RingPulse } from "./Motion";
 
 /** Translucent rounded glass chip/button over the camera (design: blur 16, 1px inset ring). */
@@ -122,26 +123,25 @@ export function CloseGlyph({ size = 20, color = colors.accent300 }: { size?: num
 }
 
 /**
- * AR framing target over the camera: rounded outline, ground line and centre
- * line, laid out in the 3:4 camera frame (cover-mapped to the view). Neutral
- * until every guidance check passes, then violet-green. Aids framing only.
+ * AR framing cues over the camera: the see-through body outline (BodyGuide),
+ * a centre line and a ground line at the feet. Neutral until every guidance
+ * check passes, then violet-green. Aids framing only.
  */
-export function ArTarget({ width, height, aligned }: { width: number; height: number; aligned: boolean }) {
-  const tl = coverMap(0.2, 0.07, 3, 4, width, height);
-  const br = coverMap(0.8, 0.94, 3, 4, width, height);
-  const top = coverMap(0.5, 0.07, 3, 4, width, height);
-  const bottom = coverMap(0.5, 0.94, 3, 4, width, height);
-  if (!tl || !br || !top || !bottom) return null;
+export function ArTarget({ width, height, aligned, view }: { width: number; height: number; aligned: boolean; view: string }) {
+  const box = bodyGuideBox(width, height);
+  if (!box) return null;
   const stroke = aligned ? colors.captureAligned : colors.captureTargetIdle;
+  const cx = box.x + box.w / 2;
+  const feet = box.y + (232 / GUIDE_VIEWBOX.h) * box.h;
+  const head = box.y + (6 / GUIDE_VIEWBOX.h) * box.h;
   return (
-    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Rect
-        x={tl[0]} y={tl[1]} width={br[0] - tl[0]} height={br[1] - tl[1]} rx={28}
-        stroke={stroke} strokeWidth={aligned ? 2.2 : 1.4} strokeDasharray={aligned ? undefined : "10 8"} fill="none"
-      />
-      <Line x1={top[0]} y1={top[1]} x2={bottom[0]} y2={bottom[1]} stroke={stroke} strokeWidth={1} strokeDasharray="3 8" opacity={0.7} />
-      <Line x1={tl[0] - 8} y1={br[1]} x2={br[0] + 8} y2={br[1]} stroke={stroke} strokeWidth={aligned ? 2.4 : 1.6} strokeLinecap="round" />
-    </Svg>
+    <>
+      <BodyGuide width={width} height={height} view={view} aligned={aligned} />
+      <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Line x1={cx} y1={head - 24} x2={cx} y2={feet + 8} stroke={stroke} strokeWidth={1} strokeDasharray="3 8" opacity={0.6} />
+        <Line x1={cx - box.w * 0.6} y1={feet + 2} x2={cx + box.w * 0.6} y2={feet + 2} stroke={stroke} strokeWidth={aligned ? 2.2 : 1.4} strokeLinecap="round" opacity={0.8} />
+      </Svg>
+    </>
   );
 }
 
