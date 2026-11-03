@@ -44,8 +44,10 @@ export interface NewPatient {
   intake?: PatientIntake;
 }
 
-export function searchPatients(query: string, token: string): Promise<PatientRecord[]> {
-  return request<PatientRecord[]>(`/patients?q=${encodeURIComponent(query)}`, { token });
+/** GET /patients; with no query the server returns the register (name order, capped at 200). */
+export function searchPatients(query: string | undefined, token: string): Promise<PatientRecord[]> {
+  const path = query ? `/patients?q=${encodeURIComponent(query)}` : "/patients";
+  return request<PatientRecord[]>(path, { token });
 }
 
 export function createPatient(patient: NewPatient, token: string): Promise<PatientRecord> {

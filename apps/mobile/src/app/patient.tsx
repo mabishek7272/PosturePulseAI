@@ -1,6 +1,6 @@
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   Alcohol,
   createPatient,
@@ -19,6 +19,7 @@ import { GlassCard } from "../components/GlassCard";
 import { ChevronRightIcon, PlusIcon, SearchIcon } from "../components/icons";
 import { BackButton } from "../components/ScreenHeader";
 import { initialsOf, patientMeta } from "../lib/homeData";
+import { effectiveQuery, patientListView, sortRecentFirst } from "../lib/patientList";
 import { colors } from "../theme/colors";
 
 /** Matches the backend's own check (patients.service.ts `dateOfBirth`). */
@@ -38,32 +39,46 @@ export default function PatientPickerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [reloadTick, setReloadTick] = useState(0);
+  const firstLoad = useRef(true);
 
+  // Reload whenever the screen regains focus (after creating a patient, or
+  // coming back from consent).
+  useFocusEffect(
+    useCallback(() => {
+      setReloadTick((t) => t + 1);
+    }, [])
+  );
+
+  // Load the register straight away; a search of 2+ characters filters it
+  // (debounced). Shorter queries show everyone.
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      setError(null);
-      return;
-    }
     let cancelled = false;
+    const q = effectiveQuery(query);
+    const delay = q && !firstLoad.current ? 300 : 0;
+    setLoading(true);
     const timer = setTimeout(async () => {
       try {
         const token = await getClinicianToken();
         if (!token) return router.replace("/login");
-        const found = await searchPatients(query.trim(), token);
+        const found = await searchPatients(q, token);
         if (!cancelled) {
-          setResults(found);
+          setResults(q ? found : sortRecentFirst(found));
           setError(null);
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Search failed.");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load patients.");
+      } finally {
+        if (!cancelled) setLoading(false);
+        firstLoad.current = false;
       }
-    }, 300);
+    }, delay);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, reloadTick]);
 
   function choose(patient: PatientRecord) {
     router.push({ pathname: "/consent", params: { patientId: patient.id, patientName: patient.name } });
@@ -85,6 +100,7 @@ export default function PatientPickerScreen() {
   }
 
   const trimmed = query.trim();
+  const view = patientListView({ loading, error, count: results.length, query });
   return (
     <View style={styles.root}>
       <View style={styles.flex}>
@@ -143,7 +159,7 @@ export default function PatientPickerScreen() {
                   onCancel={() => setFormOpen(false)}
                 />
               ) : null}
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+              {error && view === "list" ? <Text style={styles.error}>{error}</Text> : null}
               {results.length > 0 || formOpen ? <View style={{ height: formOpen ? 9 : 0 }} /> : null}
             </View>
           }
@@ -168,9 +184,18 @@ export default function PatientPickerScreen() {
             </FadeUp>
           )}
           ListEmptyComponent={
-            formOpen ? undefined : (
+            formOpen ? undefined : view === "loading" ? (
+              <View style={styles.emptyBox}><ActivityIndicator color={colors.accent600} /></View>
+            ) : view === "error" ? (
+              <View style={styles.emptyBox}>
+                <Text style={styles.error}>{error}</Text>
+                <Pressable accessibilityRole="button" onPress={() => setReloadTick((t) => t + 1)} style={styles.retry}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : (
               <Text style={styles.empty}>
-                {trimmed.length >= 2 ? "No matching patient." : "Type at least two letters to search patients."}
+                {view === "noMatches" ? "No matching patient." : "No patients yet — tap + New."}
               </Text>
             )
           }
@@ -428,6 +453,9 @@ const styles = StyleSheet.create({
   rowMeta: { fontSize: 12.5, color: colors.textMuted },
   rowChevron: { marginLeft: "auto" },
   empty: { color: colors.textFaint, fontSize: 13 },
+  emptyBox: { alignItems: "center", gap: 10, paddingTop: 24 },
+  retry: { paddingVertical: 8, paddingHorizontal: 18, borderRadius: 10, backgroundColor: colors.accent100, borderWidth: 1, borderColor: colors.accent300 },
+  retryText: { color: colors.accent700, fontWeight: "600", fontSize: 13 },
   error: { color: colors.caution, marginBottom: 10 },
 
   input: {
