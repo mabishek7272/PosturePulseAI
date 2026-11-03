@@ -1,17 +1,48 @@
 import { router } from "expo-router";
-import { useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { login } from "../api/auth";
 import { saveClinicianToken } from "../auth/tokenStore";
-import { Screen, useResponsive } from "../components/Screen";
+import { BadgeShieldIcon, FieldLockIcon, FieldMailIcon, InfoCircleIcon } from "../components/authIcons";
+import { PrimaryButton, SecondaryButton } from "../components/Buttons";
+import { DriftingBlobs, type BlobSpec } from "../components/DriftingBlobs";
+import { FadeUp } from "../components/FadeUp";
+import { GlassCard } from "../components/GlassCard";
+import { LogoMark } from "../components/LogoMark";
 import { colors } from "../theme/colors";
+import { shadows } from "../theme/shadows";
+
+const BLOBS: BlobSpec[] = [
+  { size: 420, left: -130, top: -150, color: colors.accent300, duration: 16 },
+  { size: 300, right: -90, bottom: -60, color: colors.accent200, duration: 19, variant: 2 },
+];
+
+function Field({
+  label, icon, focused, children,
+}: { label: string; icon: (color: string) => React.ReactNode; focused: boolean; children: React.ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>{label}</Text>
+      <View>
+        {focused ? <View pointerEvents="none" style={styles.glow} /> : null}
+        <View style={[styles.input, focused && styles.inputFocused]}>
+          {icon(focused ? colors.accent600 : colors.textFaint)}
+          {children}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function LoginScreen() {
-  const { titleSize, bodySize } = useResponsive();
+  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [focus, setFocus] = useState<"user" | "pass" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const passRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   async function submit() {
     if (busy || !username || !password) return;
@@ -28,89 +59,120 @@ export default function LoginScreen() {
   }
 
   return (
-    <Screen center>
-      <View style={styles.heading}>
-        <Image
-          source={require("../../assets/brand/mark.png")}
-          style={styles.mark}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
-        />
-        <Text style={[styles.title, { fontSize: titleSize }]}>Clinician{"\n"}sign-in</Text>
-        <Text style={[styles.subtitle, { fontSize: bodySize }]}>
-          Shared clinic device. Sessions lock after 10 minutes idle.
-        </Text>
-      </View>
+    <View style={styles.root}>
+      <DriftingBlobs blobs={BLOBS} />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingTop: Math.max(72, insets.top + 16), paddingBottom: Math.max(32, insets.bottom) },
+          ]}
+        >
+          <View style={styles.column}>
+            <FadeUp style={styles.heading}>
+              <LogoMark size={34} />
+              <Text accessibilityRole="header" style={styles.title}>Clinician{"\n"}sign-in</Text>
+              <Text style={styles.subtitle}>Shared clinic device. Sessions lock after 10 minutes idle.</Text>
+            </FadeUp>
 
-      <View style={styles.card}>
-        <View style={styles.field}>
-          <Text style={styles.label}>Username</Text>
-          <TextInput
-            style={[styles.input, { fontSize: bodySize + 1 }]}
-            placeholder="Username"
-            placeholderTextColor={colors.textFaint}
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={username}
-            onChangeText={setUsername}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={[styles.input, { fontSize: bodySize + 1 }]}
-            placeholder="Password"
-            placeholderTextColor={colors.textFaint}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            onSubmitEditing={submit}
-          />
-        </View>
+            <FadeUp delay={120} style={{ marginTop: 34 }}>
+              <GlassCard radius={20} fill={colors.glass} ring={colors.hairline} intensity={50} style={styles.cardShadow}>
+                <View style={styles.cardBody}>
+                  <Field label="Username" focused={focus === "user"} icon={(c) => <FieldMailIcon color={c} />}>
+                    <TextInput
+                      style={styles.text}
+                      placeholder="Username"
+                      placeholderTextColor={colors.textFaint}
+                      selectionColor={colors.accent600}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      returnKeyType="next"
+                      value={username}
+                      onChangeText={setUsername}
+                      onFocus={() => setFocus("user")}
+                      onBlur={() => setFocus((f) => (f === "user" ? null : f))}
+                      onSubmitEditing={() => passRef.current?.focus()}
+                    />
+                  </Field>
+                  <Field label="Passcode" focused={focus === "pass"} icon={(c) => <FieldLockIcon color={c} />}>
+                    <TextInput
+                      ref={passRef}
+                      style={[styles.text, password ? styles.textSecret : null]}
+                      placeholder="Passcode"
+                      placeholderTextColor={colors.textFaint}
+                      selectionColor={colors.accent600}
+                      secureTextEntry
+                      value={password}
+                      onChangeText={setPassword}
+                      onFocus={() => setFocus("pass")}
+                      onBlur={() => setFocus((f) => (f === "pass" ? null : f))}
+                      onSubmitEditing={submit}
+                    />
+                  </Field>
 
-        {error && <Text style={styles.error}>{error}</Text>}
+                  {error && <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>}
 
-        <Pressable style={styles.button} onPress={submit} disabled={busy}>
-          {busy ? <ActivityIndicator color={colors.textOnDark} /> : <Text style={styles.buttonText}>Unlock</Text>}
-        </Pressable>
-      </View>
+                  <PrimaryButton
+                    label="Unlock"
+                    height={52}
+                    radius={13}
+                    sheen
+                    loading={busy}
+                    onPress={submit}
+                    style={{ marginTop: 6 }}
+                  />
+                </View>
+              </GlassCard>
+            </FadeUp>
 
-      <View style={styles.footnote}>
-        <Text style={styles.footnoteText}>
-          All assessments are logged against your practitioner ID and are auditable.
-        </Text>
-      </View>
-    </Screen>
+            <FadeUp delay={200} style={{ marginTop: 14 }}>
+              {/* Not built yet: rendered as designed, visibly disabled, no action. */}
+              <SecondaryButton
+                label="Sign in with clinic badge"
+                disabled
+                icon={<BadgeShieldIcon color={colors.accent700} />}
+              />
+            </FadeUp>
+
+            <View style={{ flexGrow: 1, minHeight: 24 }} />
+            <GlassCard radius={14} fill={colors.glassFooter} ring={colors.accent200} intensity={25} elevated={false}>
+              <View style={styles.footer}>
+                <InfoCircleIcon color={colors.accent600} />
+                <Text style={styles.footerText}>
+                  All assessments are logged against your practitioner ID and are auditable.
+                </Text>
+              </View>
+            </GlassCard>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  heading: { gap: 11, marginBottom: 34 },
-  mark: { width: 44, height: 44, marginBottom: 4 },
-  title: { color: colors.text, fontWeight: "600", letterSpacing: -0.035 * 29, lineHeight: 34 },
-  subtitle: { color: colors.textMuted, lineHeight: 21 },
-  card: {
-    gap: 14, padding: 20, borderRadius: 20,
-    backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.hairline,
-  },
+  root: { flex: 1, backgroundColor: colors.white, overflow: "hidden" },
+  scroll: { flexGrow: 1, paddingHorizontal: 28 },
+  column: { flexGrow: 1, width: "100%", maxWidth: 440, alignSelf: "center" },
+  heading: { gap: 11 },
+  title: { fontSize: 29, fontWeight: "600", letterSpacing: -1.015, lineHeight: 33.35, color: colors.text },
+  subtitle: { fontSize: 14, lineHeight: 21, color: colors.textMuted },
+  cardShadow: { ...shadows.card, shadowOpacity: 0.07, shadowRadius: 17, shadowOffset: { width: 0, height: 14 } },
+  cardBody: { gap: 14, paddingVertical: 22, paddingHorizontal: 20 },
   field: { gap: 7 },
-  label: { fontSize: 12, fontWeight: "500", color: "#595d6c" },
+  label: { fontSize: 12, fontWeight: "500", letterSpacing: 0.24, color: colors.textSecondary },
   input: {
-    backgroundColor: colors.accent100, color: colors.text,
-    borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: colors.hairline,
+    flexDirection: "row", alignItems: "center", gap: 10, height: 48, paddingHorizontal: 14,
+    borderRadius: 12, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.hairline,
   },
-  error: { color: colors.caution },
-  button: {
-    marginTop: 2, height: 52, borderRadius: 13, alignItems: "center", justifyContent: "center",
-    backgroundColor: colors.accent700,
+  inputFocused: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.accent400 },
+  glow: {
+    position: "absolute", top: -4, left: -4, right: -4, bottom: -4, borderRadius: 16, backgroundColor: colors.focusGlow,
   },
-  buttonText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },
-  footnote: {
-    marginTop: "auto", flexDirection: "row", gap: 10, padding: 13, borderRadius: 14,
-    backgroundColor: "rgba(245,244,255,0.8)",
-    borderWidth: 1, borderColor: colors.accent200,
-  },
-  footnoteText: { fontSize: 12, color: "#595d6c", lineHeight: 17, flex: 1 },
+  text: { flex: 1, fontSize: 15, color: colors.text, padding: 0 },
+  textSecret: { fontSize: 17, letterSpacing: 5.1 },
+  error: { fontSize: 13, color: colors.caution },
+  footer: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 15 },
+  footerText: { flex: 1, fontSize: 12, lineHeight: 17.4, color: colors.textSecondary },
 });
