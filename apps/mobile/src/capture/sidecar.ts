@@ -17,6 +17,16 @@ export class MissingGravityError extends Error {
   }
 }
 
+/**
+ * The server stores the clip under this id as both its primary key and its
+ * filename, and accepts only 1-64 letters, digits, '-' or '_' (SAFE_CLIP_ID in
+ * clips.service.ts). Step ids contain dots ("static.anterior"), so they are
+ * mapped to underscores; a raw `${sessionId}-${stepId}` is rejected with a 400.
+ */
+export function clipIdFor(sessionId: string, stepId: string): string {
+  return `${sessionId}-${stepId.replace(/\./g, "_")}`;
+}
+
 export interface ClipCapture {
   clipId: string;
   sessionId: string;

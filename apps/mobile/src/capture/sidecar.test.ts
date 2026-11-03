@@ -1,5 +1,5 @@
 import type { GravitySample } from "./gravity";
-import { buildSidecar, MissingGravityError } from "./sidecar";
+import { buildSidecar, clipIdFor, MissingGravityError } from "./sidecar";
 
 const device = { model: "iPhone16,1", lens: "back_wide" as const, appVersion: "1.0.0" };
 
@@ -117,5 +117,21 @@ describe("buildSidecar", () => {
         buildSidecar({ ...base, durationSeconds, gravitySamples: [{ t: 0, g: [0, 1, 0] }] })
       ).toThrow(MissingGravityError);
     }
+  });
+});
+
+describe("clipIdFor", () => {
+  const SAFE_CLIP_ID = /^[A-Za-z0-9_-]{1,64}$/;
+  const sessionId = "3de068be-08f2-4989-b8ad-b2b427b90e4d";
+
+  it.each(["static.anterior", "static.left_lateral", "static.right_lateral", "static.posterior"])(
+    "yields an id the server accepts for %s",
+    (stepId) => {
+      expect(clipIdFor(sessionId, stepId)).toMatch(SAFE_CLIP_ID);
+    }
+  );
+
+  it("is distinct per step so each pose stores its own clip", () => {
+    expect(clipIdFor(sessionId, "static.anterior")).not.toBe(clipIdFor(sessionId, "static.posterior"));
   });
 });

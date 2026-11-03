@@ -13,7 +13,7 @@ import {
 import { uploadClip } from "../api/clips";
 import { startGravitySampling } from "../capture/gravity";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
-import { buildSidecar } from "../capture/sidecar";
+import { buildSidecar, clipIdFor } from "../capture/sidecar";
 import { MAX_CONTENT_WIDTH, useResponsive } from "../components/Screen";
 import { colors } from "../theme/colors";
 
@@ -128,7 +128,7 @@ export default function CaptureScreen() {
           const gravitySamples = stopSampling();
           try {
             const sidecar = buildSidecar({
-              clipId: `${sessionId}-${pose.stepId}`,
+              clipId: clipIdFor(sessionId, pose.stepId),
               sessionId,
               stepId: pose.stepId,
               view: pose.view,
