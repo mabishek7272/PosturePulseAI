@@ -1,7 +1,7 @@
 import { HIDDEN } from "./pose-overlay";
 import {
   DISTANCE_MAX, DISTANCE_MIN, MIN_KEY_SCORE, SAFE_ANKLE_Y_MAX, SAFE_HEAD_Y_MIN, SAFE_X_MAX, SAFE_X_MIN, checkFraming,
-  MotionTracker, bodySpan, PITCH_LIMIT_DEG, PITCH_MESSAGE, evaluateGuidance, unavailableGuidance } from "./guidance";
+  MotionTracker, ROLL_TOLERANCE_DEG, bodySpan, distanceReading, distanceState, PITCH_TOLERANCE_DEG, PITCH_MESSAGE, evaluateGuidance, unavailableGuidance } from "./guidance";
 
 /** Standing person facing the camera, centred, head y=top, ankles y=bottom. */
 function standing(top = 0.12, bottom = 0.84, cx = 0.5): number[] {
@@ -89,8 +89,8 @@ describe("evaluateGuidance", () => {
     expect(evaluateGuidance({ pts: new Array(34).fill(HIDDEN), ...ok, pitchDeg: 9 }).message).toBe("Looking for a person");
   });
   it("pitch exactly at the limit passes, just above fails", () => {
-    expect(evaluateGuidance({ pts: standing(), ...ok, pitchDeg: PITCH_LIMIT_DEG }).aligned).toBe(true);
-    expect(evaluateGuidance({ pts: standing(), ...ok, pitchDeg: PITCH_LIMIT_DEG + 0.01 }).aligned).toBe(false);
+    expect(evaluateGuidance({ pts: standing(), ...ok, pitchDeg: PITCH_TOLERANCE_DEG }).aligned).toBe(true);
+    expect(evaluateGuidance({ pts: standing(), ...ok, pitchDeg: PITCH_TOLERANCE_DEG + 0.01 }).aligned).toBe(false);
   });
   it("unknown pitch never counts as level", () => {
     for (const p of [null, NaN]) {
@@ -221,5 +221,38 @@ describe("MotionTracker", () => {
     for (let i = 0; i < 5; i++) m.push(standing(0.12, 0.84, 0.2 + i * 0.1), i * 100);
     for (let i = 0; i < 6; i++) m.push(standing(), 5000 + i * 100);
     expect(m.motion()).toBeCloseTo(0, 6);
+  });
+});
+
+describe("tolerances shared with the bubble level", () => {
+  it("level = |roll| <= 3 and pitch <= 5", () => {
+    expect(ROLL_TOLERANCE_DEG).toBe(3);
+    expect(PITCH_TOLERANCE_DEG).toBe(5);
+    const lv = (rollDeg: number, pitchDeg: number) => evaluateGuidance({ pts: standing(), ...ok, rollDeg, pitchDeg }).checks.find((c) => c.id === "level")!.ok;
+    expect(lv(3, 5)).toBe(true);
+    expect(lv(-3, 5)).toBe(true);
+    expect(lv(3.01, 0)).toBe(false);
+    expect(lv(0, 5.01)).toBe(false);
+  });
+});
+
+describe("distance meter reading", () => {
+  it("classifies the span against the guidance band", () => {
+    expect(distanceState(null)).toBe("none");
+    expect(distanceState(DISTANCE_MIN - 0.01)).toBe("far");
+    expect(distanceState(DISTANCE_MIN)).toBe("good");
+    expect(distanceState(DISTANCE_MAX)).toBe("good");
+    expect(distanceState(DISTANCE_MAX + 0.01)).toBe("close");
+  });
+  it("uses bodySpan and needs a person", () => {
+    const r = distanceReading(standing(0.12, 0.84), "anterior");
+    expect(r.span).toBeCloseTo(bodySpan(standing(0.12, 0.84), "anterior")!);
+    expect(r.state).toBe("good");
+    expect(distanceReading(standing(0.3, 0.6), "anterior").state).toBe("far");
+    expect(distanceReading(new Array(34).fill(HIDDEN), "anterior")).toEqual({ span: null, state: "none" });
+  });
+  it("evaluateGuidance exposes the same span", () => {
+    expect(evaluateGuidance({ pts: standing(), ...ok }).span).toBeCloseTo(0.72);
+    expect(unavailableGuidance().span).toBeNull();
   });
 });

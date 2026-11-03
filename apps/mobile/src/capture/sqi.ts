@@ -24,7 +24,7 @@
  *       visibility floor, 0.7 is "clearly seen")
  *   SQI = round(100 * (0.25 C + 0.25 F + 0.20 Q + 0.20 S + 0.10 L))
  */
-import { LEVEL_TOLERANCE_DEG } from "./guidance";
+import { ROLL_TOLERANCE_DEG } from "./guidance";
 
 export const SQI_WEIGHTS = { confident: 0.25, inFrame: 0.25, conf: 0.2, steady: 0.2, level: 0.1 } as const;
 export const CONF_FLOOR = 0.3;
@@ -75,7 +75,7 @@ export function addFrame(acc: SqiAccumulator, f: FrameSample): SqiAccumulator {
   if (f.inFrame) acc.inFrame++;
   if (f.confident && f.inFrame) acc.kept++;
   if (f.steady) acc.steady++;
-  if (f.rollDeg !== null && Math.abs(f.rollDeg) <= LEVEL_TOLERANCE_DEG) acc.level++;
+  if (f.rollDeg !== null && Math.abs(f.rollDeg) <= ROLL_TOLERANCE_DEG) acc.level++;
   acc.confSum += Number.isFinite(f.conf) ? Math.max(0, f.conf) : 0;
 
   const aligned = f.steady && f.inFrame && f.confident;

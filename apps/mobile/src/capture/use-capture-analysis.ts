@@ -50,7 +50,7 @@ export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }:
 
   useEffect(() => {
     const publish = (g: Guidance) => {
-      const key = `${g.available}|${g.message}|${g.checks.map((c) => (c.ok ? 1 : 0)).join("")}`;
+      const key = `${g.available}|${g.message}|${g.span === null ? "-" : Math.round(g.span * 100)}|${g.checks.map((c) => (c.ok ? 1 : 0)).join("")}`;
       if (key !== keyRef.current) {
         keyRef.current = key;
         setGuidance(g);

@@ -4,8 +4,8 @@
  *
  * ALIGNMENT AID ONLY. These checks tell the person filming whether the subject
  * is framed well enough to record. They say nothing about the subject's
- * posture and never use cm or degree claims about the body; the only number
- * ever surfaced is the PHONE's own roll, which comes from the gravity sensor.
+ * posture and never use cm or degree claims about the body; the only numbers
+ * ever surfaced are the PHONE's own tilt angles, which comes from the gravity sensor.
  * The measurement is the server's MediaPipe analysis of the recorded clip.
  *
  * Direction wording is from the SCREEN's point of view ("toward the left of the
@@ -67,14 +67,19 @@ export const DISTANCE_MAX = BAND_FEET_Y - BAND_HEAD_Y_NEAR; // 0.78
 export const DISTANCE_MIN = 0.55;
 /** Torso midpoint may be this far from the horizontal frame centre (fraction of frame width). */
 export const CENTRE_TOLERANCE = 0.08;
-/** Phone roll tolerance, degrees. */
-export const LEVEL_TOLERANCE_DEG = 2;
 /**
- * Pre-record pitch (forward/back tilt) limit, degrees. The server rejects a
- * clip as camera_not_level above 2 x levelToleranceDegrees = 12 degrees using
- * the same pitch formula; warning at 8 leaves margin for drift while recording.
+ * Left-right tilt (roll) tolerance, degrees. Used by BOTH the guidance "Level"
+ * check and the bubble level's green zone. Small because the server
+ * roll-corrects every frame, so a few degrees of roll are harmless.
  */
-export const PITCH_LIMIT_DEG = 8;
+export const ROLL_TOLERANCE_DEG = 3;
+/**
+ * Pre-record forward/back tilt (pitch) tolerance, degrees. Also shared by the
+ * guidance and the bubble level. The server rejects a clip as camera_not_level
+ * above 2 x levelToleranceDegrees = 12 degrees using the same pitch formula;
+ * 5 leaves a wide margin for drift while recording.
+ */
+export const PITCH_TOLERANCE_DEG = 5;
 /** RMS keypoint wander (fraction of frame height) over the window below which the subject is "steady". */
 export const STEADY_THRESHOLD = 0.012;
 export const STEADY_WINDOW_MS = 1000;
@@ -101,6 +106,8 @@ export interface Guidance {
   inFrame: boolean;
   /** Person detected with enough points (what SQI counts as "confident"). */
   personOk: boolean;
+  /** Head-to-ankle keypoint span (fraction of frame height) for the distance meter; null when unknown. */
+  span: number | null;
 }
 
 const CHECK_LABELS: Record<CheckId, string> = {
@@ -250,6 +257,28 @@ function framingMessage(problem: FramingProblem | null): string {
   }
 }
 
+export type DistanceState = "none" | "far" | "good" | "close";
+
+/** Where the person is relative to the distance band, from the keypoint span (null = no person / ends hidden). */
+export function distanceState(span: number | null): DistanceState {
+  if (span === null || !Number.isFinite(span)) return "none";
+  if (span < DISTANCE_MIN) return "far";
+  if (span > DISTANCE_MAX) return "close";
+  return "good";
+}
+
+/**
+ * Head-to-ankle span for the distance meter: the SAME bodySpan guidance uses,
+ * but only while a person is detected (enough visible points). Unlike the
+ * distance check it does not require the whole body to be inside the frame, so
+ * the meter can still show where the person stands.
+ */
+export function distanceReading(pts: readonly number[], view: string): { span: number | null; state: DistanceState } {
+  const personOk = visibleCount(pts) >= (isLateral(view) ? MIN_POINTS_LATERAL : MIN_POINTS_FRONTAL);
+  const span = personOk ? bodySpan(pts, view) : null;
+  return { span, state: distanceState(span) };
+}
+
 export function unavailableGuidance(): Guidance {
   return {
     available: false,
@@ -258,6 +287,7 @@ export function unavailableGuidance(): Guidance {
     aligned: false,
     inFrame: false,
     personOk: false,
+    span: null,
   };
 }
 
@@ -280,8 +310,8 @@ export function evaluateGuidance(input: GuidanceInput): Guidance {
   const centredOk = offset !== null && Math.abs(offset) <= CENTRE_TOLERANCE;
 
   const pitchKnown = pitchDeg !== null && Number.isFinite(pitchDeg);
-  const pitchOk = pitchKnown && pitchDeg! <= PITCH_LIMIT_DEG;
-  const levelOk = rollDeg !== null && Math.abs(rollDeg) <= LEVEL_TOLERANCE_DEG && pitchOk;
+  const pitchOk = pitchKnown && pitchDeg! <= PITCH_TOLERANCE_DEG;
+  const levelOk = rollDeg !== null && Math.abs(rollDeg) <= ROLL_TOLERANCE_DEG && pitchOk;
   const steadyOk = personOk && motion !== null && motion <= STEADY_THRESHOLD;
 
   const ok: Record<CheckId, boolean> = {
@@ -312,6 +342,7 @@ export function evaluateGuidance(input: GuidanceInput): Guidance {
     aligned: checks.every((c) => c.ok),
     inFrame: wholeBody,
     personOk,
+    span: distanceReading(pts, view).span,
   };
 }
 
