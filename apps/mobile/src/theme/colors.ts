@@ -85,6 +85,10 @@ export const colors = {
   captureAlignedSoft: "rgba(143,227,192,0.55)",
   captureGuideStroke: "#d2cefd", // framing silhouette stroke (drawn at 30% opacity)
   captureTargetIdle: "rgba(210,206,253,0.42)",
+  captureAmber: "#F5B544", // hold feedback: filming condition needs attention
+  captureAmberSoft: "rgba(245,181,68,0.55)",
+  captureAmberPill: "rgba(245,181,68,0.22)",
+  captureAmberPillRing: "rgba(245,181,68,0.6)",
 
   // Analysis screen (section 08, dark glass)
   analysisGlass: "rgba(255,255,255,0.06)",

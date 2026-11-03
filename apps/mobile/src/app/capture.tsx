@@ -19,9 +19,10 @@ import { useTensorflowModel } from "react-native-fast-tflite";
 import { useResizer } from "react-native-vision-camera-resizer";
 import { uploadClip } from "../api/clips";
 import { startGravitySampling } from "../capture/gravity";
-import { PITCH_LIMIT_DEG } from "../capture/guidance";
+import { createFeedback, ISSUE_TEXT, type FeedbackEvent, type Issue } from "../capture/feedback";
+import { LEVEL_TOLERANCE_DEG, PITCH_LIMIT_DEG } from "../capture/guidance";
 import { formatLevel, useDeviceTilt } from "../capture/level";
-import { startHaptic, tickHaptic } from "../capture/haptics";
+import { recordingStartHaptic, recoveredHaptic, milestoneHaptic, tickHaptic, warnHaptic } from "../capture/haptics";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
   personPresent, meanVisibleScore, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
 import { CLIP_SECONDS, POSES } from "../capture/poses";
@@ -31,6 +32,7 @@ import { starsFor } from "../capture/sqi";
 import { useCaptureAnalysis } from "../capture/use-capture-analysis";
 import { readVideoInfoFromFile } from "../capture/video-info-file";
 import { ArTarget, CentreGuides, CloseGlyph, GuidanceChips, ScanLine, Shutter, SquareGlassButton, ViewProgress, CaptureGlass } from "../components/CaptureChrome";
+import { EdgeGlow, HoldToast, type ToastMessage } from "../components/HoldToast";
 import { PoseResultCard, RecordingHud } from "../components/CaptureHud";
 import { ringSize, ScanRing } from "../components/ScanRing";
 import { GlassCard } from "../components/GlassCard";
@@ -39,7 +41,7 @@ import { PulseDot } from "../components/Motion";
 import { PoseOverlay } from "../components/PoseOverlay";
 import { MAX_CONTENT_WIDTH } from "../components/Screen";
 import { BackButton } from "../components/ScreenHeader";
-import { useCaptureGuidancePref, useSkeletonOverlayPref } from "../settings/prefs";
+import { useCaptureGuidancePref, useHapticFeedbackPref, useSkeletonOverlayPref } from "../settings/prefs";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 
@@ -176,6 +178,9 @@ export default function CaptureScreen() {
   pitchRef.current = pitch;
   const [skeletonOn] = useSkeletonOverlayPref();
   const [guidanceOn] = useCaptureGuidancePref();
+  const [hapticOn] = useHapticFeedbackPref();
+  const hapticRef = useRef(hapticOn);
+  hapticRef.current = hapticOn;
   const poseGuideRunning = modelState.state === "loaded" && !resizerState.error && !!resizer;
 
   const { guidance, beginRecording, endRecording, getLive } = useCaptureAnalysis({
@@ -220,6 +225,72 @@ export default function CaptureScreen() {
 
   const currentPose = POSES[poseIndex];
 
+  // Hold feedback: while recording, turn the live checks into at most a few
+  // gentle nudges (haptic on iPhone, amber ring/edge glow and a small toast
+  // everywhere). Filming conditions only. Stops and clears on cancel, finish
+  // and unmount because the interval is tied to `recording`.
+  const guidanceRef = useRef(guidance);
+  guidanceRef.current = guidance;
+  const [warnIssue, setWarnIssue] = useState<Issue | null>(null);
+  const [greenFlash, setGreenFlash] = useState(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  useEffect(() => {
+    if (!recording || recordingStartedAt === null) return;
+    const fb = createFeedback(CLIP_SECONDS);
+    let toastId = 0;
+    let flashTimer: ReturnType<typeof setTimeout> | null = null;
+    const dispatch = (e: FeedbackEvent) => {
+      const haptic = hapticRef.current;
+      if (e.kind === "warn") {
+        if (haptic) warnHaptic();
+        setToast({ id: ++toastId, text: ISSUE_TEXT[e.issue], tone: "warn" });
+      } else if (e.kind === "recovered") {
+        if (haptic) recoveredHaptic();
+        setToast({ id: ++toastId, text: "Good", tone: "good" });
+        setGreenFlash(true);
+        if (flashTimer) clearTimeout(flashTimer);
+        flashTimer = setTimeout(() => setGreenFlash(false), 1200);
+      } else if (e.kind === "start") {
+        if (haptic) recordingStartHaptic();
+      } else if (haptic) {
+        milestoneHaptic();
+      }
+    };
+    const id = setInterval(() => {
+      try {
+        const g = guidanceRef.current;
+        const issues = new Set<Issue>();
+        const roll = rollRef.current;
+        const pitch = pitchRef.current;
+        if (pitch !== null && pitch > PITCH_LIMIT_DEG) issues.add("tilt");
+        else if (roll !== null && Math.abs(roll) > LEVEL_TOLERANCE_DEG) issues.add("level");
+        if (g.available) {
+          const ok = (i: number) => g.checks[i].ok;
+          if (!g.personOk) issues.add("personLost");
+          else {
+            if (!g.inFrame) issues.add("inFrame");
+            else {
+              if (!ok(2)) issues.add("distance");
+              if (!ok(3)) issues.add("centred");
+            }
+            if (!ok(5)) issues.add("steady");
+          }
+        }
+        for (const e of fb.step({ phase: "recording", issues, now: performance.now() })) dispatch(e);
+        setWarnIssue(fb.activeIssue());
+      } catch {
+        // Feedback is best-effort; never affects recording.
+      }
+    }, 100);
+    return () => {
+      clearInterval(id);
+      if (flashTimer) clearTimeout(flashTimer);
+      setWarnIssue(null);
+      setGreenFlash(false);
+      setToast(null);
+    };
+  }, [recording, recordingStartedAt, rollRef, pitchRef]);
+
   function resetRecordingState() {
     activeStop.current = null;
     activeRecorder.current = null;
@@ -249,7 +320,6 @@ export default function CaptureScreen() {
         return;
       }
       clearCountdown();
-      startHaptic();
       void record();
     }, 1000);
   }
@@ -422,6 +492,7 @@ export default function CaptureScreen() {
         <View pointerEvents="none" style={styles.frame} />
       )}
       {skeletonOn ? <PoseOverlay pose={pose} /> : null}
+      <EdgeGlow mode={recording && warnIssue ? "amber" : recording && greenFlash ? "green" : "none"} />
 
       <View
         style={[styles.overlay, { paddingTop: insets.top + 14, paddingBottom: Math.max(30, insets.bottom + 12) }]}
@@ -450,11 +521,14 @@ export default function CaptureScreen() {
           </View>
 
           <ViewProgress labels={VIEW_LABELS} current={poseIndex} />
+          <HoldToast toast={toast} />
         </View>
 
         <View style={[styles.constrained, styles.bottom]} pointerEvents="box-none">
           {busy && !result ? (
-            <ScanRing size={ringSize(winH)} startedAt={recording ? recordingStartedAt : null} totalSeconds={CLIP_SECONDS} countdown={recording ? null : countdown} />
+            <ScanRing size={ringSize(winH)} startedAt={recording ? recordingStartedAt : null} totalSeconds={CLIP_SECONDS} countdown={recording ? null : countdown}
+              tone={recording && warnIssue ? "amber" : recording && greenFlash ? "green" : "violet"}
+              caption={recording && warnIssue ? ISSUE_TEXT[warnIssue] : null} />
           ) : null}
           <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={50} elevated={false} radius={18}>
             {result ? (

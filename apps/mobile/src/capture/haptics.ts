@@ -42,3 +42,28 @@ export function startHaptic(): void {
     // ignore
   }
 }
+
+/** Hold went unsteady / misaligned (iPhone only: iPads have no Taptic Engine). */
+export function warnHaptic(): void {
+  try {
+    const h = haptics();
+    void h?.notificationAsync(h.NotificationFeedbackType.Warning).catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
+/** Conditions are good again after a warning. */
+export function recoveredHaptic(): void {
+  startHaptic();
+}
+
+/** Recording has started. */
+export function recordingStartHaptic(): void {
+  try {
+    const h = haptics();
+    void h?.impactAsync(h.ImpactFeedbackStyle.Medium).catch(() => {});
+  } catch {
+    // ignore
+  }
+}

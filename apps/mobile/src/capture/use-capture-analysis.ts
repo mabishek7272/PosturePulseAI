@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SharedValue } from "react-native-reanimated";
 import { MotionTracker, evaluateGuidance, unavailableGuidance, type Guidance } from "./guidance";
-import { milestoneHaptic } from "./haptics";
 import type { PoseSnapshot } from "./pose-overlay";
-import { addFrame, emptyAccumulator, milestoneCrossed, summarise, type SqiAccumulator, type SqiSummary } from "./sqi";
+import { addFrame, emptyAccumulator, summarise, type SqiAccumulator, type SqiSummary } from "./sqi";
 
 /** JS-side sampling rate of the pose guide's keypoints (frames are ~30 Hz; this is deliberately cheaper). */
 const SAMPLE_MS = 100;
@@ -81,7 +80,6 @@ export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }:
             tMs, confident: g.personOk, inFrame: g.inFrame, conf: snap.conf ?? 0, steady, rollDeg: rollRef.current,
           });
           const streak = a.streakStartMs !== null ? (tMs - a.streakStartMs) / 1000 : 0;
-          if (milestoneCrossed(lastStreak.current, streak) !== null) milestoneHaptic();
           lastStreak.current = streak;
         }
       } catch {

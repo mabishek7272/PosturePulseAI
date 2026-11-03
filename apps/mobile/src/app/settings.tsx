@@ -15,7 +15,7 @@ import {
   AutoCaptureIcon, GuidanceIcon, LockDeviceIcon, OverlayIcon, PrivacyIcon, SparkleSingleIcon, VoiceIcon,
 } from "../components/profileIcons";
 import { initialsOf, usernameFromToken } from "../lib/homeData";
-import { useCaptureGuidancePref, useSkeletonOverlayPref } from "../settings/prefs";
+import { useCaptureGuidancePref, useHapticFeedbackPref, useSkeletonOverlayPref } from "../settings/prefs";
 import { colors } from "../theme/colors";
 import { shadows } from "../theme/shadows";
 import { type } from "../theme/typography";
@@ -34,6 +34,7 @@ export default function SettingsScreen() {
   const [username, setUsername] = useState<string | null>(null);
   const [skeleton, setSkeleton] = useSkeletonOverlayPref();
   const [guidance, setGuidance] = useCaptureGuidancePref();
+  const [haptic, setHaptic] = useHapticFeedbackPref();
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +74,8 @@ export default function SettingsScreen() {
           <Row Icon={AutoCaptureIcon} label="Auto-capture when steady" caption="Coming soon" disabled />
           <Divider />
           <Row Icon={OverlayIcon} label="Skeleton overlay" value={skeleton} onChange={setSkeleton} />
+          <Divider />
+          <Row Icon={GuidanceIcon} label="Haptic feedback" caption="Buzz when the hold is not steady (iPhone only)" value={haptic} onChange={setHaptic} />
           <Divider />
           <Row Icon={VoiceIcon} label="Voice notes" caption="Coming soon" disabled />
         </Group>

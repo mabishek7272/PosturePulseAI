@@ -99,3 +99,47 @@ export function useCaptureGuidancePref(): [boolean, (value: boolean) => void] {
   }, []);
   return [value, set];
 }
+
+// ---- Haptic feedback during the hold (buzz when the hold is not steady; iPhone only) ----
+
+const HAPTIC_KEY = "pp.pref.hapticFeedback";
+const hapticListeners = new Set<Listener>();
+
+/** Read the persisted preference (default ON). Never throws. */
+export async function readHapticFeedbackPref(): Promise<boolean> {
+  try {
+    return parseBoolPref(await SecureStore.getItemAsync(HAPTIC_KEY), true);
+  } catch {
+    return true;
+  }
+}
+
+export async function writeHapticFeedbackPref(value: boolean): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(HAPTIC_KEY, serialiseBoolPref(value));
+  } catch {
+    // Storage unavailable: the in-memory value still applies for this run.
+  }
+  hapticListeners.forEach((l) => l(value));
+}
+
+/** [value, setValue] for hold haptic feedback. Defaults to ON until the stored value loads. */
+export function useHapticFeedbackPref(): [boolean, (value: boolean) => void] {
+  const [value, setValue] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    readHapticFeedbackPref().then((v) => {
+      if (!cancelled) setValue(v);
+    });
+    hapticListeners.add(setValue);
+    return () => {
+      cancelled = true;
+      hapticListeners.delete(setValue);
+    };
+  }, []);
+  const set = useCallback((next: boolean) => {
+    setValue(next);
+    void writeHapticFeedbackPref(next);
+  }, []);
+  return [value, set];
+}

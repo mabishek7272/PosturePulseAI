@@ -15,8 +15,16 @@ export function ringSize(winH: number): number {
  * Sits on a dark translucent disc so it reads over a busy camera image.
  */
 export function ScanRing({
-  size, startedAt, totalSeconds, countdown,
-}: { size: number; startedAt: number | null; totalSeconds: number; countdown: number | null }) {
+  size, startedAt, totalSeconds, countdown, tone = "violet", caption,
+}: {
+  size: number; startedAt: number | null; totalSeconds: number; countdown: number | null;
+  /** amber = a filming condition needs attention; green = flash after it recovers. */
+  tone?: "violet" | "amber" | "green";
+  /** Replaces "Hold still" under the time while set. */
+  caption?: string | null;
+}) {
+  const arc = tone === "amber" ? colors.captureAmber : tone === "green" ? colors.captureAligned : colors.accent400;
+  const capColor = tone === "amber" ? colors.captureAmber : tone === "green" ? colors.captureAligned : colors.accent300;
   const elapsed = useElapsedSeconds(startedAt);
   const stroke = Math.max(9, Math.round(size * 0.07));
   const r = (size - stroke) / 2 - 4;
@@ -30,7 +38,7 @@ export function ScanRing({
         <Defs>
           <LinearGradient id="ringArc" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor="#ffffff" />
-            <Stop offset="1" stopColor={colors.accent400} />
+            <Stop offset="1" stopColor={arc} />
           </LinearGradient>
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={size / 2 - 1} fill="rgba(10,8,24,0.62)" />
@@ -38,7 +46,7 @@ export function ScanRing({
         {p > 0 ? (
           <>
             <Circle
-              cx={size / 2} cy={size / 2} r={r} stroke={colors.accent400} strokeOpacity={0.35} strokeWidth={stroke + 8} fill="none"
+              cx={size / 2} cy={size / 2} r={r} stroke={arc} strokeOpacity={0.35} strokeWidth={stroke + 8} fill="none"
               strokeLinecap="round" strokeDasharray={`${c} ${c}`} strokeDashoffset={c * (1 - p)}
               rotation={-90} origin={`${size / 2}, ${size / 2}`}
             />
@@ -59,7 +67,7 @@ export function ScanRing({
         ) : (
           <>
             <Text style={[styles.big, { fontSize: size * 0.26 }]}>{remaining}</Text>
-            <Text style={styles.cap}>Hold still</Text>
+            <Text style={[styles.cap, { color: capColor }]} numberOfLines={2}>{caption ?? "Hold still"}</Text>
           </>
         )}
       </View>
@@ -70,5 +78,5 @@ export function ScanRing({
 const styles = StyleSheet.create({
   inner: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   big: { color: colors.white, fontWeight: "300", fontVariant: ["tabular-nums"], textShadowColor: colors.captureShutterGlow, textShadowRadius: 12 },
-  cap: { color: colors.accent300, fontSize: 12, fontWeight: "600", letterSpacing: 0.6, marginTop: 2 },
+  cap: { textAlign: "center", paddingHorizontal: 8, color: colors.accent300, fontSize: 12, fontWeight: "600", letterSpacing: 0.6, marginTop: 2 },
 });
