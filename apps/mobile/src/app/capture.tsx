@@ -20,8 +20,8 @@ import { useResizer } from "react-native-vision-camera-resizer";
 import { uploadClip } from "../api/clips";
 import { startGravitySampling } from "../capture/gravity";
 import { createFeedback, ISSUE_TEXT, type FeedbackEvent, type Issue } from "../capture/feedback";
-import { LEVEL_TOLERANCE_DEG, PITCH_LIMIT_DEG } from "../capture/guidance";
-import { formatLevel, useDeviceTilt } from "../capture/level";
+import { distanceState, PITCH_TOLERANCE_DEG, ROLL_TOLERANCE_DEG } from "../capture/guidance";
+import { useDeviceTilt } from "../capture/level";
 import { recordingStartHaptic, recoveredHaptic, milestoneHaptic, tickHaptic, warnHaptic } from "../capture/haptics";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
   personPresent, meanVisibleScore, keypointScores, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
@@ -35,10 +35,12 @@ import { ArTarget, CentreGuides, CloseGlyph, GuidanceChips, InfoButton, ScanLine
 import { EdgeGlow, HoldToast, type ToastMessage } from "../components/HoldToast";
 import { PoseResultCard, RecordingHud } from "../components/CaptureHud";
 import { ScanRing } from "../components/ScanRing";
-import { computeCaptureLayout } from "../capture/layout";
+import { BubbleLevel2D } from "../components/BubbleLevel2D";
+import { DistanceMeter } from "../components/DistanceMeter";
+import { bubbleDiameter, computeCaptureLayout } from "../capture/layout";
 import { LinearGradient } from "expo-linear-gradient";
 import { GlassCard } from "../components/GlassCard";
-import { ClockIcon, LayoutIcon, RefreshIcon, SparkleIcon } from "../components/icons";
+import { LayoutIcon, RefreshIcon, SparkleIcon } from "../components/icons";
 import { PulseDot } from "../components/Motion";
 import { PoseOverlay } from "../components/PoseOverlay";
 import { MAX_CONTENT_WIDTH } from "../components/Screen";
@@ -171,13 +173,10 @@ export default function CaptureScreen() {
     const id = setInterval(() => setPointCount(visibleCount(pose.value.pts)), 250);
     return () => clearInterval(id);
   }, [pose]);
-  const { roll, pitch } = useDeviceTilt();
-  const tilted = pitch !== null && pitch > PITCH_LIMIT_DEG;
-  const levelText = tilted ? "Tilted" : formatLevel(roll);
-  const rollRef = useRef<number | null>(null);
-  rollRef.current = roll;
-  const pitchRef = useRef<number | null>(null);
-  pitchRef.current = pitch;
+  // Smoothed 2-axis tilt: state at ~15 Hz for the bubble, refs updated on every motion sample for guidance/feedback.
+  const { x: tiltX, y: tiltY, level: tiltLevel, refs: tiltRefs } = useDeviceTilt();
+  const rollRef = tiltRefs.roll;
+  const pitchRef = tiltRefs.pitch;
   const [skeletonOn] = useSkeletonOverlayPref();
   const [guidanceOn] = useCaptureGuidancePref();
   const [hapticOn] = useHapticFeedbackPref();
@@ -267,8 +266,8 @@ export default function CaptureScreen() {
         const issues = new Set<Issue>();
         const roll = rollRef.current;
         const pitch = pitchRef.current;
-        if (pitch !== null && pitch > PITCH_LIMIT_DEG) issues.add("tilt");
-        else if (roll !== null && Math.abs(roll) > LEVEL_TOLERANCE_DEG) issues.add("level");
+        if (pitch !== null && pitch > PITCH_TOLERANCE_DEG) issues.add("tilt");
+        else if (roll !== null && Math.abs(roll) > ROLL_TOLERANCE_DEG) issues.add("level");
         if (g.available) {
           const ok = (i: number) => g.checks[i].ok;
           if (!g.personOk) issues.add("personLost");
@@ -514,6 +513,17 @@ export default function CaptureScreen() {
         </View>
       ) : null}
 
+      {!result ? (
+        <>
+          <View pointerEvents="none" style={{ position: "absolute", left: lay.bubble.x, top: lay.bubble.y, width: lay.bubble.w, height: lay.bubble.h }}>
+            <BubbleLevel2D x={tiltX} y={tiltY} level={tiltLevel} size={recording ? Math.round(bubbleDiameter(winW) * 0.85) : bubbleDiameter(winW)} width={lay.bubble.w} compact={recording} />
+          </View>
+          <View pointerEvents="none" style={{ position: "absolute", left: lay.distance.x, top: lay.distance.y, width: lay.distance.w, height: lay.distance.h }}>
+            <DistanceMeter span={guidance.span} state={distanceState(guidance.span)} width={lay.distance.w} height={lay.distance.h} />
+          </View>
+        </>
+      ) : null}
+
       <View
         style={[styles.overlay, { paddingTop: insets.top + 14, paddingBottom: Math.max(8, insets.bottom) }]}
         pointerEvents="box-none"
@@ -525,17 +535,6 @@ export default function CaptureScreen() {
               <View style={styles.pillInner} accessibilityLiveRegion="polite">
                 {detecting ? <PulseDot style={styles.dot} /> : <View style={[styles.dot, styles.dotIdle]} />}
                 <Text style={styles.pillText} numberOfLines={1}>{statusText}</Text>
-              </View>
-            </CaptureGlass>
-            <CaptureGlass
-              radius={11}
-              fill={colors.captureAccentPill}
-              ring={colors.captureAccentPillRing}
-              style={[styles.pill, styles.levelPill]}
-            >
-              <View style={[styles.pillInner, { gap: 6, paddingHorizontal: 11 }]} accessibilityLabel={tilted ? "iPad is tilted forward or back" : `Device tilt ${levelText}`}>
-                <ClockIcon size={13} color={tilted ? TILT_AMBER : colors.accent300} strokeWidth={2.2} />
-                <Text style={[styles.pillText, tilted && { color: TILT_AMBER }]}>{levelText}</Text>
               </View>
             </CaptureGlass>
           </View>
@@ -629,9 +628,6 @@ export default function CaptureScreen() {
   );
 }
 
-/** Warning tint for the tilt pill; not a theme colour because it is used only here. */
-const TILT_AMBER = "#F5B544";
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgDark },
   scrim: { backgroundColor: colors.captureScrim },
@@ -643,7 +639,6 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   pill: { height: 34, flexShrink: 1 },
-  levelPill: { marginLeft: "auto" },
   pillInner: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 13 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent400 },
   dotIdle: { opacity: 0.22 },
