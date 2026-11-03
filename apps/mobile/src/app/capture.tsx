@@ -122,7 +122,8 @@ export default function CaptureScreen() {
       "worklet";
       try {
         if (resizer && tflite) {
-          // Raw buffer dims are sensor-oriented; the resizer rotates to upright.
+          // With enablePhysicalBufferRotation frames are already upright ('up'); the
+          // sideways branch only matters if the pipeline ever stops rotating them.
           const sideways = frame.orientation === "left" || frame.orientation === "right";
           const fw = sideways ? frame.height : frame.width;
           const fh = sideways ? frame.width : frame.height;
@@ -147,6 +148,11 @@ export default function CaptureScreen() {
     pixelFormat: "yuv",
     targetResolution: POSE_FRAME_RESOLUTION,
     enablePreviewSizedOutputBuffers: true,
+    // Frames arrive in sensor orientation ("left" on iPad). The resizer's own
+    // rotation left the model looking at an upside-down image (nose reported
+    // at the bottom of the frame), so have the camera pipeline deliver upright
+    // buffers and let the resizer do no rotation.
+    enablePhysicalBufferRotation: true,
     onFrame,
   });
 
