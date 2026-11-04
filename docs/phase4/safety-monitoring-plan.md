@@ -15,7 +15,7 @@ transitions the safety state machine
 (`services/backend-api/src/safety/safety-state-machine.ts`) to `Pause` or
 escalates to `ClinicianReview` — this precedence is enforced in code and
 covered by the safety-state-machine test suite. The local symptom-stop path
-(`apps/ios-client/Sources/Safety/SymptomStopButton.swift`) completes locally
+(`apps/mobile/src/components/SymptomStop.tsx`) completes locally
 before any network call, so it isn't blocked by connectivity — **unverified**
 in this sandbox (no Swift toolchain).
 

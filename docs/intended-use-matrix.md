@@ -10,7 +10,7 @@ intended-use statement.
 | Deployment context | Description | Claim boundary today |
 |---|---|---|
 | `clinic_supervised` | Physiotherapist/posturologist runs or directly supervises the session in a clinical setting. | Observational/estimated movement feedback only; see `docs/claims-and-scope.md` claims ladder — currently below Level A (no validation study completed). |
-| `home_rehab` | Patient performs a clinician-prescribed protocol at home, unsupervised in the moment, with clinician review of session history. | Same claim boundary; additionally requires the local-first symptom-stop path (`apps/ios-client/Sources/Safety/SymptomStopButton.swift`) since no clinician is present to intervene live. |
+| `home_rehab` | Patient performs a clinician-prescribed protocol at home, unsupervised in the moment, with clinician review of session history. | Same claim boundary; additionally requires the local-first symptom-stop path (`apps/mobile/src/components/SymptomStop.tsx`) since no clinician is present to intervene live. |
 
 Both are recorded on every `Session` via `deploymentContext` and on every
 `ProtocolDefinition` via `deploymentContext[]`.

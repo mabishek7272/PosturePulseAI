@@ -3,6 +3,13 @@
 ## Status
 Accepted (Phase 0 / start of Phase 1)
 
+**Superseded on 2026-11-04.** The hand-written Swift DTOs this ADR is about were
+in `apps/ios-client`, which has been deleted. The mobile client is now
+`apps/mobile` (TypeScript), which consumes the generated bindings in
+`packages/schemas/generated/ts`, so the trade-off this ADR weighed - hand-keeping
+Swift DTOs against generating them - no longer applies to anything. Kept for the
+record; do not act on it.
+
 ## Context
 `packages/schemas` already generates TypeScript and Python bindings from the
 same JSON Schema source. The iOS client also consumes a subset of these

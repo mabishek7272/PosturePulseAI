@@ -53,9 +53,9 @@ for what the export actually contains.
 Standard system flow: `POST /sessions` → `POST /sessions/:id/height` →
 `POST /sessions/:id/scale-calibration` → protocol exercises →
 symptom-stop available at all times
-(`apps/ios-client/Sources/Safety/SymptomStopButton.swift` — **unverified**,
+(`apps/mobile/src/components/SymptomStop.tsx` — unit-tested,
 no Swift toolchain in this repo's build environment, see
-`apps/ios-client/README.md`). **TBD**: session frequency, duration, setting.
+the app that held it was deleted on 2026-11-04; see README.md). **TBD**: session frequency, duration, setting.
 
 ### 4.3 Reference-instrument measurement (Study A only)
 **TBD (clinical lead)** — reference instrument (calibrated optical motion

@@ -46,12 +46,12 @@ three methods until they get a real implementation.
   calibration and a calibrated floor/work-surface reference. No continuous AR
   tracking is required, but calibration matters more than any visual overlay.
 - **Moving-phone AR mode**: requires continuous device tracking (`T_WC(t)` updated
-  every frame). `apps/ios-client/Sources/Spatial/ARSessionController.swift` now wraps
+  every frame). The deleted `apps/ios-client` wrapped
   `ARWorldTrackingConfiguration` and streams `camera-pose.schema.json` records
   (`services/backend-api/src/sessions/sessions.controller.ts`'s
   `POST /:id/camera-poses`), but the iOS code itself is **unverified** — no Swift
   toolchain is available in this sandbox (see `docs/adr/004-ios-dtos-hand-kept.md`
-  and `apps/ios-client/README.md`). Server-side ingestion is tested. A device that
+  the app that held it was deleted on 2026-11-04; see README.md). Server-side ingestion is tested, and there is currently NO client that sends these poses. A device that
   doesn't support `ARWorldTrackingConfiguration`, or whose tracking degrades, falls
   into the first-class `TwoDFallbackBanner` mode rather than silently continuing
   under a stale or fabricated anchor.

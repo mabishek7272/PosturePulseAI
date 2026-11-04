@@ -22,7 +22,7 @@ component structurally can and cannot do, not that determination.**
 | `services/ml-service/app/movement/` (ST-GCN/TCN) | A (candidate) | Structurally excluded from any safety decision (ADR-005) — `validated: false` always, never imported by `SafetyService`/`PolicyModule` |
 | `services/ml-service/app/detection/` (object detection) | A (candidate) | Descriptive only, no safety coupling (ADR-006) |
 | `apps/clinician-web` | A (candidate) | Read-only review surface; never issues a safety-relevant instruction back to a session |
-| `apps/ios-client` | B/C (candidate, **unverified**) | Runs the local symptom-stop path (safety-relevant) but no on-device inference; classification needs the same clinical review as above, and the code itself has never been compiled or tested (no Swift toolchain — `apps/ios-client/README.md`) |
+| `apps/mobile` | B/C (candidate) | Runs the local symptom-stop path (safety-relevant, `src/components/SymptomStop.tsx`, unit-tested) but no on-device inference beyond an alignment-only pose guide; classification needs the same clinical review as above. Unlike the deleted `apps/ios-client`, this one IS built and tested: 290 unit tests under `src/`, the native AR module builds via `xcodebuild -scheme ARJig`, and its gravity-convention tests run with `swift test --package-path apps/mobile/modules/ar-jig`. It has still never been run on a physical device |
 
 ## Development process, mapped to what actually happens in this repository
 

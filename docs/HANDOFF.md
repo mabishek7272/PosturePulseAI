@@ -50,7 +50,7 @@ modes, chosen at start: **Clinic mode** (clinician signs in, picks a patient fro
 runs the battery) and **Patient mode** (self-guided, results only after clinician release). Modules planned:
 Static (M1), Functional (M2), Gait (M3), Workstation/ergonomic tools RULA/REBA/OWAS/NIOSH (M4), hardening/PDF (M5).
 
-Stack: iOS SwiftUI app (`apps/ios-client`) · NestJS + Prisma/Postgres backend (`services/backend-api`) · Python/FastAPI
+Stack: Expo/React Native app (`apps/mobile`, with the native AR module in `apps/mobile/modules/ar-jig`) · NestJS + Prisma/Postgres backend (`services/backend-api`) · Python/FastAPI
 ML service (`services/ml-service`) · React clinician dashboard (`apps/clinician-web`) · JSON-Schema contracts
 (`packages/schemas`) · MedBuddy (separate repo, explanation sentences) · hosted on one shared Ubuntu server.
 
@@ -209,7 +209,7 @@ with a sidecar (`schemas`: `clip-capture`). Real people have never been fed to t
 
 ### 4.F Deploy M1 to the server — [SERVER], 1 h (after 4.B–4.E)
 Server layout is in section 6. Steps:
-1. Sync code (rsync excluding `node_modules .git dataset models *.xcodeproj infra/.env apps/ios-client`).
+1. Sync code (rsync excluding `node_modules .git dataset models *.xcodeproj infra/.env apps/mobile/ios apps/mobile/android`).
 2. In the server's `~/posturepulse/infra/.env` (mode 600) **add `PATIENT_DATA_KEY`** =
    `openssl rand -base64 32`. **Back it up off-server** — losing it makes every stored patient name/DOB unrecoverable.
    (`POSTGRES_PASSWORD` and `JWT_SECRET` already exist there; never regenerate `POSTGRES_PASSWORD` for the live volume.)
@@ -230,8 +230,12 @@ Server layout is in section 6. Steps:
 6. Create the first real clinician account (owner picks the username; generate the password, hand it over once).
 
 ### 4.G Real-device testing + TestFlight — [MAC] + [OWNER]
-`apps/ios-client/scripts/testflight.sh` (archives, signs via the ASC API key, uploads, waits for processing; build
-number = UTC timestamp). Needs `~/.appstoreconnect/private_keys/AuthKey_JG79VW74QA.p8`, xcodegen, uv.
+EAS: `npx eas-cli@latest build -p ios --profile production` then
+`npx eas-cli@latest submit -p ios --profile production` (`ascAppId` is in `apps/mobile/eas.json`).
+
+The old `apps/ios-client/scripts/testflight.sh` was deleted with that app on
+2026-11-04 (it archived and signed the SwiftUI target, which no longer exists).
+EAS is the only TestFlight route now.
 Then on a physical iPhone **and** the iPad mini (A17 Pro), in both modes, verify what simulators cannot:
 * Back-camera recording works, HEVC portrait clip decodes on the server and the **display-matrix rotation**
   (`apply_rotation` in ml `pose_video.py`) is correct for a clip written by `AVAssetWriter` (unit-tested, never run on a
@@ -381,9 +385,10 @@ npm run lint:claims                                          # before every comm
 
 ### 6.7 iOS recipes [MAC]
 ```bash
-cd apps/ios-client && xcodegen generate          # after adding/removing files or packages
-xcodebuild -project PosturePulse.xcodeproj -scheme PosturePulse -destination 'id=<SIM-ID>' -derivedDataPath <scratch>/dd test
-scripts/testflight.sh [--no-upload] [--no-wait]
+cd apps/mobile && npx expo prebuild -p ios        # regenerates ios/ (gitignored)
+cd apps/mobile/ios && pod install                 # after adding a native module file
+xcodebuild -workspace PosturePulseAI.xcworkspace -scheme ARJig -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build
+swift test --package-path apps/mobile/modules/ar-jig   # the gravity-convention tests, no simulator needed
 # design previews (DEBUG): launch with  -designPreview report|report-movement|capture|reps|setup
 ```
 With `PosturePulse.xcodeproj` present, plain `xcodebuild` picks the project, not `Package.swift`.
@@ -401,7 +406,7 @@ With `PosturePulse.xcodeproj` present, plain `xcodebuild` picks the project, not
 | Safety state machine | `services/backend-api/src/safety/safety-state-machine.ts` |
 | Quality gate / metrics | `services/ml-service/app/quality/`, `app/metrics/`, `app/clips/` (on `m1-ml`) |
 | Report builder / templates | `services/backend-api/src/reports/` (on `m1-backend`) |
-| TestFlight script | `apps/ios-client/scripts/testflight.sh` |
+| TestFlight | `npx eas-cli@latest build/submit -p ios`; config in `apps/mobile/eas.json` |
 | Hosting | `infra/docker-compose*.yml`, `infra/nginx/`, `docs/adr/016-shared-host-nginx.md` |
 | MedBuddy patch | `docs/handoff/medbuddy-posture-explain.{patch,bundle}` |
 

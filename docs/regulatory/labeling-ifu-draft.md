@@ -65,7 +65,7 @@ Per `docs/claims-and-scope.md`'s hard boundary, this device does not:
   estimate silently.
 - [TBD: device/OS compatibility statement — this repository has not
   validated the iOS client on any physical device, see
-  `apps/ios-client/README.md`]
+  the app that held it was deleted on 2026-11-04; see README.md]
 
 ## Symbols / regulatory markings
 

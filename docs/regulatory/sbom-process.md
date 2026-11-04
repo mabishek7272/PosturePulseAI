@@ -55,9 +55,9 @@ outside the scope of this pass.
   vulnerability scanner (e.g. `grype`, `osv-scanner`, or a commercial SCA
   tool) against these exact files is a real, mechanical next step, not
   attempted here.
-- Does not include the iOS client (`apps/ios-client`) — it has no lockfile
+- Does not include the native iOS module (`apps/mobile/modules/ar-jig`) — it has no lockfile
   or resolvable dependency graph in this sandbox (no Swift toolchain; see
-  `apps/ios-client/README.md`). A `Package.resolved`-based SBOM should be
+  the app that held it was deleted on 2026-11-04; see README.md). A `Package.resolved`-based SBOM for `apps/mobile/ios` should be
   generated once that app is built with Xcode.
 - Is not re-generated automatically on every dependency change — there is
   no CI job wired to run `scripts/generate-sbom.sh` and fail on drift. A

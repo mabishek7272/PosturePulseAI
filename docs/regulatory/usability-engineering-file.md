@@ -10,7 +10,7 @@ this repository cannot run).
 
 - **Users**: clinicians (supervising `clinic_supervised` or reviewing
   `home_rehab` sessions via `apps/clinician-web`) and subjects (performing
-  exercises via `apps/ios-client`) — see `docs/intended-use-matrix.md` for
+  exercises via `apps/mobile`) — see `docs/intended-use-matrix.md` for
   the (draft, unapproved) deployment-context definitions.
 - **Use environment**: clinic (supervised) or home (unsupervised in the
   moment) — `docs/intended-use-matrix.md`.
@@ -18,9 +18,9 @@ this repository cannot run).
 
 | UI element | Use-related risk it addresses | Where |
 |---|---|---|
-| `SymptomStopButton` | Delayed or failed stop during an adverse symptom | `apps/ios-client/Sources/Safety/` — local-first, completes before any network call |
-| "Measurement unavailable" quality banner | User trusting an estimate the system itself flagged as unsupported | `apps/ios-client/Sources/Overlay/PoseOverlayView.swift`; mirrored in `apps/clinician-web`'s `EventTimeline` (never silently omits an unsupported flag) |
-| `TwoDFallbackBanner` | User assuming AR-anchored spatial accuracy on a device/tracking state that can't provide it | `apps/ios-client/Sources/Session/TwoDFallbackBanner.swift` — named mode, not an implicit silent fallback |
+| `SymptomStop` | Delayed or failed stop during an adverse symptom | `apps/mobile/src/components/SymptomStop.tsx` + `src/api/symptoms.ts` — local-first: `onStop()` halts the recording synchronously on press, before the sheet opens and before any network call, and the report that follows is skippable. Mounted on both capture paths. The stop latches recording off, so the shutter is not offered again to a patient who has just reported a symptom. `src/api/symptoms.test.ts` covers the retry, the no-token path and the refusal to route a 401 into the logout handler |
+| "Measurement unavailable" quality banner | User trusting an estimate the system itself flagged as unsupported | `apps/mobile/src/lib/results.ts` (surfaces `unsupported` / `not_measurable` rather than omitting them); mirrored in `apps/clinician-web`'s `EventTimeline` (never silently omits an unsupported flag) |
+| `TwoDFallbackBanner` | User assuming AR-anchored spatial accuracy on a device/tracking state that can't provide it | **NOT IMPLEMENTED in the shipping client.** The SwiftUI file this cited was deleted with `apps/ios-client`, and `apps/mobile` has no equivalent banner: the guided (AR) path is reachable only behind a Settings toggle that defaults to off, so the standard camera path is the default and is not announced as a fallback from anything. The risk is currently mitigated by the AR path not being the default rather than by a named mode, which is weaker. `apps/mobile/src/capture/ar-jig-copy.ts` does surface `tracking_unavailable` / `tracking_limited` as blockers while the AR path is in use, but that gates RECORDING, it does not tell the user which accuracy regime they are in |
 | `SafetyStateBadge` | Clinician misreading a session's safety state as a clinical severity score | `apps/clinician-web/src/components/SafetyStateBadge.tsx` — deliberately a direct FSM-state mirror, never a derived score |
 | Login screen / session expiry redirect | Clinician continuing to act on a session after their own credentials expired, without realizing it | `apps/clinician-web/src/auth/RequireAuth.tsx` — verified live to redirect on 401 |
 

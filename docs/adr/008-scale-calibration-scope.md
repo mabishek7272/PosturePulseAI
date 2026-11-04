@@ -15,7 +15,7 @@ without a real check would fabricate a measurement (`CLAUDE.md` rule 3).
 Three of the four methods need inputs this sandbox cannot produce or
 verify: `known_size_reference` needs a real reference-object photograph
 with a trusted known size; `calibrated_depth` needs ARKit scene-depth
-hardware/data (see `apps/ios-client/Sources/Spatial/DepthAvailabilityChecker.swift`,
+hardware/data (see `apps/mobile/modules/ar-jig` reports `hasLiDAR`,
 which only checks the *capability*, computing nothing); `stereo_multiview`
 needs multiple synchronized camera views. None of these can be exercised
 with synthetic unit-test data the way a pure geometric function can.
@@ -25,7 +25,7 @@ Only `subject_specific` calibration is implemented this phase:
 `services/ml-service/app/geometry/scale_calibration.py`'s
 `compute_subject_specific_scale()` derives a scale factor from a
 clinician/patient-entered height (`Session.subjectHeightMeters`, fed by
-`apps/ios-client/Sources/Session/HeightEntryView.swift`) and the observed
+height entry in `apps/mobile`) and the observed
 ankle-to-nose landmark span, using a fixed anthropometric fraction
 (`ANKLE_TO_NOSE_HEIGHT_FRACTION = 0.97`). It requires both ankle and nose
 landmarks to be `observed` (not `occluded`/`out_of_frame`) — the ml-service

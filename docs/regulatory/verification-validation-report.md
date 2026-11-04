@@ -48,7 +48,7 @@ All four suites pass as of this document. Re-run with: `npm run schemas:check`
   spanning all three services plus a real device.
 - **No load, performance, or stress testing.**
 - **No iOS testing at all** — the code has never been compiled (no Swift
-  toolchain in this repository's environment); see `apps/ios-client/README.md`.
+  toolchain in this repository's environment); the client it referred to has since been deleted - `apps/ios-client` was deleted on 2026-11-04 - and the mobile client is now `apps/mobile`, whose unit tests run in CI.
 - **No accuracy validation against a reference instrument** — that is Study
   A (`docs/phase4/statistical-analysis-plan.md`), which needs real paired
   data that does not exist.
