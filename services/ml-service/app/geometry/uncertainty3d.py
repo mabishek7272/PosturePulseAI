@@ -234,30 +234,49 @@ def chord_angle_sigma_degrees(
     sigma_depth1_m: float,
     sigma_depth2_m: float,
     plane: tuple[int, int] = CORONAL_PLANE,
+    rotation: np.ndarray | None = None,
+    depth1_m: float | None = None,
+    depth2_m: float | None = None,
 ) -> float | None:
     """End-to-end uncertainty of the angle of the chord `p1 -> p2`, in degrees.
 
-    `p1`/`p2` are the back-projected points in metres (in whatever frame the
-    angle is to be taken in); `uv1`/`uv2` are their source pixels, needed for the
-    Jacobians. The depth cross-covariance is included automatically, using the
-    points' own 3D separation.
+    `p1`/`p2` are the back-projected points in metres, in the frame the angle is
+    taken in; `uv1`/`uv2` are their source pixels, needed for the Jacobians. The
+    depth cross-covariance is included automatically, using the points' own 3D
+    separation.
+
+    **When the angle is taken in a ROTATED frame (the gravity frame), pass
+    `rotation` and the camera-frame depths.** The Jacobians are derived in
+    camera coordinates `(u, v, Z) -> (X, Y, Z)`, so they need the camera-frame
+    `Z` - not the third component of a gravity-frame point, which is a different
+    number once the camera is pitched - and the resulting covariance has to be
+    rotated, `R C R^T`, before differencing. Without `rotation` the function
+    assumes the points are already in camera coordinates, which is exactly right
+    for a level camera and quietly wrong otherwise. The unit tests only ever used
+    a level camera, so this was invisible until the pipeline fed it real,
+    gravity-aligned points.
     """
     a = np.asarray(p1, dtype=float).reshape(3)
     b = np.asarray(p2, dtype=float).reshape(3)
     separation = float(np.linalg.norm(b - a))
+    z1 = a[2] if depth1_m is None else depth1_m
+    z2 = b[2] if depth2_m is None else depth2_m
 
-    cov1 = point_covariance(*uv1, a[2], k, sigma_px=sigma_px, sigma_depth_m=sigma_depth1_m)
-    cov2 = point_covariance(*uv2, b[2], k, sigma_px=sigma_px, sigma_depth_m=sigma_depth2_m)
+    cov1 = point_covariance(*uv1, z1, k, sigma_px=sigma_px, sigma_depth_m=sigma_depth1_m)
+    cov2 = point_covariance(*uv2, z2, k, sigma_px=sigma_px, sigma_depth_m=sigma_depth2_m)
     cross = depth_cross_covariance(
         *uv1,
         *uv2,
-        a[2],
-        b[2],
+        z1,
+        z2,
         k,
         sigma_depth1_m=sigma_depth1_m,
         sigma_depth2_m=sigma_depth2_m,
         separation_m=separation,
     )
+    if rotation is not None:
+        r = np.asarray(rotation, dtype=float)
+        cov1, cov2, cross = r @ cov1 @ r.T, r @ cov2 @ r.T, r @ cross @ r.T
     return direction_angle_sigma_degrees(b - a, difference_covariance(cov1, cov2, cross), plane)
 
 

@@ -467,3 +467,87 @@ def test_the_consensus_gate_imposes_an_implicit_yaw_ceiling():
     assert consensus_at(35.0) < MIN_PATCH_CONSENSUS
     # The ceiling is comfortably outside the yaw range the step gate allows.
     assert consensus_at(10.0) == 1.0
+
+
+# --- a pitched camera: the frame the angle is taken in is not the frame the
+# --- Jacobians live in ------------------------------------------------------
+
+
+def _rx(deg: float) -> np.ndarray:
+    p = np.radians(deg)
+    return np.array([[1, 0, 0], [0, np.cos(p), -np.sin(p)], [0, np.sin(p), np.cos(p)]])
+
+
+def _pitched_chord(pitch_deg: float):
+    """Two shoulder points 0.38 m apart as a camera pitched by `pitch_deg` sees
+    them, plus the rotation into the gravity frame and the source pixels."""
+    from app.geometry.gravity_alignment import rotation_to_gravity_frame
+
+    cam_from_world = _rx(pitch_deg)
+    world = {"l": np.array([SHOULDER_HALF, -1.40, 0.0]), "r": np.array([-SHOULDER_HALF, -1.40, 0.0])}
+    cam = {k: cam_from_world @ (v + np.array([0.0, 0.0, STAND_Z])) for k, v in world.items()}
+    r = rotation_to_gravity_frame(cam_from_world @ np.array([0.0, 1.0, 0.0]))
+    uv = {k: project(v) for k, v in cam.items()}
+    return cam, r, uv
+
+
+def _empirical_yaw_sigma(pitch_deg: float, n: int = 2500, seed: int = 1) -> float:
+    cam, r, uv = _pitched_chord(pitch_deg)
+    sigma_px, sd = landmark_pixel_sigma(BODY_HEIGHT_PX), nominal_depth_sigma()
+    rng = np.random.default_rng(seed)
+    yaws = []
+    for _ in range(n):
+        p = {}
+        for key in cam:
+            u, v = uv[key]
+            p[key] = r @ backproject(
+                u + rng.normal(scale=sigma_px), v + rng.normal(scale=sigma_px),
+                cam[key][2] + rng.normal(scale=sd), K,
+            )
+        yaws.append(chord_facing_yaw(p["l"], p["r"]))
+    return float(np.std(yaws))
+
+
+def _analytic_yaw_sigma(pitch_deg: float, *, with_rotation: bool) -> float:
+    cam, r, uv = _pitched_chord(pitch_deg)
+    sigma_px, sd = landmark_pixel_sigma(BODY_HEIGHT_PX), nominal_depth_sigma()
+    grav = {k: r @ v for k, v in cam.items()}
+    extra = dict(rotation=r, depth1_m=cam["l"][2], depth2_m=cam["r"][2]) if with_rotation else {}
+    return chord_angle_sigma_degrees(
+        grav["l"], grav["r"], uv["l"], uv["r"], K,
+        sigma_px=sigma_px, sigma_depth1_m=sd, sigma_depth2_m=sd, plane=HORIZONTAL_PLANE, **extra,
+    )
+
+
+@pytest.mark.parametrize("pitch", [0.0, 10.0, 20.0, 35.0])
+def test_the_rotated_model_matches_the_empirical_spread_at_any_camera_pitch(pitch):
+    """The Phase 2 calibration only ever used a level camera, where the camera
+    and gravity frames coincide, so it could not see this. Measured: camera pitch
+    roughly DOUBLES the true yaw uncertainty (2.79 degrees level, 5.86 at 35),
+    because depth error rotates into the horizontal plane."""
+    ratio = _analytic_yaw_sigma(pitch, with_rotation=True) / _empirical_yaw_sigma(pitch)
+    assert 0.93 <= ratio <= 1.08, f"pitch {pitch}: analytical/empirical = {ratio:.3f}"
+
+
+def test_without_the_rotation_the_model_is_overconfident_by_a_pitch_dependent_amount():
+    """The bug this fixes, as numbers. The un-rotated model reports a FIXED
+    2.75 degrees whatever the tilt: 18% too tight at 10 degrees (inside the 12
+    the 2D path tolerates), 34% at 20, 53% at 35. An instrument that reports
+    more confidence the more it is tilted."""
+    flat = _analytic_yaw_sigma(0.0, with_rotation=False)
+    for pitch, minimum_shortfall in ((10.0, 0.12), (20.0, 0.25), (35.0, 0.40)):
+        assert _analytic_yaw_sigma(pitch, with_rotation=False) == pytest.approx(flat, rel=1e-9)
+        shortfall = 1.0 - _analytic_yaw_sigma(pitch, with_rotation=False) / _empirical_yaw_sigma(pitch)
+        assert shortfall > minimum_shortfall, f"pitch {pitch}: only {shortfall:.0%} too tight"
+
+
+def test_a_level_camera_is_unchanged_by_passing_the_rotation():
+    """Backward compatible: identity rotation reproduces the old answer exactly."""
+    assert _analytic_yaw_sigma(0.0, with_rotation=True) == pytest.approx(
+        _analytic_yaw_sigma(0.0, with_rotation=False), rel=1e-9
+    )
+
+
+def test_yaw_uncertainty_grows_with_camera_pitch():
+    values = [_analytic_yaw_sigma(p, with_rotation=True) for p in (0.0, 10.0, 20.0, 35.0)]
+    assert values == sorted(values) and values[-1] > 1.8 * values[0]
