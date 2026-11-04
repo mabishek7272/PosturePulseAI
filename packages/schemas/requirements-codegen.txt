@@ -1,0 +1,18 @@
+# Build-time only: generates packages/schemas/generated/python from src/*.schema.json.
+#
+# NOT a runtime dependency of any service. It lives here, in its own venv, rather
+# than in services/ml-service/pyproject.toml so that build tooling stays out of a
+# deployed service's dependency set.
+#
+# Pinned exactly: this tool writes committed source (generated/python/), and
+# `npm run schemas:check` fails the build on any diff. A version bump can reformat
+# output and turn into spurious drift, so it is a deliberate change, not a float.
+# The pin matches docs/regulatory/sbom/ml-service.cdx.json.
+#
+# Setup (Python 3.11 or 3.12; 3.14 is newer than this pin supports):
+#   cd packages/schemas
+#   python3.12 -m venv .venv
+#   .venv/bin/pip install -r requirements-codegen.txt
+#
+# Then `npm run schemas:generate` and `npm run schemas:check` work from the repo root.
+datamodel-code-generator==0.83.0

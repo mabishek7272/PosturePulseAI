@@ -9,13 +9,26 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { pythonBin } from "./python-bin.mjs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
+
+// Build artifacts that are not generator output. Python writes __pycache__ into
+// generated/python/beaive_schemas the moment anything imports those modules (the
+// ml-service tests do), and the freshly generated scratch copy has never been
+// imported - so comparing them reported 22 phantom "out of date" entries and
+// failed the check with no schema having changed. They are gitignored and never
+// committed, so skipping them here compares generator output to generator output.
+const IGNORED_ENTRIES = new Set(["__pycache__", ".DS_Store"]);
+const IGNORED_SUFFIXES = [".pyc", ".pyo"];
 
 function listFilesRecursive(dir) {
   if (!existsSync(dir)) return [];
   const out = [];
   for (const entry of readdirSync(dir)) {
+    if (IGNORED_ENTRIES.has(entry)) continue;
+    if (IGNORED_SUFFIXES.some((suffix) => entry.endsWith(suffix))) continue;
     const full = path.join(dir, entry);
     if (statSync(full).isDirectory()) {
       out.push(...listFilesRecursive(full));
@@ -59,7 +72,7 @@ try {
     stdio: "inherit",
     cwd: ROOT,
   });
-  execFileSync("python3", [path.join(ROOT, "codegen", "generate-python.py"), tmpPy], {
+  execFileSync(pythonBin(), [path.join(ROOT, "codegen", "generate-python.py"), tmpPy], {
     stdio: "inherit",
     cwd: ROOT,
   });

@@ -6,7 +6,7 @@
   "main": "generated/ts/index.js",
   "types": "generated/ts/index.d.ts",
   "scripts": {
-    "generate": "node codegen/generate-ts.mjs && python3 codegen/generate-python.py",
+    "generate": "node codegen/generate-ts.mjs && node codegen/run-python.mjs",
     "generate:check": "node codegen/check.mjs",
     "test": "node --test codegen/*.test.mjs"
   },
