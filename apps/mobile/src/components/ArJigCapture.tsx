@@ -16,6 +16,7 @@ import { CLIP_SECONDS, POSES } from "../capture/poses";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { BackButton } from "./ScreenHeader";
+import { SymptomStop } from "./SymptomStop";
 
 /**
  * Guided (AR) capture: the ARKit path from `modules/ar-jig`, which places a
@@ -53,6 +54,7 @@ export function ArJigCapture({
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stopped, setStopped] = useState(false);
   /** Guards against a second clip being handled while one is uploading. */
   const inFlight = useRef(false);
 
@@ -124,8 +126,24 @@ export function ArJigCapture({
     [poseIndex, pose.stepId, pose.view, sessionId, sessionToken],
   );
 
+  /**
+   * The ADR-005 safety stop. `halt()` abandons the take and deletes the partial
+   * file locally - no network, and it cannot throw out of here. Recording is
+   * also latched off, so the gate re-opening cannot offer the record button
+   * again to a patient who has just said they feel unwell: only leaving and
+   * re-entering the screen resumes, which puts a clinician in the loop.
+   */
+  const safetyStop = useCallback(() => {
+    setStopped(true);
+    try {
+      void view.current?.halt();
+    } catch {
+      // Nothing to do and nothing to report: the stop must not depend on this.
+    }
+  }, []);
+
   const isRecording = gate?.isRecording ?? false;
-  const canRecord = (gate?.isOpen ?? false) && !isRecording && !uploading;
+  const canRecord = (gate?.isOpen ?? false) && !isRecording && !uploading && !stopped;
   const blocker = gate ? primaryBlockerText(gate.blockers, gate.primaryBlocker) : null;
   const status = blocker ?? (gate?.isOpen ? GATE_READY_TEXT : GATE_SETTLING_TEXT);
 
@@ -141,6 +159,10 @@ export function ArJigCapture({
         onRecorded={onRecorded}
         onCaptureError={onCaptureError}
       />
+
+      {/* Always mounted while the capture screen is open, including mid-clip
+          and while a clip is uploading. */}
+      <SymptomStop sessionId={sessionId} sessionToken={sessionToken} onStop={safetyStop} />
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <BackButton variant="glass" />
@@ -168,6 +190,9 @@ export function ArJigCapture({
           <Text style={styles.recording}>{`Recording ${Math.round(progress * CLIP_SECONDS)}s / ${CLIP_SECONDS}s`}</Text>
         ) : null}
         {uploading ? <Text style={styles.recording}>Saving that clip...</Text> : null}
+        {stopped ? (
+          <Text style={styles.recording}>Stopped. A member of staff will come to you.</Text>
+        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Pressable

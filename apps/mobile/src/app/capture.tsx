@@ -20,6 +20,7 @@ import { useResizer } from "react-native-vision-camera-resizer";
 import ARJigModule from "../../modules/ar-jig";
 import { uploadClip } from "../api/clips";
 import { ArJigCapture } from "../components/ArJigCapture";
+import { SymptomStop } from "../components/SymptomStop";
 import { startGravitySampling } from "../capture/gravity";
 import { createFeedback, ISSUE_TEXT, type FeedbackEvent, type Issue } from "../capture/feedback";
 import { distanceState, isLateral, PITCH_TOLERANCE_DEG, ROLL_TOLERANCE_DEG } from "../capture/guidance";
@@ -113,6 +114,7 @@ function VisionCameraCapture() {
   const [poseIndex, setPoseIndex] = useState(0);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stopped, setStopped] = useState(false);
   // The native session connects its outputs asynchronously after mount;
   // recording before onConfigured fires throws "VideoOutput is not yet
   // connected to the CameraSession!" in vision-camera.
@@ -337,6 +339,7 @@ function VisionCameraCapture() {
 
   /** Shutter: 3-2-1 with haptic ticks, then the real recording. Cancellable. */
   function begin() {
+    if (stopped) return; // latched off by the safety stop
     if (recording || inFlight.current || !cameraReady || countdownTimer.current || result) return;
     setError(null);
     let n = 3;
@@ -355,6 +358,25 @@ function VisionCameraCapture() {
   }
 
   /** Abandon the clip (countdown or recording): recorder cancelled, nothing uploaded. */
+  /**
+   * The ADR-005 safety stop. `abandon()` is local-only - it clears the
+   * countdown, bumps the run id so any in-flight callback is ignored, and
+   * cancels the recorder - and it performs no network I/O, so the stop cannot
+   * be delayed or prevented by the clinic server being unreachable.
+   *
+   * `stopped` then latches the shutter off, so a patient who has just said they
+   * feel unwell is not offered the record button again. Only leaving and
+   * re-entering the screen resumes, which puts a clinician in the loop.
+   */
+  function safetyStop() {
+    setStopped(true);
+    try {
+      abandon();
+    } catch {
+      // Nothing to report: the stop must not depend on this succeeding.
+    }
+  }
+
   function abandon() {
     if (countdownTimer.current) {
       clearCountdown();
@@ -498,6 +520,9 @@ function VisionCameraCapture() {
 
   return (
     <View style={styles.screen}>
+      {/* Always mounted while this screen is open, including mid-clip and while
+          a clip is uploading. */}
+      <SymptomStop sessionId={sessionId} sessionToken={sessionToken} onStop={safetyStop} />
       {/* absoluteFill with no padding: the subject fills the screen. */}
       <Camera
         style={StyleSheet.absoluteFill}
