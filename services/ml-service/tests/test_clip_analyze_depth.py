@@ -249,3 +249,38 @@ def test_an_unknown_depth_encoding_is_refused_at_the_request_boundary(env, tmp_p
     )
     assert resp.status_code == 422
     assert "encoding" in resp.text
+
+
+def test_a_clip_with_no_face_model_gets_no_headpose_block(env):
+    """Same additive shape as `depth`: absent when there is nothing to say, so a
+    deployment without the Face Landmarker bundle produces the response it
+    produced before the head pose existed.
+
+    `.models/` is gitignored and the bundle is fetched by a script, so this is
+    the normal state in CI."""
+    _, clip = env
+    body = client.post("/internal/clips/analyze", json=request_body(str(clip))).json()
+    assert "headPose" not in body
+
+
+def test_no_metric_result_is_changed_by_the_head_pose_path(env):
+    """The Phase 4 boundary, asserted. The rigid fit would improve
+    `static.head_lateral_tilt`'s anterior value roughly tenfold, and it is
+    deliberately NOT wired there: that metric's reference entry is written for
+    the ear line ("the line through both ear landmarks is level with true
+    horizontal"), and `report-builder.ts` forces `no_reference` for a
+    non-default measurementMethod - so switching it would strip the reference
+    band from a row that has one. Both need a clinician, not a code change."""
+    tmp_path, clip = env
+    side, depth_path = _with_depth(tmp_path)
+    side["intrinsics"] = {"fx": 1000.0, "fy": 1000.0, "cx": 539.5, "cy": 959.5}
+    body = client.post(
+        "/internal/clips/analyze",
+        json=request_body(str(clip), side=side, depthPath=str(depth_path)),
+    ).json()
+
+    head_tilt = [r for r in body["results"] if r["metricKey"] == "static.head_lateral_tilt"]
+    assert len(head_tilt) == 1
+    # Still the 2D image-plane method, so it keeps its reference comparison.
+    assert head_tilt[0]["provenance"]["measurementMethod"] == "mediapipe_2d_image_plane"
+    assert not any(r["metricKey"].startswith("static3d.head") for r in body["results"])

@@ -29,9 +29,12 @@ from app.clips.depth_track import (
     read_depth_track,
 )
 from app.clips.errors import ClipDecodeError
+from app.clips.face_video import load_face_frames
 from app.clips.landmark_store import store_landmark_series
 from app.clips.observation import FrameObservation
+from app.clips.face_video import MIN_FACE_FRAMES
 from app.clips.observation import LEFT_HIP, RIGHT_HIP
+from app.geometry.head_pose import head_pose_from_landmarks
 from app.config import get_clip_dir
 from app.geometry import intrinsics as intrinsics_module
 from app.versioning import (
@@ -161,6 +164,90 @@ def _depth_block(
     return block
 
 
+def _head_pose_block(req: AnalyzeRequest, clip_path: Path, view: str, intrinsics) -> dict | None:
+    """Rigid cranio-orbital head pose, as INFORMATION only. Not a metric.
+
+    PHASE 4 BOUNDARY, and the reason is governance rather than readiness. The
+    obvious home for this is `static.head_lateral_tilt`, whose anterior value
+    the rigid fit would improve roughly tenfold - 1.55 degrees against the ear
+    line's 20.7. It cannot go there yet, for two reasons that both need a
+    clinician:
+
+    1. **That metric's reference entry is written for the ear line.** Its
+       citation in `references/posture-reference.v0-draft.json` reads "the line
+       through both ear landmarks is level with true horizontal (Kendall et
+       al.)". A cranio-orbital fit does not measure that line, so the reference
+       would no longer describe the quantity - it would be stale rather than
+       merely conservative, and ADR-015 allows a proxy only a geometric
+       reference authored for it.
+    2. **`report-builder.ts` forces `position: "no_reference"`** for any
+       non-default `measurementMethod`, which is the correct control. So
+       switching the method would silently strip the reference band from a row
+       that has one today - a visible regression in the report, arrived at by
+       improving the measurement.
+
+    Emitting it under a new key instead needs that key in the battery, which is
+    the same clinician-scoped boundary as the `static3d.*` keys.
+
+    So the pose is computed, gated and reported here, where it can be checked
+    against real captures without changing a single reported number. The index
+    mapping it depends on is unverified in this repository (see
+    `app/clips/face_video.py`), which is another reason to look at it on real
+    clips before it carries a metric.
+    """
+    if intrinsics is None:
+        # No camera, no pose. A guessed fx would scale the whole solve.
+        return None
+
+    frames = load_face_frames(clip_path, req.sidecar, view=view)
+    if len(frames) < MIN_FACE_FRAMES:
+        return {"state": "unavailable", "framesWithFace": len(frames)}
+
+    gravity = _median_gravity(req.sidecar)
+    if gravity is None:
+        return {"state": "unavailable", "reason": "no usable gravity reading"}
+
+    poses = [
+        head_pose_from_landmarks(frame.landmarks_px, gravity, intrinsics, view=view)
+        for frame in frames
+    ]
+    usable = [p for p in poses if p is not None]
+    if len(usable) < MIN_FACE_FRAMES:
+        # Most frames failed the reprojection gate, which is what a wrong
+        # landmark correspondence looks like. Reported, not silently dropped.
+        return {
+            "state": "rejected",
+            "framesWithFace": len(frames),
+            "framesPassingFit": len(usable),
+        }
+
+    rolls = np.array([p.roll_degrees for p in usable])
+    return {
+        "state": "computed",
+        "framesWithFace": len(frames),
+        "framesPassingFit": len(usable),
+        "rollDegreesMedian": round(float(np.median(rolls)), 3),
+        "rollDegreesMad": round(float(np.median(np.abs(rolls - np.median(rolls)))), 3),
+        "rmsReprojectionPxMedian": round(float(np.median([p.rms_reprojection_px for p in usable])), 3),
+        # Named so nobody reads this block as a measurement: the template is
+        # generic, so a static per-person morphology offset survives every frame.
+        "measures": "repeatability_not_absolute_orientation",
+    }
+
+
+def _median_gravity(sidecar) -> tuple[float, float, float] | None:
+    """Median gravity over the clip. Adequate because a hold is static, and
+    `clip_quality` already rejects a clip whose pitch moved beyond tolerance."""
+    vectors = [f.gravity for f in sidecar.frames if f.gravity is not None]
+    if not vectors:
+        return None
+    arr = np.asarray(vectors, dtype=float)
+    if arr.ndim != 2 or arr.shape[1] != 3:
+        return None
+    median = np.median(arr, axis=0)
+    return (float(median[0]), float(median[1]), float(median[2]))
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as fh:
@@ -261,4 +348,10 @@ def analyze_clip(req: AnalyzeRequest, loader: ObservationLoader) -> dict:
     depth = _depth_block(req, clip_dir, observations)
     if depth is not None:
         response["depth"] = depth
+    # Same shape of addition as `depth`, and for the same reason: present only
+    # when there is something to say, so a clip without a face produces the
+    # response it produced before this existed.
+    head_pose = _head_pose_block(req, clip_path, view, intrinsics_module.from_sidecar(side))
+    if head_pose is not None:
+        response["headPose"] = head_pose
     return response

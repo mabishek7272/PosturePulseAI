@@ -297,12 +297,19 @@ def head_pose_from_landmarks(
     *,
     view: str = "anterior",
     canonical: dict[str, tuple[float, float, float]] | None = None,
+    max_rms_px: float = 6.0,
 ) -> HeadPose | None:
     """Head orientation in the gravity frame, or `None` when it cannot be had.
 
     `None` rather than a degraded answer for: a non-anterior view (there is no
     face to fit - use `head_roll_from_ears`), too few landmarks, an unusable
-    gravity reading, or a fit that did not converge.
+    gravity reading, a fit that did not converge, or a fit whose reprojection
+    residual exceeds `max_rms_px`.
+
+    That last one is the guard against a wrong landmark correspondence, which is
+    otherwise silent: six wrongly-matched points still yield *a* pose. See
+    `app/clips/face_video.py` on why its mesh index mapping cannot be verified
+    here, and `MAX_RMS_REPROJECTION_PX` there for the measured separation.
     """
     if view not in RIGID_FIT_VIEWS:
         return None
@@ -315,6 +322,16 @@ def head_pose_from_landmarks(
     if solved is None:
         return None
     rvec, tvec, rms, iterations = solved
+
+    if rms > max_rms_px:
+        # The fit cannot explain the landmarks it was given. The usual cause is
+        # a wrong landmark correspondence - see `app/clips/face_video.py`, whose
+        # mesh index mapping is unverified in this repository - and the
+        # alternative is reporting an orientation derived from points that are
+        # not where the template says they are. Measured, every scrambled
+        # correspondence lands above this threshold and every correct fit below
+        # it, so this is the check that makes an unverified mapping safe to run.
+        return None
 
     # head -> camera, then camera -> gravity frame.
     r_head_to_gravity = r_gravity @ rodrigues(rvec)

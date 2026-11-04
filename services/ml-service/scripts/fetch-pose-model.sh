@@ -25,5 +25,20 @@ fetch() {
   echo "Downloaded pose landmarker ($variant) model to $out_file"
 }
 
+# Face Landmarker, for the rigid cranio-orbital head pose on anterior clips
+# (app/clips/face_video.py). Same license situation as the pose bundles.
+fetch_face() {
+  local out_file="$OUT_DIR/face_landmarker.task"
+  local url="https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+  if [ -f "$out_file" ]; then
+    echo "Already present: $out_file"
+    return 0
+  fi
+  curl -sSf -o "$out_file.part" --max-time 300 "$url"
+  mv "$out_file.part" "$out_file"
+  echo "Downloaded face landmarker model to $out_file"
+}
+
 fetch lite
 fetch full
+fetch_face

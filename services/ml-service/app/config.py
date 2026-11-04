@@ -21,6 +21,20 @@ POSE_LANDMARKER_FULL_MODEL_PATH = Path(
 )
 
 
+# Face Landmarker, used for the rigid cranio-orbital head pose on ANTERIOR
+# clips only (app/clips/face_video.py). Fetched by scripts/fetch-pose-model.sh.
+#
+# Absence is not an error: a deployment without this model simply produces no
+# head-pose block, and the ear-line fallback still covers every view. Nothing in
+# the analysis path requires it.
+FACE_LANDMARKER_MODEL_PATH = Path(
+    os.environ.get(
+        "FACE_LANDMARKER_MODEL_PATH",
+        str(Path(__file__).resolve().parent.parent / ".models" / "face_landmarker.task"),
+    )
+)
+
+
 def get_clip_dir() -> Path:
     """Shared volume holding uploaded clips (written by backend-api) and the
     landmark series this service stores under `landmarks/`. Read per call so
