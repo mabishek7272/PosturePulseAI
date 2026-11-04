@@ -44,7 +44,7 @@ public class ARJigModule: Module {
         // The hard server-side limit the gate must stay inside: clip_quality.py
         // rejects a clip whose median hold pitch exceeds 2 x the step's
         // levelToleranceDegrees, which is 6 for every step in the v0 battery.
-        Constant("serverMaxPitchDegrees") { 12.0 }
+        Constant("serverMaxPitchDegrees") { ARJigThresholds.serverMaxPitchDegrees }
 
         View(ARJigView.self) {
             Events("onGate", "onRecordingProgress", "onRecorded", "onCaptureError")

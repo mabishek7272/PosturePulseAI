@@ -55,6 +55,10 @@ EXCLUDE_DIRS=(
   "*/dist/*"
   "*/generated/*"
   "*/.venv/*"
+  # SwiftPM build output (apps/mobile/modules/ar-jig/.build). Generated, and its
+  # compiler output-file maps contain "diagnostics" in every path, which the
+  # `diagnos` stem matches.
+  "*/.build/*"
 )
 
 # Root-level meta-documentation that discusses the claims policy itself (points

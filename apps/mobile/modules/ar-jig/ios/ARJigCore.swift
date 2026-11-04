@@ -114,6 +114,16 @@ public struct ARJigThresholds: Equatable {
     public var stabilityHold: TimeInterval = 1.5
 
     public static let `default` = ARJigThresholds()
+
+    /// The hard server-side pitch limit, degrees.
+    ///
+    /// `app/quality/clip_quality.py` rejects a clip whose median hold pitch
+    /// exceeds `2 x levelToleranceDegrees`, and `levelToleranceDegrees` is 6 for
+    /// every step in the v0 battery - so the limit is 12, not 6. The doubling is
+    /// easy to miss, which is why this is a named constant rather than a literal
+    /// at the point of use: `maxPitchDegrees` must stay below it, or the gate
+    /// gives the operator a green light for a capture the server will refuse.
+    public static let serverMaxPitchDegrees = 2.0 * 6.0
     public init() {}
 }
 
