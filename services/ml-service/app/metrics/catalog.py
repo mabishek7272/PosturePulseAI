@@ -6,6 +6,7 @@ counterpart to the measured rows, never an invitation to estimate them.
 """
 from __future__ import annotations
 
+from app.metrics.depth_metrics import catalog_entries
 from app.metrics.static_metrics import STATIC_METRICS, MetricDef
 from app.versioning import METRICS_VERSION
 
@@ -94,8 +95,9 @@ def _entry(d: MetricDef) -> dict:
 
 
 def build_catalog() -> dict:
+    """2D registry entries plus the depth ones (advertised; requested only if the battery lists them)."""
     return {
         "metricsVersion": METRICS_VERSION,
-        "metrics": [_entry(d) for d in STATIC_METRICS.values()],
+        "metrics": [*(_entry(d) for d in STATIC_METRICS.values()), *catalog_entries()],
         "notMeasurable": [dict(item) for item in NOT_MEASURABLE],
     }

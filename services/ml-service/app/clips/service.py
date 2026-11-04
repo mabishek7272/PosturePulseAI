@@ -28,6 +28,7 @@ from app.clips.depth_track import (
     info_from_sidecar,
     read_depth_track,
 )
+from app.clips.depth_observation import build_torso_frames
 from app.clips.errors import ClipDecodeError
 from app.clips.face_video import load_face_frames
 from app.clips.landmark_store import store_landmark_series
@@ -35,6 +36,14 @@ from app.clips.observation import FrameObservation
 from app.clips.face_video import MIN_FACE_FRAMES
 from app.clips.observation import LEFT_HIP, RIGHT_HIP
 from app.geometry.head_pose import head_pose_from_landmarks
+from app.metrics.depth_metrics import (
+    DEPTH_CALIBRATION_VERSION,
+    DEPTH_MEASUREMENT_METHOD,
+    DEPTH_METRIC_KEYS,
+    DEPTH_METRICS_VERSION,
+    compute_depth_metrics,
+    unsupported as depth_unsupported,
+)
 from app.config import get_clip_dir
 from app.geometry import intrinsics as intrinsics_module
 from app.versioning import (
@@ -113,39 +122,45 @@ def _mid_hip_pixels(observations: list[FrameObservation]) -> tuple[float, float]
 
 def _depth_block(
     req: AnalyzeRequest, clip_dir: Path, observations: list[FrameObservation]
-) -> dict | None:
-    """Transport health values for the clip's depth track, or None when it has none.
+) -> tuple[dict | None, list | None]:
+    """The clip's depth track: `(transport-health block, decoded frames)`.
 
-    PHASE 1 BOUNDARY: this returns a transport-health block only. No metric is derived
-    from depth, no MetricResult field is added or changed, and nothing here can
-    alter a 2D result. ADR-020 is `Proposed` and requires clinical-lead sign-off
-    before any depth-derived value reaches a report; until then the point of this
-    code is to prove the track arrives and aligns.
+    The block is None when the clip has no depth. The frames are None unless the
+    track decoded - a track in any other state (missing, undeclared, unreadable)
+    yields a block describing the state and NO frames, which is what makes the
+    `static3d.*` metrics come out `depth_unavailable` rather than being computed
+    from whatever could be salvaged.
+
+    Decoded ONCE here and shared: the same frames feed the health block and, when
+    a `static3d.*` key was requested, the metrics. Decoding twice would risk the
+    two disagreeing about what the track contained.
 
     Every depth failure is reported inside the block and never raised: a clip
     whose video analysed perfectly must not be failed because its depth track was
-    unreadable.
+    unreadable. The health block is transport information, not a measurement; the
+    `static3d.*` metrics are computed only if the battery requests them, and the
+    battery is the single switch (ADR-020 is `Proposed`).
     """
     side = req.sidecar
     try:
         info = info_from_sidecar(side)
     except DepthTrackError as exc:
-        return {"state": "unreadable", "error": str(exc)}
+        return {"state": "unreadable", "error": str(exc)}, None
 
     if info is None and req.depthPath is None:
-        return None
+        return None, None
     if info is None:
         # The caller passed a file the sidecar does not describe: there is no
         # encoding, scale or timing to read it by, so it stays unread.
-        return {"state": "undeclared", "error": "a depth file was supplied but the sidecar has no depth block"}
+        return {"state": "undeclared", "error": "a depth file was supplied but the sidecar has no depth block"}, None
     if req.depthPath is None:
-        return {"state": "missing", "error": "the sidecar declares a depth track but no depthPath was supplied"}
+        return {"state": "missing", "error": "the sidecar declares a depth track but no depthPath was supplied"}, None
 
     path = resolve_depth_path(req.depthPath, clip_dir)
     try:
         frames = read_depth_track(path, info)
     except DepthTrackError as exc:
-        return {"state": "unreadable", "error": str(exc)}
+        return {"state": "unreadable", "error": str(exc)}, None
 
     block = {
         "state": "decoded",
@@ -161,7 +176,62 @@ def _depth_block(
             video_size=(side.width, side.height),
         )
     )
-    return block
+    return block, frames
+
+
+def _static3d_outcomes(
+    depth_keys: list[str],
+    *,
+    view: str,
+    observations: list[FrameObservation],
+    quality,
+    depth_frames,
+    intrinsics,
+):
+    """`static3d.*` outcomes for one clip, plus the join statistics.
+
+    EVERY requested key gets exactly one outcome, an estimate or an unsupported
+    with reasons - `analysis-job-runner.checkResults` rejects a missing result, and
+    a key that silently vanished would be indistinguishable from one never asked
+    for (CLAUDE.md rule 3).
+
+    Ordered from "the capability was absent" to "it was there and failed", so the
+    reason a clinician reads is the earliest true one:
+
+    1. no usable depth track or no intrinsics -> `depth_unavailable`
+    2. the clip failed 2D quality -> those SAME reasons (a depth value from a
+       moving subject, or the wrong view, is as compromised as the 2D one; the
+       only reason 3D could survive is `camera_not_level`, which is a documented
+       future relaxation and not built)
+    3. otherwise compute, and let `compute_depth_metrics` name what failed
+
+    A depth failure suppresses `static3d.*` ONLY. This function is handed none of
+    the 2D results and cannot touch them.
+    """
+    depth_present = bool(depth_frames) and intrinsics is not None
+    if not depth_present:
+        result = compute_depth_metrics(
+            [], metric_keys=depth_keys, view=view, body_height_px=1.0, intrinsics=intrinsics, depth_present=False
+        )
+        return result.outcomes, None
+
+    if quality is None:  # the video could not be decoded
+        return [depth_unsupported(k, ["insufficient_frames"]) for k in depth_keys], None
+    if quality.clip_reasons:
+        return [depth_unsupported(k, list(quality.clip_reasons)) for k in depth_keys], None
+    if quality.body_height is None:
+        return [depth_unsupported(k, ["insufficient_depth_samples"]) for k in depth_keys], None
+
+    frames, stats = build_torso_frames(observations, quality.usable_indices, depth_frames, intrinsics)
+    result = compute_depth_metrics(
+        frames,
+        metric_keys=depth_keys,
+        view=view,
+        body_height_px=quality.body_height,
+        intrinsics=intrinsics,
+        depth_present=True,
+    )
+    return result.outcomes, stats
 
 
 def _head_pose_block(req: AnalyzeRequest, clip_path: Path, view: str, intrinsics) -> dict | None:
@@ -257,6 +327,10 @@ def _sha256_file(path: Path) -> str:
 
 
 def _record(req: AnalyzeRequest, m: MetricOutcome, *, clip_sha: str, series_sha: str, now: str) -> dict:
+    # Depth-derived results carry their OWN versions, and a real calibration: they
+    # are computed from true ARKit intrinsics, so "none/v0" would understate what
+    # produced them. 2D records are untouched, byte for byte.
+    depth = m.metric_key in DEPTH_METRIC_KEYS
     record: dict = {
         "resultId": str(uuid.uuid4()),
         "sessionId": req.sessionId,
@@ -270,13 +344,13 @@ def _record(req: AnalyzeRequest, m: MetricOutcome, *, clip_sha: str, series_sha:
         "evidence": {"landmarkSeriesSha256": series_sha},
         "provenance": {
             "schemaVersion": SCHEMA_VERSION_METRIC_RESULT,
-            "modelVersion": CLIP_MODEL_VERSION,
+            "modelVersion": f"{CLIP_MODEL_VERSION}+arkit-depth" if depth else CLIP_MODEL_VERSION,
             "adapterVersion": f"pyav/{av.__version__}",
-            "calibrationVersion": CALIBRATION_VERSION,
+            "calibrationVersion": DEPTH_CALIBRATION_VERSION if depth else CALIBRATION_VERSION,
             "producedAt": now,
-            "metricsVersion": METRICS_VERSION,
+            "metricsVersion": DEPTH_METRICS_VERSION if depth else METRICS_VERSION,
             "clipSha256": clip_sha,
-            "measurementMethod": "mediapipe_2d_image_plane",
+            "measurementMethod": DEPTH_MEASUREMENT_METHOD if depth else "mediapipe_2d_image_plane",
         },
     }
     if m.reasons is None:
@@ -300,11 +374,17 @@ def analyze_clip(req: AnalyzeRequest, loader: ObservationLoader) -> dict:
     clip_dir = get_clip_dir()
     clip_path = resolve_clip_path(req.clipPath, clip_dir)
 
+    # Split BEFORE validating: the 2D registry rejects any key it does not know,
+    # so a `static3d.*` key must never reach it. Depth keys are answered by the
+    # depth path or not at all - and they only arrive if the battery lists them.
+    depth_keys = [k for k in dict.fromkeys(req.metricKeys) if k in DEPTH_METRIC_KEYS]
+    keys_2d = [k for k in req.metricKeys if k not in DEPTH_METRIC_KEYS]
     try:
-        validate_metric_keys(req.metricKeys)
+        validate_metric_keys(keys_2d)
     except UnknownMetricError as exc:
         raise ClipRequestError(422, str(exc)) from exc
 
+    quality = None
     try:
         observations = loader(clip_path, side)
         outcome = analyze_observations(
@@ -312,16 +392,28 @@ def analyze_clip(req: AnalyzeRequest, loader: ObservationLoader) -> dict:
             view=view,
             width=side.width,
             height=side.height,
-            metric_keys=req.metricKeys,
+            metric_keys=keys_2d,
             min_fps=req.minFps,
             level_tolerance_degrees=req.levelToleranceDegrees,
         )
         metrics = outcome.metrics
         frame_quality = outcome.frame_quality
+        quality = outcome.quality
     except ClipDecodeError:
         observations = []
-        metrics = unsupported_outcome(req.metricKeys, view, ["insufficient_frames"])
+        metrics = unsupported_outcome(keys_2d, view, ["insufficient_frames"])
         frame_quality = {"usable": 0, "total": 0, "reasons": ["insufficient_frames"]}
+
+    # Decoded once; shared by the health block and the metrics below.
+    depth, depth_frames = _depth_block(req, clip_dir, observations)
+    intrinsics = intrinsics_module.from_sidecar(side)
+    join_stats = None
+    if depth_keys:
+        depth_outcomes, join_stats = _static3d_outcomes(
+            depth_keys, view=view, observations=observations, quality=quality,
+            depth_frames=depth_frames, intrinsics=intrinsics,
+        )
+        metrics = [*metrics, *depth_outcomes]
 
     try:
         series = store_landmark_series(
@@ -345,13 +437,24 @@ def analyze_clip(req: AnalyzeRequest, loader: ObservationLoader) -> dict:
     # Added last and only when there is something to say, so a clip with no
     # depth track produces a response byte-identical to the one it produced
     # before ADR-020.
-    depth = _depth_block(req, clip_dir, observations)
     if depth is not None:
+        if join_stats is not None:
+            # Why frames were dropped, by reason: "why is there no depth metric"
+            # deserves an answer other than a bare unsupported flag.
+            depth = {
+                **depth,
+                "torsoFrames": {
+                    "considered": join_stats.frames_considered,
+                    "kept": join_stats.frames_kept,
+                    "dropped": dict(join_stats.dropped),
+                    "landmarkRejections": dict(join_stats.landmark_rejections),
+                },
+            }
         response["depth"] = depth
     # Same shape of addition as `depth`, and for the same reason: present only
     # when there is something to say, so a clip without a face produces the
     # response it produced before this existed.
-    head_pose = _head_pose_block(req, clip_path, view, intrinsics_module.from_sidecar(side))
+    head_pose = _head_pose_block(req, clip_path, view, intrinsics)
     if head_pose is not None:
         response["headPose"] = head_pose
     return response

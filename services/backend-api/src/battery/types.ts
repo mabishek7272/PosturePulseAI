@@ -90,7 +90,7 @@ export type QualityReason =
 export type Tier = "estimate" | "proxy" | "entered" | "annotated" | "not_measurable";
 export type Side = "left" | "right" | "bilateral" | null;
 
-export type MeasurementMethod = "mediapipe_2d_image_plane" | "clinician_manual" | "clinician_annotated" | "entered" | "markerless_3d";
+export type MeasurementMethod = "mediapipe_2d_image_plane" | "clinician_manual" | "clinician_annotated" | "entered" | "markerless_3d" | "mediapipe_2_5d_depth";
 
 export interface Provenance {
   schemaVersion: string;

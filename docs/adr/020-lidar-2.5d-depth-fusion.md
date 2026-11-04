@@ -246,8 +246,11 @@ is then known to about +-26%); the study plan sets the real number.
    report. Until then the depth path stays behind a flag.
 
    **As implemented, the `static3d.*` metrics are computed but NOT REQUESTED.** The
-   geometry, the uncertainty model and the emission layer are complete and tested, but
-   the two keys are deliberately absent from `references/assessment-battery.v0-draft.json`,
+   geometry, the uncertainty model, the pose-to-depth join (`app/clips/depth_observation.py`),
+   the `/internal/clips/analyze` wiring and the catalog entries are complete and tested
+   end to end (`tests/test_static3d_pipeline.py`); the pitched-camera uncertainty is
+   propagated in the gravity frame. Records use `module: "static"` (the schema enum has no
+   `static3d`; the key prefix carries the namespace). The two keys are deliberately absent from `references/assessment-battery.v0-draft.json`,
    so nothing asks for them and no report can contain them. That is structural, not a
    flag: `analysis/analysis-job-runner.ts`'s `checkResults` rejects any result for a key
    the battery did not request, so an accidental emission fails the job rather than

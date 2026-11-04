@@ -99,7 +99,7 @@ def test_both_metrics_are_emitted_with_values_and_uncertainties():
     for o in out.values():
         assert o.reasons is None
         assert o.value is not None and o.uncertainty is not None and o.uncertainty > 0
-        assert o.module == "static3d"
+        assert o.module == "static"  # the key prefix, not the module, names the namespace
         assert o.unit == "deg"
         assert o.tier == "proxy"
         assert o.sign_convention
@@ -317,13 +317,13 @@ def test_the_method_is_one_value_for_the_whole_path_not_one_per_metric():
 
 
 def test_the_catalog_entries_describe_both_metrics_without_a_clinical_claim():
-    entries = {e["key"]: e for e in catalog_entries()}
+    entries = {e["metricKey"]: e for e in catalog_entries()}
     assert set(entries) == set(BOTH)
     for e in entries.values():
-        assert e["module"] == "static3d"
+        assert e["module"] == "static"
         assert e["tier"] == "proxy"
         assert e["unit"] == "deg"
-        assert e["views"] == list(DEPTH_VIEWS)
+        assert e["measurementMethod"] == DEPTH_MEASUREMENT_METHOD
         assert e["signConvention"] and e["description"]
     # The yaw entry says in plain words that it is not a posture finding.
     assert "not a posture measurement" in entries[SUBJECT_YAW_KEY]["description"]

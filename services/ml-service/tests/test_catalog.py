@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.metrics.depth_metrics import DEPTH_METRIC_KEYS
 from app.metrics.static_metrics import STATIC_METRICS
 from app.versioning import METRICS_VERSION
 
@@ -18,13 +19,14 @@ def test_catalog_lists_every_registry_metric_with_its_convention():
     body = resp.json()
     assert body["metricsVersion"] == METRICS_VERSION == "metrics/v1"
     by_key = {m["metricKey"]: m for m in body["metrics"]}
-    assert set(by_key) == set(STATIC_METRICS)
+    assert set(by_key) == set(STATIC_METRICS) | set(DEPTH_METRIC_KEYS)
     for key, m in by_key.items():
         assert set(m) == {
             "metricKey", "label", "module", "tier", "unit", "side", "signConvention", "description",
             "measurementMethod",
         }
-        assert m["measurementMethod"] == "mediapipe_2d_image_plane"
+        expected = "mediapipe_2_5d_depth" if key in DEPTH_METRIC_KEYS else "mediapipe_2d_image_plane"
+        assert m["measurementMethod"] == expected
         assert m["module"] == "static"
         assert m["tier"] in ("estimate", "proxy")
         assert m["signConvention"] and m["description"] and m["label"]

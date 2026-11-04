@@ -84,6 +84,19 @@ DEPTH_MEASUREMENT_METHOD = "mediapipe_2_5d_depth"
 SUBJECT_YAW_KEY = "static3d.subject_yaw_to_camera"
 AXIAL_TWIST_KEY = "static3d.axial_trunk_twist"
 
+#: Every key this module answers. `clips/service.py` splits a request's keys on
+#: this: anything in it goes down the depth path, everything else down the 2D
+#: registry's, which rejects keys it does not know.
+DEPTH_METRIC_KEYS = (SUBJECT_YAW_KEY, AXIAL_TWIST_KEY)
+
+#: The `metric-result` schema's `module` enum is static | functional | gait |
+#: workstation | ergonomic. These metrics are "static" - a standing hold - and
+#: the `static3d.` KEY prefix is what separates their namespace, so no schema
+#: change is needed. The first draft of this module set `module="static3d"`,
+#: which is not in the enum: every depth record would have failed validation at
+#: the boundary. It never showed because nothing called the module.
+DEPTH_METRIC_MODULE = "static"
+
 #: Only the frontal views. A lateral capture puts both shoulders on one line of
 #: sight, so the left-right chord has no observable horizontal extent and
 #: neither metric is defined - which `basis_from_landmarks` and
@@ -110,6 +123,14 @@ class FrameTorso:
     points: dict[str, np.ndarray]
     uv: dict[str, tuple[float, float]]
     depth_sigma: dict[str, float]
+    #: Rotation taking camera coordinates into the gravity frame `points` are in.
+    #: Needed to carry the uncertainty into that frame (see
+    #: `chord_angle_sigma_degrees`). `None` means `points` are camera-frame, which
+    #: is exact only for a level camera.
+    rotation: np.ndarray | None = None
+    #: Camera-frame depth `Z` per landmark. The Jacobians need it, and it is NOT
+    #: the third component of a gravity-frame point once the camera is pitched.
+    depth_m: dict[str, float] | None = None
 
 
 @dataclass
@@ -132,7 +153,7 @@ def unsupported(metric_key: str, reasons: list[str]) -> MetricOutcome:
     return MetricOutcome(
         metric_key=metric_key,
         side=None,
-        module="static3d",
+        module=DEPTH_METRIC_MODULE,
         tier=_TIERS[metric_key],
         unit="deg",
         sign_convention=_SIGN_CONVENTIONS[metric_key],
@@ -173,21 +194,35 @@ _DESCRIPTIONS = {
 }
 
 
+def _cam_depth(f: "FrameTorso", name: str) -> float | None:
+    """Camera-frame Z for a landmark, or None to let the callee fall back to the
+    point's own third component (right only when `points` are camera-frame)."""
+    return None if f.depth_m is None else f.depth_m.get(name)
+
+
 def catalog_entries() -> list[dict]:
-    """Catalog rows for the two metrics, in the shape `build_catalog` emits."""
+    """Catalog rows for the two metrics, in the EXACT shape `build_catalog` emits
+    for the 2D ones (`metricKey`, `side`, `measurementMethod`...), because
+    backend-api's report builder reads that shape and refuses to invent a label
+    for a metric the catalog does not describe.
+
+    These describe DEFINITIONS, not enablement. Having them here does not make
+    any report contain one: a `static3d.*` row exists only if the battery lists
+    the key, so the battery stays the single switch.
+    """
     return [
         {
-            "key": key,
+            "metricKey": key,
             "label": _LABELS[key],
-            "module": "static3d",
+            "module": DEPTH_METRIC_MODULE,
             "tier": _TIERS[key],
             "unit": "deg",
-            "views": list(DEPTH_VIEWS),
-            "sides": "none",
+            "side": None,
             "signConvention": _SIGN_CONVENTIONS[key],
             "description": _DESCRIPTIONS[key],
+            "measurementMethod": DEPTH_MEASUREMENT_METHOD,
         }
-        for key in (SUBJECT_YAW_KEY, AXIAL_TWIST_KEY)
+        for key in DEPTH_METRIC_KEYS
     ]
 
 
@@ -248,6 +283,9 @@ def compute_depth_metrics(
             sigma_depth1_m=f.depth_sigma["l_sh"],
             sigma_depth2_m=f.depth_sigma["r_sh"],
             plane=HORIZONTAL_PLANE,
+            rotation=f.rotation,
+            depth1_m=_cam_depth(f, "l_sh"),
+            depth2_m=_cam_depth(f, "r_sh"),
         )
         pelvis_sigma = chord_angle_sigma_degrees(
             p["l_hip"], p["r_hip"], f.uv["l_hip"], f.uv["r_hip"], intrinsics,
@@ -255,6 +293,9 @@ def compute_depth_metrics(
             sigma_depth1_m=f.depth_sigma["l_hip"],
             sigma_depth2_m=f.depth_sigma["r_hip"],
             plane=HORIZONTAL_PLANE,
+            rotation=f.rotation,
+            depth1_m=_cam_depth(f, "l_hip"),
+            depth2_m=_cam_depth(f, "r_hip"),
         )
         if yaw is not None and shoulder_sigma is not None:
             yaw_values.append(yaw)
@@ -295,7 +336,7 @@ def compute_depth_metrics(
             MetricOutcome(
                 metric_key=key,
                 side=None,
-                module="static3d",
+                module=DEPTH_METRIC_MODULE,
                 tier=_TIERS[key],
                 unit="deg",
                 sign_convention=_SIGN_CONVENTIONS[key],
