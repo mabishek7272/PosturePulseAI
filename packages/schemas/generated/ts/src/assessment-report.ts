@@ -102,6 +102,15 @@ export interface AssessmentReport {
       | "markerless_3d"
       | "mediapipe_2_5d_depth";
     /**
+     * Present only on tier=annotated rows: who placed the landmarks, when, and which machine result they revise, so a reader can see the value is a clinician's placement rather than the machine's (CLAUDE.md rule 4). Optional so released reports signed before this field existed remain valid with no migration.
+     */
+    annotation?: {
+      annotatorId: string;
+      annotatedAt: string;
+      sourceResultId: string;
+      adjustmentCount: number;
+    };
+    /**
      * Narrow provenance of the measurement itself, distinct from the report's own build-time provenance (the report-level provenance.modelVersion identifies the report builder, not what measured the body).
      */
     measuredBy?: {

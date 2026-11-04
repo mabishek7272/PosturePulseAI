@@ -86,6 +86,72 @@ export type MetricResult = {
     reason: string;
     whatWouldBeNeeded: string;
   };
+  /**
+   * The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.
+   *
+   * Annotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.
+   */
+  annotated?: {
+    value: number;
+    /**
+     * Same unit as value. Computed by the same declared uncertainty model as a machine estimate, from the adjusted landmark positions - NOT entered by the annotator. A clinician's own sense of how sure they are is not a propagated uncertainty, and accepting it would let an annotation look more precise than the instrument can be.
+     */
+    uncertainty: number;
+    /**
+     * The clinician's username, taken from their verified token server-side and never from the request body. An annotation nobody is named on records only that a value changed.
+     */
+    annotatorId: string;
+    annotatedAt: string;
+    /**
+     * The machine result this revises. The original stays in the event log and the annotation points back at it, so the machine's value is never lost.
+     */
+    sourceResultId: string;
+    /**
+     * The keyframe the landmarks were adjusted on, as an index into clip-capture's frames[]. One frame: an annotation is a statement about a frame, not about the whole hold.
+     */
+    sourceFrameIndex: number;
+    /**
+     * Only the landmarks that moved, not the full 33-point set. At least one: an annotation with no adjustment would be a machine result carrying a clinician's name. A clinician reviewing and agreeing is a different act and deserves its own record rather than this one.
+     *
+     * @minItems 1
+     */
+    adjustments: [
+      {
+        landmark: string;
+        /**
+         * Where the model had it, in pixels of the oriented image.
+         *
+         * @minItems 2
+         * @maxItems 2
+         */
+        fromPx: [number, number];
+        /**
+         * Where the clinician put it.
+         *
+         * @minItems 2
+         * @maxItems 2
+         */
+        toPx: [number, number];
+      },
+      ...{
+        landmark: string;
+        /**
+         * Where the model had it, in pixels of the oriented image.
+         *
+         * @minItems 2
+         * @maxItems 2
+         */
+        fromPx: [number, number];
+        /**
+         * Where the clinician put it.
+         *
+         * @minItems 2
+         * @maxItems 2
+         */
+        toPx: [number, number];
+      }[]
+    ];
+  };
   evidence?: {
     frameIndices?: number[];
     landmarkSeriesSha256?: string;

@@ -17,7 +17,12 @@ function bannedHits(text: string): string[] {
 }
 
 const UNITS = ["deg", "cm", "percent_stature", "s", "count", "per_min", "percent", "none"];
-const TIERS: Tier[] = ["estimate", "proxy", "entered", "annotated"];
+// "annotated" is deliberately NOT in this grid. It has its own payload and its
+// own template, only ever renders with no reference comparison, and throws for
+// anything else - so it is rendered explicitly below rather than being swept
+// through positions it must refuse. It used to sit here, rendered as if it were
+// an estimate, which was the masquerade the annotated schema branch removes.
+const TIERS: Tier[] = ["estimate", "proxy", "entered"];
 const POSITIONS_WITH_REFERENCE: Position[] = ["below", "within", "above", "indeterminate"];
 const ALL_REASONS = Object.keys(REASON_WORDS) as QualityReason[];
 
@@ -38,6 +43,20 @@ function renderAll(): Array<{ templateId: string; text: string }> {
       }
       out.push(renderAnalysis({ tier, unit, position: "no_reference", estimate: { value: 1.2, uncertainty: 0.4 }, reference: null }));
       out.push(renderAnalysis({ tier, unit, position: "not_applicable", estimate: null, reference: null, unsupportedReasons: ALL_REASONS }));
+    }
+  }
+  for (const unit of UNITS) {
+    for (const underlyingTier of [undefined, "estimate", "proxy"] as const) {
+      out.push(
+        renderAnalysis({
+          tier: "annotated",
+          underlyingTier,
+          unit,
+          position: "no_reference",
+          estimate: { value: 1.2, uncertainty: 0.4 },
+          reference: null,
+        })
+      );
     }
   }
   out.push(
@@ -180,5 +199,53 @@ describe("report templates", () => {
     expect(() =>
       renderAnalysis({ tier: "estimate", unit: "deg", position: "not_applicable", estimate: null, reference: null })
     ).toThrow();
+  });
+});
+
+
+describe("annotated rows", () => {
+  const annotated = (overrides: Partial<TemplateInput> = {}): TemplateInput => ({
+    tier: "annotated",
+    unit: "deg",
+    position: "no_reference",
+    estimate: { value: 4.2, uncertainty: 1.1 },
+    reference: null,
+    ...overrides,
+  });
+
+  it("says a clinician adjusted the landmarks, and never that the value is verified", () => {
+    const { templateId, text } = renderAnalysis(annotated());
+    expect(templateId).toBe("annotated.no_reference");
+    expect(text).toBe(
+      "4.2° ± 1.1°. Landmark positions were adjusted by a clinician. No reference value is set for this measurement."
+    );
+    // "Verified" would claim the placement was checked and found right. Moving a
+    // landmark corrects the pose model's misplacement of it; it cannot remove the
+    // static landmark-to-bone and soft-tissue offsets that dominate the error.
+    expect(text).not.toMatch(/verif|confirm|validated|accurate|correct/i);
+  });
+
+  it("keeps the proxy caveat: an annotation does not turn a proxy into an estimate", () => {
+    const proxy = renderAnalysis(annotated({ underlyingTier: "proxy" })).text;
+    const estimate = renderAnalysis(annotated({ underlyingTier: "estimate" })).text;
+    expect(proxy).toMatch(/Proxy measurement: describes landmark geometry only\./);
+    expect(estimate).not.toMatch(/Proxy/);
+  });
+
+  it.each(["below", "within", "above", "indeterminate"] as const)(
+    "REFUSES a reference comparison (%s) for a clinician's placement",
+    (position) => {
+      // The reference ranges are written for the 2D image-plane method. A
+      // clinician_annotated result is a non-default method, so report-builder
+      // never supplies a reference; this asserts the renderer would not draw a
+      // comparison even if a caller bypassed it.
+      expect(() =>
+        renderAnalysis(annotated({ position, reference: { lo: 0, hi: 5 } }))
+      ).toThrow(/cannot carry position/);
+    }
+  );
+
+  it("needs its value", () => {
+    expect(() => renderAnalysis(annotated({ estimate: null }))).toThrow(/annotated value/);
   });
 });

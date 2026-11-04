@@ -207,9 +207,17 @@ export interface ReportRow {
   /** What produced this row's measurement (ADR-018); absent means the default, mediapipe_2d_image_plane. */
   method?: MeasurementMethod | null;
   measuredBy?: { modelVersion: string; adapterVersion?: string; metricsVersion?: string } | null;
+  /** Present only on tier "annotated" rows: whose placement this is, and which machine result it revises. */
+  annotation?: { annotatorId: string; annotatedAt: string; sourceResultId: string; adjustmentCount: number } | null;
 }
 
-export type MeasurementMethod = "mediapipe_2d_image_plane" | "clinician_manual" | "clinician_annotated" | "entered" | "markerless_3d";
+export type MeasurementMethod =
+  | "mediapipe_2d_image_plane"
+  | "clinician_manual"
+  | "clinician_annotated"
+  | "entered"
+  | "markerless_3d"
+  | "mediapipe_2_5d_depth";
 
 export interface NotMeasurableItem {
   metricKey: string;

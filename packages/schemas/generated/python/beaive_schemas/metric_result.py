@@ -5,7 +5,15 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import AwareDatetime, BaseModel, Field, RootModel, confloat, conint
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    confloat,
+    conint,
+)
 
 
 class Module(Enum):
@@ -96,6 +104,57 @@ class NotMeasurable(BaseModel):
     whatWouldBeNeeded: str
 
 
+class Adjustment(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    landmark: str
+    fromPx: list[float] = Field(
+        ...,
+        description='Where the model had it, in pixels of the oriented image.',
+        max_length=2,
+        min_length=2,
+    )
+    toPx: list[float] = Field(
+        ..., description='Where the clinician put it.', max_length=2, min_length=2
+    )
+
+
+class Annotated(BaseModel):
+    """
+    The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.
+
+    Annotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    value: float
+    uncertainty: confloat(ge=0.0) = Field(
+        ...,
+        description="Same unit as value. Computed by the same declared uncertainty model as a machine estimate, from the adjusted landmark positions - NOT entered by the annotator. A clinician's own sense of how sure they are is not a propagated uncertainty, and accepting it would let an annotation look more precise than the instrument can be.",
+    )
+    annotatorId: str = Field(
+        ...,
+        description="The clinician's username, taken from their verified token server-side and never from the request body. An annotation nobody is named on records only that a value changed.",
+    )
+    annotatedAt: AwareDatetime
+    sourceResultId: str = Field(
+        ...,
+        description="The machine result this revises. The original stays in the event log and the annotation points back at it, so the machine's value is never lost.",
+    )
+    sourceFrameIndex: conint(ge=0) = Field(
+        ...,
+        description="The keyframe the landmarks were adjusted on, as an index into clip-capture's frames[]. One frame: an annotation is a statement about a frame, not about the whole hold.",
+    )
+    adjustments: list[Adjustment] = Field(
+        ...,
+        description="Only the landmarks that moved, not the full 33-point set. At least one: an annotation with no adjustment would be a machine result carrying a clinician's name. A clinician reviewing and agreeing is a different act and deserves its own record rather than this one.",
+        min_length=1,
+    )
+
+
 class Evidence(BaseModel):
     frameIndices: list[conint(ge=0)] | None = None
     landmarkSeriesSha256: str | None = None
@@ -176,6 +235,10 @@ class MetricResult1(BaseModel):
     estimate: Estimate
     unsupported: Unsupported | None = None
     notMeasurable: NotMeasurable | None = None
+    annotated: Annotated | None = Field(
+        None,
+        description="The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.\n\nAnnotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.",
+    )
     evidence: Evidence | None = None
     provenance: Provenance = Field(
         ...,
@@ -186,6 +249,41 @@ class MetricResult1(BaseModel):
 class Unsupported1(BaseModel):
     reasons: list[Reason] = Field(..., min_length=1)
     detail: str | None = None
+
+
+class Annotated1(BaseModel):
+    """
+    The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.
+
+    Annotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    value: float
+    uncertainty: confloat(ge=0.0) = Field(
+        ...,
+        description="Same unit as value. Computed by the same declared uncertainty model as a machine estimate, from the adjusted landmark positions - NOT entered by the annotator. A clinician's own sense of how sure they are is not a propagated uncertainty, and accepting it would let an annotation look more precise than the instrument can be.",
+    )
+    annotatorId: str = Field(
+        ...,
+        description="The clinician's username, taken from their verified token server-side and never from the request body. An annotation nobody is named on records only that a value changed.",
+    )
+    annotatedAt: AwareDatetime
+    sourceResultId: str = Field(
+        ...,
+        description="The machine result this revises. The original stays in the event log and the annotation points back at it, so the machine's value is never lost.",
+    )
+    sourceFrameIndex: conint(ge=0) = Field(
+        ...,
+        description="The keyframe the landmarks were adjusted on, as an index into clip-capture's frames[]. One frame: an annotation is a statement about a frame, not about the whole hold.",
+    )
+    adjustments: list[Adjustment] = Field(
+        ...,
+        description="Only the landmarks that moved, not the full 33-point set. At least one: an annotation with no adjustment would be a machine result carrying a clinician's name. A clinician reviewing and agreeing is a different act and deserves its own record rather than this one.",
+        min_length=1,
+    )
 
 
 class Provenance1(BaseModel):
@@ -250,6 +348,10 @@ class MetricResult2(BaseModel):
     estimate: Estimate | None = None
     unsupported: Unsupported1
     notMeasurable: NotMeasurable | None = None
+    annotated: Annotated1 | None = Field(
+        None,
+        description="The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.\n\nAnnotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.",
+    )
     evidence: Evidence | None = None
     provenance: Provenance1 = Field(
         ...,
@@ -260,6 +362,41 @@ class MetricResult2(BaseModel):
 class Unsupported2(BaseModel):
     reasons: list[Reason] = Field(..., min_length=1)
     detail: str | None = None
+
+
+class Annotated2(BaseModel):
+    """
+    The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.
+
+    Annotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    value: float
+    uncertainty: confloat(ge=0.0) = Field(
+        ...,
+        description="Same unit as value. Computed by the same declared uncertainty model as a machine estimate, from the adjusted landmark positions - NOT entered by the annotator. A clinician's own sense of how sure they are is not a propagated uncertainty, and accepting it would let an annotation look more precise than the instrument can be.",
+    )
+    annotatorId: str = Field(
+        ...,
+        description="The clinician's username, taken from their verified token server-side and never from the request body. An annotation nobody is named on records only that a value changed.",
+    )
+    annotatedAt: AwareDatetime
+    sourceResultId: str = Field(
+        ...,
+        description="The machine result this revises. The original stays in the event log and the annotation points back at it, so the machine's value is never lost.",
+    )
+    sourceFrameIndex: conint(ge=0) = Field(
+        ...,
+        description="The keyframe the landmarks were adjusted on, as an index into clip-capture's frames[]. One frame: an annotation is a statement about a frame, not about the whole hold.",
+    )
+    adjustments: list[Adjustment] = Field(
+        ...,
+        description="Only the landmarks that moved, not the full 33-point set. At least one: an annotation with no adjustment would be a machine result carrying a clinician's name. A clinician reviewing and agreeing is a different act and deserves its own record rather than this one.",
+        min_length=1,
+    )
 
 
 class Provenance2(BaseModel):
@@ -324,6 +461,10 @@ class MetricResult3(BaseModel):
     estimate: Estimate | None = None
     unsupported: Unsupported2 | None = None
     notMeasurable: NotMeasurable
+    annotated: Annotated2 | None = Field(
+        None,
+        description="The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.\n\nAnnotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.",
+    )
     evidence: Evidence | None = None
     provenance: Provenance2 = Field(
         ...,
@@ -331,8 +472,123 @@ class MetricResult3(BaseModel):
     )
 
 
-class MetricResult(RootModel[MetricResult1 | MetricResult2 | MetricResult3]):
-    root: MetricResult1 | MetricResult2 | MetricResult3 = Field(
+class Unsupported3(BaseModel):
+    reasons: list[Reason] = Field(..., min_length=1)
+    detail: str | None = None
+
+
+class Annotated3(BaseModel):
+    """
+    The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.
+
+    Annotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    value: float
+    uncertainty: confloat(ge=0.0) = Field(
+        ...,
+        description="Same unit as value. Computed by the same declared uncertainty model as a machine estimate, from the adjusted landmark positions - NOT entered by the annotator. A clinician's own sense of how sure they are is not a propagated uncertainty, and accepting it would let an annotation look more precise than the instrument can be.",
+    )
+    annotatorId: str = Field(
+        ...,
+        description="The clinician's username, taken from their verified token server-side and never from the request body. An annotation nobody is named on records only that a value changed.",
+    )
+    annotatedAt: AwareDatetime
+    sourceResultId: str = Field(
+        ...,
+        description="The machine result this revises. The original stays in the event log and the annotation points back at it, so the machine's value is never lost.",
+    )
+    sourceFrameIndex: conint(ge=0) = Field(
+        ...,
+        description="The keyframe the landmarks were adjusted on, as an index into clip-capture's frames[]. One frame: an annotation is a statement about a frame, not about the whole hold.",
+    )
+    adjustments: list[Adjustment] = Field(
+        ...,
+        description="Only the landmarks that moved, not the full 33-point set. At least one: an annotation with no adjustment would be a machine result carrying a clinician's name. A clinician reviewing and agreeing is a different act and deserves its own record rather than this one.",
+        min_length=1,
+    )
+
+
+class Provenance3(BaseModel):
+    """
+    Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).
+    """
+
+    schemaVersion: str = Field(
+        ...,
+        description='Version of this record\'s own JSON Schema, e.g. "pose-landmark-frame/v0".',
+    )
+    modelVersion: str = Field(
+        ...,
+        description='Identifier+version of the model/adapter that produced this record, e.g. "mediapipe-pose/0.10.9".',
+    )
+    adapterVersion: str | None = None
+    calibrationVersion: str = Field(
+        ...,
+        description='Identifier of the camera calibration record in effect when this record was produced.',
+    )
+    producedAt: AwareDatetime
+    metricsVersion: str | None = Field(
+        None,
+        description='Version of the metric registry that computed the value, e.g. "metrics/v1".',
+    )
+    referenceFileVersion: str | None = Field(
+        None,
+        description='Version of the reference-range set used to classify the value.',
+    )
+    clipSha256: str | None = Field(
+        None, description='SHA-256 of the clip the value was computed from.'
+    )
+    measurementMethod: MeasurementMethod | None = Field(
+        None,
+        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md); 'mediapipe_2_5d_depth' is the single-view LiDAR path (ADR-020) - MediaPipe landmarks in the image plane, depth from the device's depth sensor - kept distinct from 'markerless_3d' because pooling single-view LiDAR with triangulated multi-camera data would corrupt the agreement statistics in app/analysis/agreement.py, and deliberately ONE value for the whole depth path rather than one per metric, so those strata stay large enough to mean anything.",
+    )
+
+
+class MetricResult4(BaseModel):
+    """
+    One assessment measurement (ADR-015). Exactly one of estimate / unsupported / notMeasurable is present: a value is never shown without its uncertainty, a quality failure is never silently dropped, and anything the system cannot measure says so instead of guessing (CLAUDE.md rule 3).
+    """
+
+    resultId: str
+    sessionId: str
+    clipId: str | None = Field(
+        None,
+        description='Clip the result was computed from; null for entered values and the standing not-measurable list.',
+    )
+    stepId: str | None = None
+    metricKey: str = Field(
+        ...,
+        description='Stable key from the metric registry, e.g. "static.shoulder_line_tilt".',
+    )
+    module: Module
+    tier: Tier = Field(
+        ...,
+        description="estimate: a measurement with uncertainty, not yet clinically evidenced (see provenance.measurementMethod for how it was produced). proxy: stands in for a named clinical construct and never borrows that construct's norms. entered/annotated: supplied by a clinician. not_measurable: not obtainable with this system.",
+    )
+    unit: Unit
+    side: Side | None
+    estimate: Estimate | None = None
+    unsupported: Unsupported3 | None = None
+    notMeasurable: NotMeasurable | None = None
+    annotated: Annotated3 = Field(
+        ...,
+        description="The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.\n\nAnnotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.",
+    )
+    evidence: Evidence | None = None
+    provenance: Provenance3 = Field(
+        ...,
+        description='Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).',
+    )
+
+
+class MetricResult(
+    RootModel[MetricResult1 | MetricResult2 | MetricResult3 | MetricResult4]
+):
+    root: MetricResult1 | MetricResult2 | MetricResult3 | MetricResult4 = Field(
         ...,
         description='One assessment measurement (ADR-015). Exactly one of estimate / unsupported / notMeasurable is present: a value is never shown without its uncertainty, a quality failure is never silently dropped, and anything the system cannot measure says so instead of guessing (CLAUDE.md rule 3).',
         title='MetricResult',

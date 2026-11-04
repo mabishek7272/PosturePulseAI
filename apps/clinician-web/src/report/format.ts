@@ -78,6 +78,8 @@ export function tierLabel(tier: MetricTier): string {
 export const TIER_HINT: Partial<Record<MetricTier, string>> = {
   estimate: "2D measurement from the video, shown with its uncertainty.",
   proxy: "Stands in for a clinical construct; compared only with a geometric reference.",
+  annotated:
+    "A clinician adjusted the landmark positions. Shown with its propagated uncertainty and no reference comparison; adjusting a landmark does not remove the static offsets that dominate the error.",
 };
 
 /** The pipeline's only implemented method this phase (ADR-018); absent means this, too (see ReportRow.method). */
@@ -89,6 +91,7 @@ const MEASUREMENT_METHOD_LABEL: Record<MeasurementMethod, string> = {
   clinician_annotated: "Clinician-annotated",
   entered: "Entered value",
   markerless_3d: "Markerless 3D (not yet implemented)",
+  mediapipe_2_5d_depth: "Camera estimate with depth sensor (2.5D)",
 };
 
 export function measurementMethodLabel(method: MeasurementMethod): string {

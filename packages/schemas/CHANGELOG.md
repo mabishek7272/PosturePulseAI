@@ -260,3 +260,51 @@ behind a flag and emits no metric until a clinical lead signs it off).
     ambiguous and the analysis cannot tell which block it belonged to.
 - Both fields are optional, so `references/assessment-battery.v0-draft.json` is
   valid unchanged and `version` stays `v0`.
+
+## v0 - metric-result: the `annotated` tier gets a payload (tightening)
+
+- `metric-result` gains an `annotated` payload and a **fourth `oneOf` branch**. The
+  `annotated` tier was already in the `tier` enum (and `clinician_annotated` in
+  `measurementMethod`), but had no payload of its own, so an annotated result could
+  only be expressed by masquerading as an `estimate`. The report builder then
+  refused it (the catalog tier did not match) and the renderer could not draw it
+  (no estimate), so the tier was unusable end to end.
+- The payload: `value`, `uncertainty`, `annotatorId`, `annotatedAt`,
+  `sourceResultId`, `sourceFrameIndex`, `adjustments[]` (`landmark`, `fromPx`,
+  `toPx`), all required, `additionalProperties: false`.
+  - **`adjustments` lists only the landmarks that moved**, not full 33-point
+    raw/adjusted sets: it is compact, and it is the actual edit. `minItems: 1`,
+    because an annotation with no adjustment is a machine result carrying a
+    clinician's name; a clinician agreeing with the machine is a different act and
+    needs its own record.
+  - **`uncertainty` is computed, not entered.** Moving a landmark corrects the pose
+    model's misplacement of it; it cannot remove the static landmark-to-bone and
+    soft-tissue offsets that dominate the error. A clinician's own confidence is
+    not a propagated uncertainty, and accepting it would let an annotation look
+    more precise than the instrument can be.
+  - `sourceFrameIndex` (an index into `clip-capture.frames[]`) rather than a
+    timestamp, which is ambiguous next to the ISO ones and not what the sidecar
+    keys on.
+  - `annotatorId` comes from the verified clinician token server-side, never the
+    body - the same rule as `spotter-confirmation.confirmedBy`.
+- **Every `oneOf` branch now excludes `annotated`.** The first draft only appended
+  a fourth branch, and an `estimate` + `annotated` record then matched branch 1
+  alone (which never mentioned `annotated`) and validated. Tests cover each pair.
+- **tier <=> payload**, mirroring the `not_measurable` pair, plus: an annotated
+  result MUST declare `provenance.measurementMethod = "clinician_annotated"`.
+  `report-builder` treats an ABSENT method as the default 2D one and compares the
+  row against reference ranges written for that method, so omitting it would have
+  silently applied a band meant for a different quantity.
+- **This tightens a rule rather than adding an optional field**, so it is stated
+  plainly: a record with `tier: "annotated"` and an `estimate` previously
+  validated and no longer does. Nothing in the repo produces one (grep: no emitter
+  of `annotated` anywhere), and stored events are not re-validated on read, so no
+  migration is needed - but a deployment with externally-written events should
+  check before upgrading. `version` stays `v0` on that basis.
+- `assessment-report` rows gain an optional `annotation` (`annotatorId`,
+  `annotatedAt`, `sourceResultId`, `adjustmentCount`) so a reader can see whose
+  placement a row is (CLAUDE.md rule 4). Optional, so released reports signed
+  before it existed remain valid.
+- **Wording: "Clinician-annotated", not "Clinician Verified".** "Verified" says the
+  placement was checked and found correct, which adjusting a landmark does not
+  establish. The web client already labelled the method "Clinician-annotated".

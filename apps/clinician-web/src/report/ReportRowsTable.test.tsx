@@ -130,3 +130,44 @@ describe("ReportRowsTable", () => {
     expect(screen.getByRole("region", { name: /static\.anterior/ })).toBeInTheDocument();
   });
 });
+
+describe("an annotated row", () => {
+  const annotatedRow = {
+    metricKey: "static.head_lateral_tilt",
+    resultId: "res-annot",
+    stepId: "static.anterior",
+    label: "Head lateral tilt",
+    module: "static" as const,
+    tier: "annotated" as const,
+    unit: "deg",
+    side: null,
+    estimate: { value: 3.4, uncertainty: 1.6 },
+    reference: null,
+    position: "no_reference" as const,
+    analysis: {
+      text: "3.4° ± 1.6°. Landmark positions were adjusted by a clinician. No reference value is set for this measurement.",
+      source: "fixed_template" as const,
+      templateId: "annotated.no_reference",
+    },
+    excluded: null,
+    method: "clinician_annotated" as const,
+    annotation: { annotatorId: "dr.okafor", annotatedAt: "2026-11-04T10:05:00Z", sourceResultId: "r-machine-1", adjustmentCount: 2 },
+  };
+
+  it("says a clinician placed it, by name, and that no reference applies", () => {
+    render(<ReportRowsTable rows={[annotatedRow]} stepTitles={{}} editable={false} />);
+    expect(screen.getByText("Annotated")).toBeInTheDocument();
+    expect(screen.getByText("Method: Clinician-annotated")).toBeInTheDocument();
+    expect(screen.getByText("Landmarks adjusted by dr.okafor (2 points)")).toBeInTheDocument();
+    expect(screen.getByText("None")).toBeInTheDocument();
+  });
+
+  it("explains the tier without claiming the value is checked or more accurate", () => {
+    render(<ReportRowsTable rows={[annotatedRow]} stepTitles={{}} editable={false} />);
+    const chip = screen.getByText("Annotated");
+    const hint = chip.getAttribute("title") ?? "";
+    expect(hint).toMatch(/clinician adjusted the landmark positions/i);
+    expect(hint).toMatch(/does not remove the static offsets/i);
+    expect(`${hint} ${document.body.textContent}`).not.toMatch(/verified|validated|accurate|confirmed/i);
+  });
+});

@@ -5,7 +5,15 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import AwareDatetime, BaseModel, Field, confloat, conint, constr
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    confloat,
+    conint,
+    constr,
+)
 
 
 class Status(Enum):
@@ -143,6 +151,20 @@ class Method(Enum):
     mediapipe_2_5d_depth = 'mediapipe_2_5d_depth'
 
 
+class Annotation(BaseModel):
+    """
+    Present only on tier=annotated rows: who placed the landmarks, when, and which machine result they revise, so a reader can see the value is a clinician's placement rather than the machine's (CLAUDE.md rule 4). Optional so released reports signed before this field existed remain valid with no migration.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    annotatorId: str
+    annotatedAt: AwareDatetime
+    sourceResultId: str
+    adjustmentCount: conint(ge=1)
+
+
 class MeasuredBy(BaseModel):
     """
     Narrow provenance of the measurement itself, distinct from the report's own build-time provenance (the report-level provenance.modelVersion identifies the report builder, not what measured the body).
@@ -184,6 +206,10 @@ class Row(BaseModel):
     method: Method | None = Field(
         None,
         description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md); 'mediapipe_2_5d_depth' is the single-view LiDAR path (ADR-020) - MediaPipe landmarks in the image plane, depth from the device's depth sensor - kept distinct from 'markerless_3d' because pooling single-view LiDAR with triangulated multi-camera data would corrupt the agreement statistics in app/analysis/agreement.py, and deliberately ONE value for the whole depth path rather than one per metric, so those strata stay large enough to mean anything.",
+    )
+    annotation: Annotation | None = Field(
+        None,
+        description="Present only on tier=annotated rows: who placed the landmarks, when, and which machine result they revise, so a reader can see the value is a clinician's placement rather than the machine's (CLAUDE.md rule 4). Optional so released reports signed before this field existed remain valid with no migration.",
     )
     measuredBy: MeasuredBy | None = Field(
         None,

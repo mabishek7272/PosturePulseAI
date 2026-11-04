@@ -50,6 +50,35 @@
         "whatWouldBeNeeded": { "type": "string" }
       }
     },
+    "annotated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "uncertainty", "annotatorId", "annotatedAt", "sourceResultId", "sourceFrameIndex", "adjustments"],
+      "description": "The payload of tier=annotated: a value a named clinician produced by moving one or more landmarks on a keyframe of the clip, in place of the machine's placement. Mutually exclusive with estimate, unsupported and notMeasurable.\n\nAnnotated does NOT mean more accurate, and nothing here claims it. Moving a landmark corrects the pose model's MISPLACEMENT of it; it cannot remove the dominant static errors - landmark-to-bony-landmark offset, soft tissue and clothing - which are the same for a clinician's placement as for the model's. So `uncertainty` is still required, and it is not a measure of the clinician's confidence.",
+      "properties": {
+        "value": { "type": "number" },
+        "uncertainty": { "type": "number", "minimum": 0, "description": "Same unit as value. Computed by the same declared uncertainty model as a machine estimate, from the adjusted landmark positions - NOT entered by the annotator. A clinician's own sense of how sure they are is not a propagated uncertainty, and accepting it would let an annotation look more precise than the instrument can be." },
+        "annotatorId": { "type": "string", "description": "The clinician's username, taken from their verified token server-side and never from the request body. An annotation nobody is named on records only that a value changed." },
+        "annotatedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+        "sourceResultId": { "type": "string", "description": "The machine result this revises. The original stays in the event log and the annotation points back at it, so the machine's value is never lost." },
+        "sourceFrameIndex": { "type": "integer", "minimum": 0, "description": "The keyframe the landmarks were adjusted on, as an index into clip-capture's frames[]. One frame: an annotation is a statement about a frame, not about the whole hold." },
+        "adjustments": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Only the landmarks that moved, not the full 33-point set. At least one: an annotation with no adjustment would be a machine result carrying a clinician's name. A clinician reviewing and agreeing is a different act and deserves its own record rather than this one.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["landmark", "fromPx", "toPx"],
+            "properties": {
+              "landmark": { "type": "string" },
+              "fromPx": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "Where the model had it, in pixels of the oriented image." },
+              "toPx": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2, "description": "Where the clinician put it." }
+            }
+          }
+        }
+      }
+    },
     "evidence": {
       "type": "object",
       "properties": {
@@ -60,9 +89,10 @@
     "provenance": { "$ref": "common.schema.json#/$defs/provenance" }
   },
   "oneOf": [
-    { "required": ["estimate"], "not": { "anyOf": [{ "required": ["unsupported"] }, { "required": ["notMeasurable"] }] } },
-    { "required": ["unsupported"], "not": { "anyOf": [{ "required": ["estimate"] }, { "required": ["notMeasurable"] }] } },
-    { "required": ["notMeasurable"], "not": { "anyOf": [{ "required": ["estimate"] }, { "required": ["unsupported"] }] } }
+    { "required": ["estimate"], "not": { "anyOf": [{ "required": ["unsupported"] }, { "required": ["notMeasurable"] }, { "required": ["annotated"] }] } },
+    { "required": ["unsupported"], "not": { "anyOf": [{ "required": ["estimate"] }, { "required": ["notMeasurable"] }, { "required": ["annotated"] }] } },
+    { "required": ["notMeasurable"], "not": { "anyOf": [{ "required": ["estimate"] }, { "required": ["unsupported"] }, { "required": ["annotated"] }] } },
+    { "required": ["annotated"], "not": { "anyOf": [{ "required": ["estimate"] }, { "required": ["unsupported"] }, { "required": ["notMeasurable"] }] } }
   ],
   "allOf": [
     {
@@ -72,6 +102,20 @@
     {
       "if": { "required": ["notMeasurable"] },
       "then": { "properties": { "tier": { "const": "not_measurable" } } }
+    },
+    {
+      "$comment": "tier <=> payload for annotated, mirroring the not_measurable pair above. Before this the tier existed in the enum with no payload of its own, so an annotated result had to masquerade as an estimate.",
+      "if": { "properties": { "tier": { "const": "annotated" } } },
+      "then": { "required": ["annotated"] }
+    },
+    {
+      "if": { "required": ["annotated"] },
+      "then": { "properties": { "tier": { "const": "annotated" } } }
+    },
+    {
+      "$comment": "An annotated result MUST declare clinician_annotated. report-builder treats an ABSENT measurementMethod as the default 2D method and compares the row against the 2D reference ranges, so an annotated row that omitted the field would be silently compared against a band written for a different quantity.",
+      "if": { "properties": { "tier": { "const": "annotated" } } },
+      "then": { "properties": { "provenance": { "required": ["measurementMethod"], "properties": { "measurementMethod": { "const": "clinician_annotated" } } } } }
     }
   ]
 }

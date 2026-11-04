@@ -19,6 +19,7 @@ export type TemplateId =
   | "proxy.above"
   | "proxy.indeterminate"
   | "proxy.no_reference"
+  | "annotated.no_reference"
   | "unsupported"
   | "not_measurable";
 
@@ -33,6 +34,7 @@ export const ALL_TEMPLATE_IDS: readonly TemplateId[] = [
   "proxy.above",
   "proxy.indeterminate",
   "proxy.no_reference",
+  "annotated.no_reference",
   "unsupported",
   "not_measurable",
 ];
@@ -44,6 +46,20 @@ const MEASURED_TEMPLATES = {
   indeterminate: "{value} ± {u}; the uncertainty overlaps the {ref} reference.",
   no_reference: "{value} ± {u}. No reference value is set for this measurement.",
 } as const;
+
+/**
+ * Wording for a clinician-placed value. "Clinician-annotated", not "verified":
+ * moving a landmark corrects the pose model's misplacement of it, but the
+ * dominant errors - landmark-to-bony-landmark offset, soft tissue, clothing - are
+ * static and are the same for a clinician's placement as for the model's. So the
+ * row says WHO placed it and nothing about how right it is, and the uncertainty
+ * beside it is the propagated one rather than the annotator's confidence.
+ *
+ * No reference is ever compared: a clinician_annotated result is a non-default
+ * method, and the reference ranges are written for the 2D one.
+ */
+const ANNOTATED_TEMPLATE =
+  "{value} ± {u}. Landmark positions were adjusted by a clinician. No reference value is set for this measurement.";
 
 const PROXY_SUFFIX = " Proxy measurement: describes landmark geometry only.";
 const UNSUPPORTED_TEMPLATE = "Not measured: {reasons}.";
@@ -110,6 +126,12 @@ export function formatReferenceLabel(reference: ReferenceBounds, unit: string): 
 
 export interface TemplateInput {
   tier: Tier;
+  /**
+   * For tier "annotated" only: the tier the catalog gives the underlying
+   * quantity. A clinician moving landmarks does not turn a proxy into an
+   * estimate, so a proxy still carries its caveat.
+   */
+  underlyingTier?: Tier;
   unit: string;
   position: Position;
   estimate: { value: number; uncertainty: number } | null;
@@ -127,6 +149,24 @@ function fill(template: string, values: Record<string, string>): string {
 }
 
 export function renderAnalysis(input: TemplateInput): { templateId: TemplateId; text: string } {
+  if (input.tier === "annotated") {
+    const { estimate } = input;
+    if (!estimate) throw new Error("An annotated row needs its annotated value");
+    if (input.position !== "no_reference") {
+      // Unreachable through report-builder, which refuses an annotated result
+      // whose method is not clinician_annotated. Asserted so a reference
+      // comparison can never be rendered for a clinician's placement by a caller
+      // that bypassed it.
+      throw new Error(`An annotated row cannot carry position "${input.position}"; it has no reference comparison`);
+    }
+    const text =
+      fill(ANNOTATED_TEMPLATE, {
+        value: formatValue(estimate.value, input.unit),
+        u: formatValue(estimate.uncertainty, input.unit),
+      }) + (input.underlyingTier === "proxy" ? PROXY_SUFFIX : "");
+    return { templateId: "annotated.no_reference", text };
+  }
+
   if (input.position === "not_applicable") {
     if (input.unsupportedReasons && input.unsupportedReasons.length > 0) {
       const reasons = input.unsupportedReasons.map((r) => {

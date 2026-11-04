@@ -57,6 +57,8 @@ export interface ReportRow {
   excluded: { reason: string; clinicianId: string } | null;
   method?: MeasurementMethod;
   measuredBy?: { modelVersion: string; adapterVersion?: string; metricsVersion?: string };
+  /** Present only on tier "annotated" rows: whose placement this is. */
+  annotation?: { annotatorId: string; annotatedAt: string; sourceResultId: string; adjustmentCount: number };
   signConvention?: string;
 }
 
@@ -168,7 +170,22 @@ function buildRow(
   if (!metric) {
     throw new ReportBuildError(`The metric catalog does not describe "${result.metricKey}"; refusing to invent a label`);
   }
-  if (result.tier !== metric.tier && result.tier !== "not_measurable") {
+  // "annotated" is an OVERRIDE tier, not a catalog tier: the catalog says what
+  // the machine measures (estimate or proxy) and a clinician's placement
+  // replaces the machine's. It is allowed through here only with its payload and
+  // method intact - the schema enforces both, and this re-checks because the
+  // builder is the last stop before a report a clinician signs.
+  if (result.tier === "annotated") {
+    if (!result.annotated || result.estimate) {
+      throw new ReportBuildError(`Result ${result.resultId} is tier "annotated" but does not carry exactly an annotated payload`);
+    }
+    if (result.provenance.measurementMethod !== "clinician_annotated") {
+      // An ABSENT method counts as the default 2D one below, so omitting it
+      // would compare this row against reference ranges written for a different
+      // quantity.
+      throw new ReportBuildError(`Result ${result.resultId} is annotated but its measurementMethod is not "clinician_annotated"`);
+    }
+  } else if (result.tier !== metric.tier && result.tier !== "not_measurable") {
     throw new ReportBuildError(`Result ${result.resultId} has tier "${result.tier}" but the catalog says "${metric.tier}"`);
   }
   if (result.unit !== metric.unit) {
@@ -196,10 +213,14 @@ function buildRow(
       }
     : null;
 
-  const estimate = result.estimate ? { value: result.estimate.value, uncertainty: result.estimate.uncertainty } : null;
+  const source = result.annotated ?? result.estimate;
+  const estimate = source ? { value: source.value, uncertainty: source.uncertainty } : null;
   const position = computePosition(estimate, indexed ? indexed.bounds : null);
   const rendered = renderAnalysis({
     tier: result.tier,
+    // An annotation must not launder a proxy into an estimate: the row's tier is
+    // "annotated", but the QUANTITY is still whatever the catalog says it is.
+    underlyingTier: result.tier === "annotated" ? metric.tier : undefined,
     unit: result.unit,
     position,
     estimate,
@@ -226,6 +247,14 @@ function buildRow(
   if (result.unsupported) row.unsupportedReasons = [...result.unsupported.reasons];
   if (result.estimate?.signConvention) row.signConvention = result.estimate.signConvention;
   if (method !== undefined) row.method = method;
+  if (result.annotated) {
+    row.annotation = {
+      annotatorId: result.annotated.annotatorId,
+      annotatedAt: result.annotated.annotatedAt,
+      sourceResultId: result.annotated.sourceResultId,
+      adjustmentCount: result.annotated.adjustments.length,
+    };
+  }
   // Narrow provenance of the measurement itself, distinct from the report's
   // own build-time provenance below (CLAUDE.md rule 4: the report-level
   // provenance.modelVersion names the report builder, not what measured the

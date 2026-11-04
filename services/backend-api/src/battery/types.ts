@@ -117,6 +117,20 @@ export interface MetricResult {
   estimate?: { value: number; uncertainty: number; framesUsed: number; signConvention?: string };
   unsupported?: { reasons: QualityReason[]; detail?: string };
   notMeasurable?: { reason: string; whatWouldBeNeeded: string };
+  /**
+   * tier "annotated": a value a named clinician produced by moving landmarks.
+   * Always carries provenance.measurementMethod "clinician_annotated" (the
+   * schema enforces it) and never an `estimate`.
+   */
+  annotated?: {
+    value: number;
+    uncertainty: number;
+    annotatorId: string;
+    annotatedAt: string;
+    sourceResultId: string;
+    sourceFrameIndex: number;
+    adjustments: Array<{ landmark: string; fromPx: [number, number]; toPx: [number, number] }>;
+  };
   evidence?: { frameIndices?: number[]; landmarkSeriesSha256?: string };
   provenance: Provenance;
 }

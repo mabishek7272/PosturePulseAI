@@ -130,6 +130,12 @@ function ReportRowView({
         {row.method && row.method !== DEFAULT_MEASUREMENT_METHOD && (
           <small className="report-citation">Method: {measurementMethodLabel(row.method)}</small>
         )}
+        {row.annotation && (
+          <small className="report-citation">
+            Landmarks adjusted by {row.annotation.annotatorId}
+            {row.annotation.adjustmentCount > 1 ? ` (${row.annotation.adjustmentCount} points)` : ""}
+          </small>
+        )}
       </td>
       <td>
         {row.reference ? (

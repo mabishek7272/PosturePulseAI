@@ -67,6 +67,18 @@
             "properties": { "reason": { "type": "string", "minLength": 1 }, "clinicianId": { "type": "string" } }
           },
           "method": { "$ref": "common.schema.json#/$defs/measurementMethod" },
+          "annotation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["annotatorId", "annotatedAt", "sourceResultId", "adjustmentCount"],
+            "description": "Present only on tier=annotated rows: who placed the landmarks, when, and which machine result they revise, so a reader can see the value is a clinician's placement rather than the machine's (CLAUDE.md rule 4). Optional so released reports signed before this field existed remain valid with no migration.",
+            "properties": {
+              "annotatorId": { "type": "string" },
+              "annotatedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
+              "sourceResultId": { "type": "string" },
+              "adjustmentCount": { "type": "integer", "minimum": 1 }
+            }
+          },
           "measuredBy": {
             "type": "object",
             "description": "Narrow provenance of the measurement itself, distinct from the report's own build-time provenance (the report-level provenance.modelVersion identifies the report builder, not what measured the body).",
