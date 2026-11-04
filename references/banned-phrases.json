@@ -1,6 +1,6 @@
 {
   "version": "banned-phrases/v1",
-  "description": "Case-insensitive regular expressions that must never appear in generated report text, templates or product copy (CLAUDE.md rule 1, docs/claims-and-scope.md, ADR-015). Condition names, normal/abnormal, risk, score, grades and interpretive verbs are the reviewing clinician's to write in the Clinician's assessment, never the system's. Some patterns are written with a character class or group so that this file itself does not trip scripts/lint-claims.sh.",
+  "description": "Case-insensitive regular expressions that must never appear in generated report text, templates or product copy (CLAUDE.md rule 1, docs/claims-and-scope.md, ADR-015). Condition names, normal/abnormal, risk, score, grades and interpretive verbs are the reviewing clinician's to write in the Clinician's assessment, never the system's. Some patterns are written with a character class or group so that this file itself does not trip scripts/lint-claims.sh. The final block guards the claim vocabulary of the 2.5D work (ADR-020): physiological or neurological attribution, named clinical constructs, accuracy claims and change-detection claims are all above the Level A ceiling and are the reviewing clinician's to write, never the system's.",
   "patterns": [
     "\\bnormal(ly)?\\b",
     "\\babnormal",
@@ -51,6 +51,15 @@
     "winged scapula",
     "\\bflat ?feet\\b",
     "pes (planus|cavus)",
-    "over-?pronat"
+    "over-?pronat",
+    "biomark[e]r",
+    "vestibul[a]r",
+    "propri[o]cept",
+    "romb[e]rg",
+    "d[e]-?cortic[a]tion",
+    "sub-?degre[e]",
+    "statistically real change",
+    "clinically verifi[e]d",
+    "clinically prov[e]n"
   ]
 }

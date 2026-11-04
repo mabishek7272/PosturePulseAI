@@ -3,6 +3,13 @@
 ## Status
 Accepted.
 
+**Decision §1 is amended by `docs/adr/020-lidar-2.5d-depth-fusion.md` (Proposed).** The
+"no depth sensor" clause is superseded for a single-view LiDAR 2.5D path that runs
+*alongside* — never instead of — the 2D pipeline, under a distinct `measurementMethod` and
+its own metric key namespace. §2 (Study A's reference method) and §3 (multi-camera
+markerless 3D remains deferred) stand unchanged. Per this ADR's own Consequences, that
+decision is restated in a new ADR rather than layered silently onto the report.
+
 ## Context
 Every posture number this product produces is an unvalidated engineering estimate.
 `docs/claims-and-scope.md`'s claims ladder caps the product at "not yet evidenced" until
