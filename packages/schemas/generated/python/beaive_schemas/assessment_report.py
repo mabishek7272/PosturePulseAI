@@ -45,6 +45,10 @@ class Estimate(BaseModel):
 class UnsupportedReason(Enum):
     """
     wrong_view: the body is not facing the way the step requires. out_of_frame: a required body part is cut off. camera_not_level: device tilt exceeds the step's tolerance. insufficient_frame_rate / insufficient_frames: too few usable frames for the metric. subject_moving: the hold was not still enough.
+
+    The four depth reasons were added at v1 for the single-view LiDAR path (ADR-020) and apply only to static3d.* results; a depth failure can never suppress a 2D result. depth_unavailable: no depth track was uploaded, or the device reported no camera intrinsics, so nothing depth-derived could be computed - distinct from a depth track that arrived and could not be used. insufficient_depth_samples: too few valid pixels survived the patch gates at a required landmark. depth_landmark_disagreement: a sampled patch spanned more than one surface (body and background), so its median belonged to neither. torso_plane_underdetermined: the torso landmarks were collinear or too scattered to fit a plane, so no body-fixed frame could be built.
+
+    These four are deliberately NOT reused for 2D failures: reusing insufficient_scale or low_confidence would make a depth failure indistinguishable from a 2D one, which defeats the purpose of an explicit unsupported state.
     """
 
     insufficient_landmarks = 'insufficient_landmarks'
@@ -59,6 +63,10 @@ class UnsupportedReason(Enum):
     insufficient_frame_rate = 'insufficient_frame_rate'
     insufficient_frames = 'insufficient_frames'
     subject_moving = 'subject_moving'
+    depth_unavailable = 'depth_unavailable'
+    insufficient_depth_samples = 'insufficient_depth_samples'
+    depth_landmark_disagreement = 'depth_landmark_disagreement'
+    torso_plane_underdetermined = 'torso_plane_underdetermined'
 
 
 class Kind(Enum):
@@ -124,7 +132,7 @@ class Excluded(BaseModel):
 
 class Method(Enum):
     """
-    What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).
+    What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md); 'mediapipe_2_5d_depth' is the single-view LiDAR path (ADR-020) - MediaPipe landmarks in the image plane, depth from the device's depth sensor - kept distinct from 'markerless_3d' because pooling single-view LiDAR with triangulated multi-camera data would corrupt the agreement statistics in app/analysis/agreement.py, and deliberately ONE value for the whole depth path rather than one per metric, so those strata stay large enough to mean anything.
     """
 
     mediapipe_2d_image_plane = 'mediapipe_2d_image_plane'
@@ -132,6 +140,7 @@ class Method(Enum):
     clinician_annotated = 'clinician_annotated'
     entered = 'entered'
     markerless_3d = 'markerless_3d'
+    mediapipe_2_5d_depth = 'mediapipe_2_5d_depth'
 
 
 class MeasuredBy(BaseModel):
@@ -174,7 +183,7 @@ class Row(BaseModel):
     )
     method: Method | None = Field(
         None,
-        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).",
+        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md); 'mediapipe_2_5d_depth' is the single-view LiDAR path (ADR-020) - MediaPipe landmarks in the image plane, depth from the device's depth sensor - kept distinct from 'markerless_3d' because pooling single-view LiDAR with triangulated multi-camera data would corrupt the agreement statistics in app/analysis/agreement.py, and deliberately ONE value for the whole depth path rather than one per metric, so those strata stay large enough to mean anything.",
     )
     measuredBy: MeasuredBy | None = Field(
         None,
@@ -202,7 +211,7 @@ class SignOff(BaseModel):
 
 class MeasurementMethod(Enum):
     """
-    What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).
+    What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md); 'mediapipe_2_5d_depth' is the single-view LiDAR path (ADR-020) - MediaPipe landmarks in the image plane, depth from the device's depth sensor - kept distinct from 'markerless_3d' because pooling single-view LiDAR with triangulated multi-camera data would corrupt the agreement statistics in app/analysis/agreement.py, and deliberately ONE value for the whole depth path rather than one per metric, so those strata stay large enough to mean anything.
     """
 
     mediapipe_2d_image_plane = 'mediapipe_2d_image_plane'
@@ -210,6 +219,7 @@ class MeasurementMethod(Enum):
     clinician_annotated = 'clinician_annotated'
     entered = 'entered'
     markerless_3d = 'markerless_3d'
+    mediapipe_2_5d_depth = 'mediapipe_2_5d_depth'
 
 
 class Provenance(BaseModel):
@@ -244,7 +254,7 @@ class Provenance(BaseModel):
     )
     measurementMethod: MeasurementMethod | None = Field(
         None,
-        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md).",
+        description="What produced the measurement (ADR-018). Only 'mediapipe_2d_image_plane' is implemented by the automated pipeline this phase; 'clinician_manual' and 'clinician_annotated' are for a reference-study or annotated value entered by a clinician; 'entered' is any other typed-in value; 'markerless_3d' is reserved for a future multi-camera pipeline and has no implementation (docs/adr/018-measurement-method-and-validation-strategy.md); 'mediapipe_2_5d_depth' is the single-view LiDAR path (ADR-020) - MediaPipe landmarks in the image plane, depth from the device's depth sensor - kept distinct from 'markerless_3d' because pooling single-view LiDAR with triangulated multi-camera data would corrupt the agreement statistics in app/analysis/agreement.py, and deliberately ONE value for the whole depth path rather than one per metric, so those strata stay large enough to mean anything.",
     )
 
 

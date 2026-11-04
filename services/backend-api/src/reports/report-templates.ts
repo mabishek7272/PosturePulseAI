@@ -63,6 +63,14 @@ export const REASON_WORDS: Record<QualityReason, string> = {
   insufficient_frame_rate: "the frame rate was too low",
   insufficient_frames: "there were too few usable video frames",
   subject_moving: "the person moved during the hold",
+  // Depth reasons (quality-gate-flag/v1). Phrased like the rest: what happened
+  // to the MEASUREMENT, in plain words, with no clinical claim and no blame on
+  // the patient. "depth sensor" is said plainly because the consent copy names
+  // it too, so a reader meeting the phrase here has already seen it.
+  depth_unavailable: "the depth sensor recording was not available",
+  insufficient_depth_samples: "the depth sensor returned too few readings on the body",
+  depth_landmark_disagreement: "the depth readings at one body point were not consistent",
+  torso_plane_underdetermined: "the trunk landmarks were too close to a straight line to measure from",
 };
 
 const UNIT_SUFFIX: Record<string, string> = {

@@ -29,6 +29,10 @@ export interface QualityGateFlag {
     | "insufficient_frame_rate"
     | "insufficient_frames"
     | "subject_moving"
+    | "depth_unavailable"
+    | "insufficient_depth_samples"
+    | "depth_landmark_disagreement"
+    | "torso_plane_underdetermined"
   )[];
   /**
    * Names of downstream outputs suppressed by this flag, e.g. 'kneeFlexionAngle', 'decisionEvent.cue'. Empty when state=supported.

@@ -55,7 +55,13 @@ export type QualityReason =
   | "camera_not_level"
   | "insufficient_frame_rate"
   | "insufficient_frames"
-  | "subject_moving";
+  | "subject_moving"
+  // Depth reasons, quality-gate-flag/v1 (ADR-020). They apply only to
+  // static3d.* results; a depth failure can never suppress a 2D result.
+  | "depth_unavailable"
+  | "insufficient_depth_samples"
+  | "depth_landmark_disagreement"
+  | "torso_plane_underdetermined";
 
 export type Tier = "estimate" | "proxy" | "entered" | "annotated" | "not_measurable";
 export type Side = "left" | "right" | "bilateral" | null;

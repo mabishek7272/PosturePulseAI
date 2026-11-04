@@ -14,7 +14,7 @@ MODEL_VERSION = f"mediapipe-pose-landmarker-lite/{mediapipe.__version__}"
 CALIBRATION_VERSION = "none/v0"
 
 SCHEMA_VERSION_POSE_LANDMARK_FRAME = "pose-landmark-frame/v0"
-SCHEMA_VERSION_QUALITY_GATE_FLAG = "quality-gate-flag/v0"
+SCHEMA_VERSION_QUALITY_GATE_FLAG = "quality-gate-flag/v1"
 SCHEMA_VERSION_CALIBRATED_JOINT_FRAME = "calibrated-joint-frame/v0"
 SCHEMA_VERSION_SCALE_CALIBRATION_RECORD = "scale-calibration-record/v0"
 SCHEMA_VERSION_OBJECT_DETECTION_FRAME = "object-detection-frame/v0"

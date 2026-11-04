@@ -72,6 +72,22 @@ Ranked by value:
 1. **`static3d.subject_yaw_to_camera`** — fixes the defect in Context §1. Raises the
    existing `wrong_view` reason above a yaw threshold, and (behind a separate flag and
    version bump) divides the 2D coronal baselines by `cos(yaw)`.
+
+   **The gate and the de-bias must not use the same yaw.** This metric is the
+   *torso-wide* orientation, from the plane fitted across both girdles, because that is
+   the best-conditioned direction the sensor offers (§4). When the trunk is twisted there
+   is therefore no single subject yaw and the metric reports the average: shoulders at 12°
+   over a pelvis at 0° reads about **7.8°**. That average is the right input for the
+   `wrong_view` gate, which is a statement about the capture as a whole and wants the
+   lowest-variance estimate available.
+
+   It is the *wrong* input for de-biasing an individual baseline.
+   `static.shoulder_line_tilt` is inflated by `1/cos(shoulder yaw)`, not by
+   `1/cos(torso average)`, so correcting a shoulder-width baseline with a torso average
+   under-corrects whenever the trunk is twisted. The de-bias must use
+   `anatomical_basis.chord_facing_yaw` on the **chord it is correcting** — the shoulder
+   chord for the shoulder line, the pelvic chord for the hip line. Pinned by
+   `tests/test_depth_metrics.py::test_a_twisted_trunk_has_no_single_yaw_and_the_metric_reports_the_average`.
 2. **Relaxed pitch gate for `static3d.*` keys only.** Gravity-frame rotation removes pitch,
    so the strict 12° limit is unnecessary for depth-derived results. The 2D keys keep it.
 3. **`static3d.axial_trunk_twist`** — genuinely not obtainable in 2D, but see §4: its
@@ -100,14 +116,35 @@ that is about **150 real returns/m²**, i.e. a mean spacing of 8.2 cm between in
 samples. Published figures put the point cloud at ~0.02 m precision and ~0.04 m accuracy.
 Everything below follows from those numbers.
 
-| Construct | Baseline | Angular σ per frame | Verdict |
-|---|---|---|---|
-| Plane normal from a 5 cm patch (e.g. at the jugular notch) | 0.05 m | `atan(0.02/0.05)` ≈ **22°** | **Not implementable.** A 5 cm × 5 cm patch at 2.5 m contains under **one** real return; the rest is interpolated from RGB |
-| Torso plane normal, 4 points (shoulders + hips) | ~0.19 m | ≈ **1.8°** | Implementable |
-| Shoulder yaw (2 points) | 0.38 m | ≈ **2.5°** | Implementable |
-| Pelvis yaw (2 points) | 0.28 m | ≈ **3.4°** | Marginal |
-| Axial trunk twist (shoulder − pelvis) | — | ≈ **4.2°** | `proxy` only, ±4° reported |
-| Single heel or ankle depth | 0.07 m patch | 0.74 real returns | **Not usable.** Floor height comes from a floor-plane fit (~0.24 m², ~36 returns, σ ≈ 8 mm) |
+**A correction to the figures first published in this ADR.** The original table divided
+the per-point σ by `√n` for a patch's depth estimate. The implementation takes a patch
+**median**, not a mean — it has to, because a mean is dragged by exactly the background
+pixels a median shrugs off — and the median of `n` Gaussian samples has asymptotic SD
+`√(π/2)·σ/√n`, about **25% wider**. Omitting that factor made the model read 7–15% below
+the measured spread at every distance from 1.7 m to 3.0 m, i.e. optimistic. The
+`Published` column below is what this ADR first stated; `Implemented` is what
+`app/geometry/uncertainty3d.py` computes and what
+`tests/test_uncertainty3d_calibration.py` holds to the measured Monte-Carlo spread. The
+*conclusions* are unchanged — every verdict below still stands — but the numbers a reader
+should quote are the implemented ones.
+
+| Construct | Baseline | Published | Implemented | Verdict |
+|---|---|---|---|---|
+| Plane normal from a 5 cm patch (e.g. at the jugular notch) | 0.05 m | ≈ **22°** | ≈ **37°** | **Not implementable.** A 5 cm × 5 cm patch at 2.5 m contains under **one** real return; the rest is interpolated from RGB |
+| Plane normal from a 12 cm patch | 0.12 m | — | ≈ **6.5°** | **Not used.** Still 3.7× worse than the torso-wide fit, and a patch at a fixed offset below the suprasternal notch sits on soft tissue for many body types — a *static* offset no frame averaging removes |
+| Torso plane normal, 4 points (shoulders + hips) | ~0.19 m | ≈ **1.8°** | ≈ **1.8°** | Implementable. Used for `subject_yaw_to_camera` |
+| Shoulder yaw (2 points) | 0.38 m | ≈ **2.5°** | ≈ **2.8°** | Implementable |
+| Pelvis yaw (2 points) | 0.28 m | ≈ **3.4°** | ≈ **3.7°** | Marginal |
+| Axial trunk twist (shoulder − pelvis) | — | ≈ **4.2°** | ≈ **4.7°** | `proxy` only, ±5° reported |
+| 3D coronal tilt, were it computed | 0.38 m | — | ≈ **7.7°** | **Not computed** — see §5. Worse than the 2D row it would sit beside |
+| Single heel or ankle depth | 0.07 m patch | 0.74 real returns | — | **Not usable.** Floor height comes from a floor-plane fit (~0.24 m², ~36 returns, σ ≈ 8 mm) |
+
+**The twist is computed from the two chords, never from the torso plane normal.** Using
+the whole-torso normal as the shoulder term and comparing it against the pelvis compares a
+quantity with part of itself: the hips pull the normal toward their own orientation and the
+twist comes out **attenuated toward zero** — a built 10° reads 6.5°, a built 20° reads
+13.1°. Under-reporting a real trunk rotation is the worse direction for a signal anyone
+might use to decide whether something warrants a look.
 
 Two consequences that must not be forgotten:
 
@@ -168,10 +205,19 @@ so.
 - **3D rows carry no reference range** until a reference set is derived for the 2.5D method
   and clinically reviewed. This is `report-builder.ts`'s cross-method control working as
   designed, not a defect.
-- **`is_scale_validated()` starts returning true for depth-derived records**, because reading
-  real ARKit intrinsics means those records genuinely have a calibration where
-  `CALIBRATION_VERSION = "none/v0"` previously asserted they did not. 2D records keep
-  `none/v0`. This is a real behaviour change and needs its own test.
+- **Depth-derived records carry a real `calibrationVersion`**, because reading true ARKit
+  intrinsics means they genuinely have a calibration where `"none/v0"` previously asserted
+  they did not. 2D records keep `"none/v0"`; depth records carry
+  `"arkit-intrinsics/v0"` (`DEPTH_CALIBRATION_VERSION` in `app/metrics/depth_metrics.py`).
+
+  **Correcting this ADR's earlier wording:** it previously said
+  `is_scale_validated()` would start returning true. That function lives in
+  `app/geometry/coordinate_frames.py` and is driven by the `scaleCalibrationRef` that
+  backend-api resolves for the **per-frame** path; the clip-analysis path never calls it,
+  and `clips/service.py` hard-codes the calibration version instead. The observable change
+  is the provenance field and nothing else. Same outcome, different mechanism — the
+  original wording sends a reader looking in the wrong module. Covered by
+  `tests/test_depth_metrics.py::test_the_calibration_version_is_real_unlike_the_2d_paths`.
 - **The claims ceiling is unchanged.** `docs/claims-and-scope.md` caps the product at
   Level A and states the repo is below it. Nothing in this ADR raises that ceiling. A
   physiological or neurological attribution derived from these numbers remains out of scope
@@ -187,6 +233,20 @@ so.
 
 1. **Clinical lead sign-off on this ADR** before any depth-derived value appears in a
    report. Until then the depth path stays behind a flag.
+
+   **As implemented, the `static3d.*` metrics are computed but NOT REQUESTED.** The
+   geometry, the uncertainty model and the emission layer are complete and tested, but
+   the two keys are deliberately absent from `references/assessment-battery.v0-draft.json`,
+   so nothing asks for them and no report can contain them. That is structural, not a
+   flag: `analysis/analysis-job-runner.ts`'s `checkResults` rejects any result for a key
+   the battery did not request, so an accidental emission fails the job rather than
+   reaching a report.
+
+   Adding the two keys to the `static.anterior` and `static.posterior` steps is the single
+   change that turns the path on, and it is held for a dedicated commit after this review.
+   Both metrics are `tier: "proxy"` and carry `measurementMethod: "mediapipe_2_5d_depth"`,
+   which `report-builder.ts` forces to `position: "no_reference"`, so neither can acquire a
+   reference comparison it has not earned.
 2. **A hazard-analysis entry already exists for the balance manoeuvres** that motivated part
    of this work (`HZ-09`, induced fall). It is independent of this ADR and must be
    structurally enforced, not merely documented.

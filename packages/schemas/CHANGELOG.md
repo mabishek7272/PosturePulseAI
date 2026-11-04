@@ -141,3 +141,56 @@ See docs/HANDOFF.md §4.C items #1-#3.
 
 See `docs/adr/020-lidar-2.5d-depth-fusion.md` (Proposed - the depth path stays
 behind a flag and emits no metric until a clinical lead signs it off).
+
+## v1 - quality-gate-flag depth reasons (BREAKING for a strict v0 reader)
+
+- `quality-gate-flag` goes **v0 -> v1**. Four reasons added for the single-view
+  LiDAR path (ADR-020): `depth_unavailable`, `insufficient_depth_samples`,
+  `depth_landmark_disagreement`, `torso_plane_underdetermined`.
+- Each maps one-to-one onto a refusal that exists in code, which is why there
+  are four and not more: `depth_unavailable` to a missing track or missing
+  intrinsics, `insufficient_depth_samples` to the patch pixel-count gate,
+  `depth_landmark_disagreement` to the MAD and consensus gates, and
+  `torso_plane_underdetermined` to `fit_torso_plane` returning None. A reason
+  with no implementing path would be a promise the pipeline cannot keep.
+- `depth_unavailable` is the one that could not be left out: the v0 enum had
+  nothing meaning "there was no depth track at all", so a clip from an iPad with
+  no LiDAR would have been indistinguishable from a depth track that arrived and
+  failed. Reusing `insufficient_scale` or `low_confidence` for any of these would
+  make a depth failure indistinguishable from a 2D one, which defeats the point
+  of an explicit `unsupported` state.
+- **Why this is breaking.** Adding enum members is backwards-compatible for
+  producers and breaking for consumers: a validator pinned to v0 rejects a record
+  carrying a new reason. `metric-result` and `assessment-report` both `$ref` this
+  enum, so both regenerate - their own shapes are unchanged and their `version`
+  fields stay `v0`, because the enum is defined here and it is this record's
+  version that carries it.
+- Three consumers updated in the same change: `app/versioning.py`'s
+  `SCHEMA_VERSION_QUALITY_GATE_FLAG`, the `QualityReason` union in
+  `backend-api/src/battery/types.ts`, and `REASON_WORDS` in
+  `report-templates.ts`. The last is a `Record<QualityReason, string>`, so
+  widening the union without adding the wording fails the typecheck, and
+  `report-templates.ts:126` already throws on an unknown reason at runtime - the
+  report build fails loudly rather than rendering "Not measured: undefined".
+
+## v0 - measurementMethod gains the depth path (non-breaking, additive)
+
+- `common`'s `measurementMethod` gains `mediapipe_2_5d_depth`: MediaPipe
+  landmarks in the image plane, depth from the device's depth sensor.
+- **One value for the whole depth path, not one per metric.** A per-metric method
+  string would split `app/analysis/agreement.py`'s strata by metric as well as by
+  method, and neither half would reach a useful n. The metric key already
+  distinguishes the metric; the method describes how the body was measured.
+- Deliberately **not** `markerless_3d`, which is documented as reserved for a
+  multi-camera pipeline. Pooling single-view LiDAR (per-point sigma about 20 mm,
+  extremity depth interpolated from under one real return) with triangulated
+  multi-camera data would corrupt that agreement analysis and produce an accuracy
+  figure neither method earns.
+- The name keeps `mediapipe` in it on purpose: the dominant error in every
+  depth-derived angle is the IN-PLANE landmark error, which is MediaPipe's, not
+  the LiDAR's - 0.0358 m against 0.0117 m at 2.5 m. A name describing only the
+  depth sensor would misattribute the uncertainty.
+- `report-builder.ts` forces `position: "no_reference"` for any non-default
+  method, so adding this value cannot give a depth-derived row a reference
+  comparison it has not earned. That control is the architectural guardrail; the
+  feature flag is only runtime convenience.

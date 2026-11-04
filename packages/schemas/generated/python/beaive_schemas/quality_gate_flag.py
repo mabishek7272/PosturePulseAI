@@ -16,6 +16,10 @@ class State(Enum):
 class Reason(Enum):
     """
     wrong_view: the body is not facing the way the step requires. out_of_frame: a required body part is cut off. camera_not_level: device tilt exceeds the step's tolerance. insufficient_frame_rate / insufficient_frames: too few usable frames for the metric. subject_moving: the hold was not still enough.
+
+    The four depth reasons were added at v1 for the single-view LiDAR path (ADR-020) and apply only to static3d.* results; a depth failure can never suppress a 2D result. depth_unavailable: no depth track was uploaded, or the device reported no camera intrinsics, so nothing depth-derived could be computed - distinct from a depth track that arrived and could not be used. insufficient_depth_samples: too few valid pixels survived the patch gates at a required landmark. depth_landmark_disagreement: a sampled patch spanned more than one surface (body and background), so its median belonged to neither. torso_plane_underdetermined: the torso landmarks were collinear or too scattered to fit a plane, so no body-fixed frame could be built.
+
+    These four are deliberately NOT reused for 2D failures: reusing insufficient_scale or low_confidence would make a depth failure indistinguishable from a 2D one, which defeats the purpose of an explicit unsupported state.
     """
 
     insufficient_landmarks = 'insufficient_landmarks'
@@ -30,6 +34,10 @@ class Reason(Enum):
     insufficient_frame_rate = 'insufficient_frame_rate'
     insufficient_frames = 'insufficient_frames'
     subject_moving = 'subject_moving'
+    depth_unavailable = 'depth_unavailable'
+    insufficient_depth_samples = 'insufficient_depth_samples'
+    depth_landmark_disagreement = 'depth_landmark_disagreement'
+    torso_plane_underdetermined = 'torso_plane_underdetermined'
 
 
 class QualityGateFlag(BaseModel):
