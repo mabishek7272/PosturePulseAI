@@ -28,6 +28,18 @@ class View(Enum):
     right_lateral = 'right_lateral'
 
 
+class SubPhase(Enum):
+    """
+    Which sub-phase of the step this frame fell in, when the step declares `subBlocks` (assessment-battery.schema.json). Absent for an ordinary single-phase hold.
+
+    Recorded per frame, at capture time, by the only party that knows: the device driving the cadence. The alternative - having the analysis infer boundaries from declared durations - would be a guess that drifts with every dropped frame and every pause, and a frame attributed to the wrong phase is a measurement of the wrong thing rather than a missing one.
+    """
+
+    relaxed = 'relaxed'
+    habitual = 'habitual'
+    standardized = 'standardized'
+
+
 class Frame(BaseModel):
     index: conint(ge=0)
     t: confloat(ge=0.0) = Field(
@@ -39,6 +51,10 @@ class Frame(BaseModel):
         description='Unit gravity direction in the camera frame C of the oriented image: x = image right, y = image down, z = optical axis away from the camera. A level phone filming upright yields approximately [0, 1, 0].',
         max_length=3,
         min_length=3,
+    )
+    subPhase: SubPhase | None = Field(
+        None,
+        description='Which sub-phase of the step this frame fell in, when the step declares `subBlocks` (assessment-battery.schema.json). Absent for an ordinary single-phase hold.\n\nRecorded per frame, at capture time, by the only party that knows: the device driving the cadence. The alternative - having the analysis infer boundaries from declared durations - would be a guess that drifts with every dropped frame and every pause, and a frame attributed to the wrong phase is a measurement of the wrong thing rather than a missing one.',
     )
 
 

@@ -4,6 +4,14 @@
 
 export type View = "anterior" | "posterior" | "left_lateral" | "right_lateral";
 
+export interface BatterySubBlock {
+  phase: "relaxed" | "habitual" | "standardized";
+  durationSeconds: number;
+  instruction: string;
+  /** What the person does to get into this sub-phase before its timer starts. */
+  preparation?: string | null;
+}
+
 export interface BatteryStep {
   stepId: string;
   module: "static" | "functional" | "gait" | "workstation";
@@ -22,6 +30,12 @@ export interface BatteryStep {
    * attested to being within arm's reach (`SpotterService`), enforced both in
    * the app and - because an app is a client - on the clip upload.
    */
+  /**
+   * Named sub-phases inside one continuous recording. The step's
+   * `durationSeconds` stays authoritative and must equal their sum, which
+   * `BatteryService` checks at boot.
+   */
+  subBlocks?: BatterySubBlock[];
   requiresSpotter?: boolean;
   eyesClosed?: boolean;
   stance?: "bilateral" | "single_left" | "single_right";

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel, Field, PositiveFloat, conint
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, conint
 
 
 class Status(Enum):
@@ -49,6 +49,34 @@ class Stance(Enum):
     single_right = 'single_right'
 
 
+class Phase(Enum):
+    """
+    relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate.
+    """
+
+    relaxed = 'relaxed'
+    habitual = 'habitual'
+    standardized = 'standardized'
+
+
+class SubBlock(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    phase: Phase = Field(
+        ...,
+        description='relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate.',
+    )
+    durationSeconds: PositiveFloat
+    instruction: str = Field(
+        ..., description='Shown and spoken at the start of this sub-phase.'
+    )
+    preparation: str | None = Field(
+        None,
+        description='What the person does to get into this sub-phase before its timer starts, e.g. "march in place for five steps". Separate from `instruction` because this part is not being recorded as measurement - it is what makes the following stance habitual rather than posed.',
+    )
+
+
 class Step(BaseModel):
     stepId: str
     module: Module
@@ -83,6 +111,11 @@ class Step(BaseModel):
     contraindications: list[str] | None = Field(
         None,
         description="Clinician-authored conditions under which this step must not be offered. Same shape as protocol-definition.schema.json's field of the same name, deliberately: a clinician writing one should not have to learn two formats. Free text because the authority is the clinician, not an enum this repo maintains.",
+    )
+    subBlocks: list[SubBlock] | None = Field(
+        None,
+        description="Splits one continuous recording into named sub-phases, so a single clip can carry a relaxed hold, a habitual stance settled into after marching, and an AR-standardised stance without being three separate uploads. Omit for an ordinary single-phase hold.\n\nThe recording does NOT stop between sub-blocks: the camera runs throughout and each frame is tagged with the sub-phase it fell in (clip-capture.schema.json's frames[].subPhase), so the analysis gets deterministic boundaries instead of having to split the clip by heuristic. Only `instruction` and the cue change at a boundary.\n\nThe step's own `durationSeconds` stays authoritative and MUST equal the sum of the sub-block durations. JSON Schema cannot express that sum, so BatteryService checks it at boot and refuses to start on a mismatch - see its loader.",
+        min_length=2,
     )
     symptomStopRules: list[str] | None = Field(
         None,

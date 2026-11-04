@@ -1,6 +1,6 @@
 import * as Device from "expo-device";
 import { router } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ARJigModule, {
@@ -12,7 +12,8 @@ import ARJigModule, {
 import { uploadClip } from "../api/clips";
 import { buildArJigSidecar } from "../capture/ar-jig-sidecar";
 import { ERROR_TEXT, GATE_READY_TEXT, GATE_SETTLING_TEXT, primaryBlockerText } from "../capture/ar-jig-copy";
-import { CLIP_SECONDS, POSES } from "../capture/poses";
+import { useBatterySequence } from "../capture/use-battery-sequence";
+import { cadenceAt, windowsFor } from "../capture/sub-blocks";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { BackButton } from "./ScreenHeader";
@@ -55,10 +56,25 @@ export function ArJigCapture({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stopped, setStopped] = useState(false);
+
+  // The clinician's authored protocol, not a hardcoded 30 s. Null until it
+  // loads, so nothing records at the wrong duration first.
+  const sequence = useBatterySequence("clinic");
   /** Guards against a second clip being handled while one is uploading. */
   const inFlight = useRef(false);
 
-  const pose = POSES[poseIndex];
+  const steps = sequence?.steps ?? [];
+  const pose: typeof steps[number] | undefined = steps[poseIndex];
+  const windows = useMemo(
+    () => (pose?.subBlocks ? windowsFor(pose.subBlocks) : []),
+    [pose?.subBlocks]
+  );
+  // Derived from the SAME progress value the native module reports, so the
+  // prompt, the countdown and the per-frame tag cannot disagree.
+  const cadence =
+    windows.length > 0 && pose
+      ? cadenceAt(windows, progress * pose.durationSeconds)
+      : null;
 
   const onGate = useCallback((event: { nativeEvent: ARJigGateEvent }) => {
     setGate(event.nativeEvent);
@@ -80,6 +96,14 @@ export function ArJigCapture({
       if (inFlight.current) return;
       inFlight.current = true;
       const clip = event.nativeEvent;
+      // Cannot happen once the view is mounted - the early return below keeps
+      // it unmounted until the protocol is known - but a clip arriving with no
+      // step to attribute it to must be dropped rather than uploaded against a
+      // guessed stepId.
+      if (!pose) {
+        inFlight.current = false;
+        return;
+      }
       setUploading(true);
       setError(null);
       try {
@@ -112,7 +136,7 @@ export function ArJigCapture({
           token: sessionToken,
         });
 
-        const last = poseIndex + 1 >= POSES.length;
+        const last = poseIndex + 1 >= steps.length;
         if (last) router.replace({ pathname: "/analysis", params: { sessionId } });
         else setPoseIndex(poseIndex + 1);
       } catch (err) {
@@ -123,7 +147,13 @@ export function ArJigCapture({
         setProgress(0);
       }
     },
-    [poseIndex, pose.stepId, pose.view, sessionId, sessionToken],
+    // Optional chaining is load-bearing, not defensive noise: `pose` is
+    // undefined until the battery loads, and a dependency array is evaluated on
+    // EVERY render including that first one. `pose.stepId` here threw
+    // "Cannot read properties of undefined" before the screen had anything to
+    // show. `tsc` does not catch it - `steps[poseIndex]` types as
+    // ResolvedStep rather than `| undefined` without noUncheckedIndexedAccess.
+    [poseIndex, pose?.stepId, pose?.view, sessionId, sessionToken],
   );
 
   /**
@@ -142,6 +172,17 @@ export function ArJigCapture({
     }
   }, []);
 
+  // Nothing renders until the protocol is known: a capture screen that opened
+  // at a default duration and corrected itself a moment later is exactly the
+  // drift this replaced.
+  if (!sequence || !pose) {
+    return (
+      <View style={styles.root}>
+        <Text style={[styles.instruction, styles.loading]}>Loading the assessment protocol...</Text>
+      </View>
+    );
+  }
+
   const isRecording = gate?.isRecording ?? false;
   const canRecord = (gate?.isOpen ?? false) && !isRecording && !uploading && !stopped;
   const blocker = gate ? primaryBlockerText(gate.blockers, gate.primaryBlocker) : null;
@@ -153,7 +194,8 @@ export function ArJigCapture({
         ref={view}
         style={StyleSheet.absoluteFill}
         active
-        clipSeconds={CLIP_SECONDS}
+        clipSeconds={pose.durationSeconds}
+        minFps={pose.minFps}
         onGate={onGate}
         onRecordingProgress={onRecordingProgress}
         onRecorded={onRecorded}
@@ -167,13 +209,31 @@ export function ArJigCapture({
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <BackButton variant="glass" />
         <Text style={styles.step}>
-          {`Pose ${poseIndex + 1} of ${POSES.length}`}
+          {`Pose ${poseIndex + 1} of ${steps.length}`}
         </Text>
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <Text style={styles.title}>{pose.title}</Text>
-        <Text style={styles.instruction}>{pose.instruction}</Text>
+        {/* The sub-phase's own instruction takes over mid-hold when the step
+            declares sub-blocks; only the wording and the cue change, the
+            recording runs straight through. */}
+        <Text style={styles.instruction}>
+          {cadence?.current?.instruction ?? pose.instruction}
+        </Text>
+        {cadence?.current?.preparation ? (
+          <Text style={styles.instruction}>{cadence.current.preparation}</Text>
+        ) : null}
+        {cadence?.current ? (
+          <Text style={styles.readings}>
+            {`${cadence.current.phase} · ${cadence.remainingInPhase.toFixed(0)}s left in this part`}
+          </Text>
+        ) : null}
+        {sequence.source === "fallback" ? (
+          <Text style={styles.error}>
+            {`${sequence.reason ?? ""} Using the app's default ${pose.durationSeconds}s holds, not this clinic's protocol.`}
+          </Text>
+        ) : null}
 
         {/* The status line is the whole point of this screen: it says what to
             adjust, one thing at a time, and it is never blank. */}
@@ -187,7 +247,9 @@ export function ArJigCapture({
         </Text>
 
         {isRecording ? (
-          <Text style={styles.recording}>{`Recording ${Math.round(progress * CLIP_SECONDS)}s / ${CLIP_SECONDS}s`}</Text>
+          <Text style={styles.recording}>
+            {`Recording ${Math.round(progress * pose.durationSeconds)}s / ${pose.durationSeconds}s`}
+          </Text>
         ) : null}
         {uploading ? <Text style={styles.recording}>Saving that clip...</Text> : null}
         {stopped ? (
@@ -250,6 +312,7 @@ const styles = StyleSheet.create({
   },
   title: { color: colors.textOnDark, fontSize: 19, fontWeight: "700" },
   instruction: { color: colors.accentSoft, fontSize: 14, lineHeight: 20 },
+  loading: { textAlign: "center", marginTop: 120 },
   status: { fontSize: 15, fontWeight: "600", marginTop: 4 },
   statusBlocked: { color: colors.textOnDark },
   statusReady: { color: colors.accent300 },

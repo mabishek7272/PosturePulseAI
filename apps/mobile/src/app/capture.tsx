@@ -1,6 +1,6 @@
 import * as Device from "expo-device";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,7 +28,10 @@ import { useDeviceTilt } from "../capture/level";
 import { recordingStartHaptic, recoveredHaptic, milestoneHaptic, tickHaptic, warnHaptic } from "../capture/haptics";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
   personPresent, meanVisibleScore, keypointScores, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
-import { CLIP_SECONDS, POSES } from "../capture/poses";
+import { type ResolvedSequence } from "../capture/battery-steps";
+import { CUES_BY_STEP } from "../capture/poses";
+import { cadenceAt, tagFrames, windowsFor } from "../capture/sub-blocks";
+import { useBatterySequence } from "../capture/use-battery-sequence";
 import { meanRollFromSamples, medianPitchFromSamples, recordClipStats, type ClipStats } from "../capture/session-stats";
 import { buildSidecar, clipIdFor } from "../capture/sidecar";
 import { starsFor } from "../capture/sqi";
@@ -100,14 +103,27 @@ const RESULT_CARD_MS = 4500;
 export default function CaptureScreen() {
   const { sessionId, sessionToken } = useLocalSearchParams<{ sessionId: string; sessionToken: string }>();
   const [arJigEnabled] = useArJigCapturePref();
+  // Resolved HERE, in the router, so the body below never runs a hook without a
+  // protocol. `VisionCameraCapture` reads the step's view and duration from the
+  // first render - inside `useCaptureAnalysis`, the layout maths and the
+  // recorder's maxDuration - and a hook cannot sit behind an early return, so
+  // the wait has to happen one level up.
+  const sequence = useBatterySequence("clinic");
 
   if (arJigEnabled && ARJigModule.isSupported) {
     return <ArJigCapture sessionId={sessionId} sessionToken={sessionToken} />;
   }
-  return <VisionCameraCapture />;
+  if (!sequence || sequence.steps.length === 0) {
+    return (
+      <View style={styles.screen}>
+        <Text style={styles.loading}>Loading the assessment protocol...</Text>
+      </View>
+    );
+  }
+  return <VisionCameraCapture sequence={sequence} />;
 }
 
-function VisionCameraCapture() {
+function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
   const { sessionId, sessionToken } = useLocalSearchParams<{ sessionId: string; sessionToken: string }>();
@@ -115,6 +131,21 @@ function VisionCameraCapture() {
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stopped, setStopped] = useState(false);
+  // The clinician's authored protocol. Every duration below comes from the
+  // step, not from a global: the battery declared 15/5/5/5 second holds while
+  // this screen recorded 30 s for all four, and nothing reported the gap.
+  const POSES = sequence.steps;
+  const currentStep = POSES[Math.min(poseIndex, POSES.length - 1)];
+  const CLIP_SECONDS = currentStep.durationSeconds;
+  const subWindows = useMemo(
+    () => (currentStep.subBlocks ? windowsFor(currentStep.subBlocks) : []),
+    [currentStep.subBlocks]
+  );
+  // Elapsed seconds, ticked only while a multi-phase step is recording. The
+  // tick exists solely to advance the on-screen prompt; the per-frame tags come
+  // from the recorded file's own timestamps, so a late tick can make the prompt
+  // lag but can never mis-tag a frame.
+  const [elapsed, setElapsed] = useState(0);
   // The native session connects its outputs asynchronously after mount;
   // recording before onConfigured fires throws "VideoOutput is not yet
   // connected to the CameraSession!" in vision-camera.
@@ -337,6 +368,18 @@ function VisionCameraCapture() {
     setCountdown(null);
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- recordingStartedAt is the trigger
+  useEffect(() => {
+    if (!recording || recordingStartedAt === null || subWindows.length === 0) {
+      setElapsed(0);
+      return;
+    }
+    const id = setInterval(() => setElapsed((Date.now() - recordingStartedAt) / 1000), 200);
+    return () => clearInterval(id);
+  }, [recording, recordingStartedAt, subWindows.length]);
+
+  const subPhase = subWindows.length > 0 ? cadenceAt(subWindows, elapsed) : null;
+
   /** Shutter: 3-2-1 with haptic ticks, then the real recording. Cancellable. */
   function begin() {
     if (stopped) return; // latched off by the safety stop
@@ -439,6 +482,12 @@ function VisionCameraCapture() {
               width: info.width,
               height: info.height,
               frameTimes: info.frameTimes,
+              // Tagged from the REAL frame timestamps of the file that was
+              // written, not from the declared sub-block durations. An inferred
+              // split drifts with every dropped frame, and a frame attributed to
+              // the wrong phase is a measurement of the wrong thing rather than
+              // a missing one. Undefined when the step is a single-phase hold.
+              subPhases: subWindows.length > 0 ? tagFrames(subWindows, info.frameTimes) : undefined,
               gravitySamples,
               device: { model: Device.modelId ?? "unknown", lens: "back_wide", appVersion: "1.0.0" },
             });
@@ -614,7 +663,7 @@ function VisionCameraCapture() {
                     <GuidanceChips checks={guidance.checks} />
                   ) : (
                     <View style={styles.chips}>
-                      {currentPose.cues.map((c) => (
+                      {(CUES_BY_STEP[currentPose.stepId] ?? []).map((c: string) => (
                         <View key={c} style={styles.chip}>
                           <Text style={styles.chipText}>{c}</Text>
                         </View>
@@ -626,7 +675,21 @@ function VisionCameraCapture() {
               {infoOpen ? (
                 <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={50} elevated={false} radius={14} style={styles.popover}>
                   <View style={styles.stripBody}>
-                    <Text style={styles.cardBody}>{currentPose.instruction}</Text>
+                    <Text style={styles.cardBody}>
+                      {subPhase?.current?.instruction ?? currentPose.instruction}
+                    </Text>
+                    {subPhase?.current ? (
+                      <Text style={styles.cardBody}>
+                        {subPhase.current.preparation
+                          ? subPhase.current.preparation
+                          : `${subPhase.remainingInPhase.toFixed(0)}s left in this part`}
+                      </Text>
+                    ) : null}
+                    {sequence.source === "fallback" ? (
+                      <Text style={styles.cardBody}>
+                        {`${sequence.reason ?? ""} Using the app's default ${CLIP_SECONDS}s holds, not this clinic's protocol.`}
+                      </Text>
+                    ) : null}
                     {guidanceOn && guidance.available ? null : <Text style={styles.mountHint}>For a usable measurement, mount the iPad upright and keep it still (a stand works best).</Text>}
                   </View>
                 </GlassCard>
@@ -721,5 +784,6 @@ const styles = StyleSheet.create({
   permissionButtonText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },
   message: { color: colors.textOnDark, fontSize: 15, lineHeight: 22, margin: 20, marginTop: 120 },
   error: { color: colors.caution, fontSize: 12 },
+  loading: { color: colors.textOnDark, fontSize: 16, textAlign: "center", marginTop: 160 },
   errorHint: { color: colors.accent300, fontSize: 13 },
 });

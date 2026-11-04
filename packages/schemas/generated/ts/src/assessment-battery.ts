@@ -56,6 +56,62 @@ export interface AssessmentBattery {
        */
       contraindications?: string[];
       /**
+       * Splits one continuous recording into named sub-phases, so a single clip can carry a relaxed hold, a habitual stance settled into after marching, and an AR-standardised stance without being three separate uploads. Omit for an ordinary single-phase hold.
+       *
+       * The recording does NOT stop between sub-blocks: the camera runs throughout and each frame is tagged with the sub-phase it fell in (clip-capture.schema.json's frames[].subPhase), so the analysis gets deterministic boundaries instead of having to split the clip by heuristic. Only `instruction` and the cue change at a boundary.
+       *
+       * The step's own `durationSeconds` stays authoritative and MUST equal the sum of the sub-block durations. JSON Schema cannot express that sum, so BatteryService checks it at boot and refuses to start on a mismatch - see its loader.
+       *
+       * @minItems 2
+       */
+      subBlocks?: [
+        {
+          /**
+           * relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate.
+           */
+          phase: "relaxed" | "habitual" | "standardized";
+          durationSeconds: number;
+          /**
+           * Shown and spoken at the start of this sub-phase.
+           */
+          instruction: string;
+          /**
+           * What the person does to get into this sub-phase before its timer starts, e.g. "march in place for five steps". Separate from `instruction` because this part is not being recorded as measurement - it is what makes the following stance habitual rather than posed.
+           */
+          preparation?: string | null;
+        },
+        {
+          /**
+           * relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate.
+           */
+          phase: "relaxed" | "habitual" | "standardized";
+          durationSeconds: number;
+          /**
+           * Shown and spoken at the start of this sub-phase.
+           */
+          instruction: string;
+          /**
+           * What the person does to get into this sub-phase before its timer starts, e.g. "march in place for five steps". Separate from `instruction` because this part is not being recorded as measurement - it is what makes the following stance habitual rather than posed.
+           */
+          preparation?: string | null;
+        },
+        ...{
+          /**
+           * relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate.
+           */
+          phase: "relaxed" | "habitual" | "standardized";
+          durationSeconds: number;
+          /**
+           * Shown and spoken at the start of this sub-phase.
+           */
+          instruction: string;
+          /**
+           * What the person does to get into this sub-phase before its timer starts, e.g. "march in place for five steps". Separate from `instruction` because this part is not being recorded as measurement - it is what makes the following stance habitual rather than posed.
+           */
+          preparation?: string | null;
+        }[]
+      ];
+      /**
        * Clinician-authored plain-language stop/escalate instructions surfaced on a SymptomReport, mirroring protocol-definition.schema.json. These do NOT gate anything on their own: every symptom report reaches Pause regardless of what any rule says (CLAUDE.md rule 2), and these are what a clinician reads afterwards.
        */
       symptomStopRules?: string[];
@@ -101,6 +157,62 @@ export interface AssessmentBattery {
        * Clinician-authored conditions under which this step must not be offered. Same shape as protocol-definition.schema.json's field of the same name, deliberately: a clinician writing one should not have to learn two formats. Free text because the authority is the clinician, not an enum this repo maintains.
        */
       contraindications?: string[];
+      /**
+       * Splits one continuous recording into named sub-phases, so a single clip can carry a relaxed hold, a habitual stance settled into after marching, and an AR-standardised stance without being three separate uploads. Omit for an ordinary single-phase hold.
+       *
+       * The recording does NOT stop between sub-blocks: the camera runs throughout and each frame is tagged with the sub-phase it fell in (clip-capture.schema.json's frames[].subPhase), so the analysis gets deterministic boundaries instead of having to split the clip by heuristic. Only `instruction` and the cue change at a boundary.
+       *
+       * The step's own `durationSeconds` stays authoritative and MUST equal the sum of the sub-block durations. JSON Schema cannot express that sum, so BatteryService checks it at boot and refuses to start on a mismatch - see its loader.
+       *
+       * @minItems 2
+       */
+      subBlocks?: [
+        {
+          /**
+           * relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate.
+           */
+          phase: "relaxed" | "habitual" | "standardized";
+          durationSeconds: number;
+          /**
+           * Shown and spoken at the start of this sub-phase.
+           */
+          instruction: string;
+          /**
+           * What the person does to get into this sub-phase before its timer starts, e.g. "march in place for five steps". Separate from `instruction` because this part is not being recorded as measurement - it is what makes the following stance habitual rather than posed.
+           */
+          preparation?: string | null;
+        },
+        {
+          /**
+           * relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate.
+           */
+          phase: "relaxed" | "habitual" | "standardized";
+          durationSeconds: number;
+          /**
+           * Shown and spoken at the start of this sub-phase.
+           */
+          instruction: string;
+          /**
+           * What the person does to get into this sub-phase before its timer starts, e.g. "march in place for five steps". Separate from `instruction` because this part is not being recorded as measurement - it is what makes the following stance habitual rather than posed.
+           */
+          preparation?: string | null;
+        },
+        ...{
+          /**
+           * relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate.
+           */
+          phase: "relaxed" | "habitual" | "standardized";
+          durationSeconds: number;
+          /**
+           * Shown and spoken at the start of this sub-phase.
+           */
+          instruction: string;
+          /**
+           * What the person does to get into this sub-phase before its timer starts, e.g. "march in place for five steps". Separate from `instruction` because this part is not being recorded as measurement - it is what makes the following stance habitual rather than posed.
+           */
+          preparation?: string | null;
+        }[]
+      ];
       /**
        * Clinician-authored plain-language stop/escalate instructions surfaced on a SymptomReport, mirroring protocol-definition.schema.json. These do NOT gate anything on their own: every symptom report reaches Pause regardless of what any rule says (CLAUDE.md rule 2), and these are what a clinician reads afterwards.
        */

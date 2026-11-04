@@ -234,3 +234,29 @@ behind a flag and emits no metric until a clinical lead signs it off).
 - Scoped to `stepId`, never the session: standing on the left leg and standing
   on the right are separate steps and separate risks, and one session-wide tick
   would cover a step the clinician never saw.
+
+## v0 - multi-block holds: battery subBlocks and clip-capture subPhase (additive)
+
+- `assessment-battery` steps gained an optional `subBlocks` array: named
+  sub-phases (`relaxed` | `habitual` | `standardized`) inside ONE continuous
+  recording, each with its own `durationSeconds`, `instruction` and optional
+  `preparation`. The camera does not stop between them; only the wording and the
+  cue change. Restricted to `kind: "hold"` - a reps or passes step has its own
+  natural segmentation and splitting it by time would cut across repetitions.
+- `clip-capture`'s `frames[]` gained an optional `subPhase`. Recorded per frame,
+  **at capture time**, by the only party that knows: the device driving the
+  cadence. Letting the analysis infer boundaries from the declared durations
+  instead would be a guess that drifts with every dropped frame, and a frame
+  attributed to the wrong phase is a measurement of the wrong thing rather than
+  a missing one. Absent - never null - for an ordinary single-phase hold.
+- **Two rules JSON Schema cannot express**, so `BatteryService` checks them at
+  boot and refuses to start on a violation, the same discipline it already
+  applies to a schema-invalid battery:
+  - sub-block durations must sum to the step's own `durationSeconds`, within a
+    float tolerance (an exact comparison would reject a correct hand-authored
+    `1.1 + 2.2 + 6.7` against `10`). A mismatch leaves the last phase either
+    truncated or running past the end of the recording.
+  - each phase may appear at most once per step, or a frame's `subPhase` tag is
+    ambiguous and the analysis cannot tell which block it belonged to.
+- Both fields are optional, so `references/assessment-battery.v0-draft.json` is
+  valid unchanged and `version` stays `v0`.

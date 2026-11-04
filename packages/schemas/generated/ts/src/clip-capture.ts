@@ -44,6 +44,12 @@ export interface ClipCapture {
        * @maxItems 3
        */
       gravity: [number, number, number];
+      /**
+       * Which sub-phase of the step this frame fell in, when the step declares `subBlocks` (assessment-battery.schema.json). Absent for an ordinary single-phase hold.
+       *
+       * Recorded per frame, at capture time, by the only party that knows: the device driving the cadence. The alternative - having the analysis infer boundaries from declared durations - would be a guess that drifts with every dropped frame and every pause, and a frame attributed to the wrong phase is a measurement of the wrong thing rather than a missing one.
+       */
+      subPhase?: "relaxed" | "habitual" | "standardized";
     },
     ...{
       index: number;
@@ -58,6 +64,12 @@ export interface ClipCapture {
        * @maxItems 3
        */
       gravity: [number, number, number];
+      /**
+       * Which sub-phase of the step this frame fell in, when the step declares `subBlocks` (assessment-battery.schema.json). Absent for an ordinary single-phase hold.
+       *
+       * Recorded per frame, at capture time, by the only party that knows: the device driving the cadence. The alternative - having the analysis infer boundaries from declared durations - would be a guess that drifts with every dropped frame and every pause, and a frame attributed to the wrong phase is a measurement of the wrong thing rather than a missing one.
+       */
+      subPhase?: "relaxed" | "habitual" | "standardized";
     }[]
   ];
   /**

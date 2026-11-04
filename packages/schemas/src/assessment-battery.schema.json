@@ -54,6 +54,30 @@
             "items": { "type": "string" },
             "description": "Clinician-authored conditions under which this step must not be offered. Same shape as protocol-definition.schema.json's field of the same name, deliberately: a clinician writing one should not have to learn two formats. Free text because the authority is the clinician, not an enum this repo maintains."
           },
+          "subBlocks": {
+            "type": "array",
+            "minItems": 2,
+            "description": "Splits one continuous recording into named sub-phases, so a single clip can carry a relaxed hold, a habitual stance settled into after marching, and an AR-standardised stance without being three separate uploads. Omit for an ordinary single-phase hold.\n\nThe recording does NOT stop between sub-blocks: the camera runs throughout and each frame is tagged with the sub-phase it fell in (clip-capture.schema.json's frames[].subPhase), so the analysis gets deterministic boundaries instead of having to split the clip by heuristic. Only `instruction` and the cue change at a boundary.\n\nThe step's own `durationSeconds` stays authoritative and MUST equal the sum of the sub-block durations. JSON Schema cannot express that sum, so BatteryService checks it at boot and refuses to start on a mismatch - see its loader.",
+            "items": {
+              "type": "object",
+              "required": ["phase", "durationSeconds", "instruction"],
+              "additionalProperties": false,
+              "properties": {
+                "phase": {
+                  "type": "string",
+                  "enum": ["relaxed", "habitual", "standardized"],
+                  "description": "relaxed: stand as you normally would, no prompting. habitual: the stance the person settles into by themselves, captured after marching in place so it is not the one they were posed in. standardized: feet placed to the AR template, so between-visit comparisons share a base of support. Each value may appear at most once per step; BatteryService rejects a duplicate."
+                },
+                "durationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+                "instruction": { "type": "string", "description": "Shown and spoken at the start of this sub-phase." },
+                "preparation": {
+                  "type": ["string", "null"],
+                  "default": null,
+                  "description": "What the person does to get into this sub-phase before its timer starts, e.g. \"march in place for five steps\". Separate from `instruction` because this part is not being recorded as measurement - it is what makes the following stance habitual rather than posed."
+                }
+              }
+            }
+          },
           "symptomStopRules": {
             "type": "array",
             "items": { "type": "string" },
@@ -62,6 +86,11 @@
         },
         "allOf": [
           { "if": { "properties": { "kind": { "const": "hold" } } }, "then": { "required": ["durationSeconds"] } },
+          {
+            "$comment": "Sub-blocks only make sense inside a continuous hold. A reps or passes step has its own natural segmentation and splitting it by time would cut across repetitions.",
+            "if": { "required": ["subBlocks"] },
+            "then": { "properties": { "kind": { "const": "hold" } } }
+          },
           { "if": { "properties": { "kind": { "enum": ["reps", "passes"] } } }, "then": { "required": ["reps"] } },
           {
             "$comment": "A step that asks for eyes closed, or for a single-leg stance, MUST require a spotter. Encoded in the schema rather than left to the author because this is the structural half of HZ-09: a battery that asked for a one-legged eyes-closed hold without a spotter would fail to load (BatteryService throws on a battery that does not validate) rather than reaching a patient.",

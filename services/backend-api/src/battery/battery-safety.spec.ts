@@ -1,4 +1,5 @@
 import { getValidator } from "../common/schema-registry";
+import { assertSubBlocksConsistent, BatteryService } from "./battery.service";
 
 /**
  * The schema half of HZ-09.
@@ -91,5 +92,118 @@ describe("assessment-battery safety fields", () => {
       );
     }
     expect(validate([step({ module: "freestyle" })])).toBe(false);
+  });
+});
+
+describe("sub-block consistency, checked at boot", () => {
+  const block = (phase: string, durationSeconds: number) => ({
+    phase,
+    durationSeconds,
+    instruction: "x",
+  });
+
+  const holdWith = (overrides: Record<string, unknown>) =>
+    step({ kind: "hold", durationSeconds: 22, ...overrides });
+
+  it("accepts the 10/6/6 protocol against a 22 s step", () => {
+    expect(
+      validate([
+        holdWith({
+          subBlocks: [block("relaxed", 10), block("habitual", 6), block("standardized", 6)],
+        }),
+      ])
+    ).toBe(true);
+  });
+
+  it("REFUSES sub-blocks on a reps or passes step", () => {
+    // Splitting by time would cut across repetitions, which have their own
+    // natural segmentation.
+    expect(validate([step({ kind: "reps", reps: 5, subBlocks: [block("relaxed", 2), block("habitual", 2)] })])).toBe(
+      false
+    );
+  });
+
+  it("REFUSES a single sub-block", () => {
+    expect(validate([holdWith({ subBlocks: [block("relaxed", 22)] })])).toBe(false);
+  });
+
+  it("REFUSES an unknown phase name", () => {
+    expect(validate([holdWith({ subBlocks: [block("warmup", 11), block("relaxed", 11)] })])).toBe(false);
+  });
+
+  it("REFUSES an unexpected field inside a sub-block", () => {
+    expect(
+      validate([
+        holdWith({
+          subBlocks: [{ ...block("relaxed", 11), cueAudio: "beep.mp3" }, block("habitual", 11)],
+        }),
+      ])
+    ).toBe(false);
+  });
+
+  // --- the two rules JSON Schema cannot express ---
+
+  it("rejects durations that do not sum to the step's own duration", () => {
+    // Schema-valid but wrong: the last phase would either be truncated or run
+    // past the end of the recording. `BatteryService` throws, so the service
+    // does not start with this data.
+    expect(() =>
+      assertSubBlocksConsistent(
+        holdWith({
+          durationSeconds: 22,
+          subBlocks: [block("relaxed", 10), block("habitual", 6), block("standardized", 5)],
+        }) as never
+      )
+    ).toThrow(/sum to 21s but the step declares 22s/);
+  });
+
+  it("accepts hand-authored decimals that sum within float tolerance", () => {
+    // 1.1 + 2.2 + 6.7 is not exactly 10 in binary floating point; an equality
+    // check would reject a correct battery.
+    expect(() =>
+      assertSubBlocksConsistent(
+        holdWith({
+          durationSeconds: 10,
+          subBlocks: [block("relaxed", 1.1), block("habitual", 2.2), block("standardized", 6.7)],
+        }) as never
+      )
+    ).not.toThrow();
+  });
+
+  it("rejects a repeated phase name", () => {
+    // A frame's `subPhase` tag would be ambiguous: the analysis could not tell
+    // which block it belonged to.
+    expect(() =>
+      assertSubBlocksConsistent(
+        holdWith({
+          durationSeconds: 22,
+          subBlocks: [block("relaxed", 11), block("relaxed", 11)],
+        }) as never
+      )
+    ).toThrow(/repeats sub-phase "relaxed"/);
+  });
+
+  it("rejects sub-blocks with no step duration to check them against", () => {
+    expect(() =>
+      assertSubBlocksConsistent({
+        stepId: "x",
+        subBlocks: [block("relaxed", 5), block("habitual", 5)],
+      } as never)
+    ).toThrow(/no durationSeconds/);
+  });
+
+  it("passes a step with no sub-blocks straight through", () => {
+    expect(() => assertSubBlocksConsistent(step() as never)).not.toThrow();
+    expect(() => assertSubBlocksConsistent({ stepId: "x", subBlocks: [] } as never)).not.toThrow();
+  });
+
+  it("the shipped battery still loads", () => {
+    // Every new field is optional, so references/assessment-battery.v0-draft.json
+    // is untouched and must remain valid.
+    const service = new BatteryService();
+    expect(service.battery.steps.length).toBeGreaterThan(0);
+    for (const s of service.battery.steps) {
+      expect(() => assertSubBlocksConsistent(s)).not.toThrow();
+    }
   });
 });

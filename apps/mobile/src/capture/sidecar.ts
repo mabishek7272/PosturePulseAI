@@ -27,6 +27,9 @@ export function clipIdFor(sessionId: string, stepId: string): string {
   return `${sessionId}-${stepId.replace(/\./g, "_")}`;
 }
 
+/** The sub-phases of a multi-block hold (assessment-battery.schema.json). */
+export type SubPhase = "relaxed" | "habitual" | "standardized";
+
 export interface ClipCapture {
   clipId: string;
   sessionId: string;
@@ -36,7 +39,7 @@ export interface ClipCapture {
   nominalFps: number;
   width: number;
   height: number;
-  frames: Array<{ index: number; t: number; gravity: Vector3 }>;
+  frames: Array<{ index: number; t: number; gravity: Vector3; subPhase?: SubPhase }>;
   /**
    * Pinhole intrinsics in pixels for the oriented image, when the device reports
    * them. The AVFoundation capture path does not, so it omits this; the AR jig
@@ -108,6 +111,16 @@ export interface BuildSidecarInput {
    * pairs decoded frame i with sidecar frame i and uses these as timestamps.
    */
   frameTimes: number[];
+  /**
+   * One entry per frame, aligned with `frameTimes`, naming the sub-phase that
+   * frame fell in. Omit for an ordinary single-phase hold.
+   *
+   * Computed at capture time by `sub-blocks.tagFrames` from the REAL frame
+   * timestamps, never from the declared durations: a split inferred later
+   * drifts with every dropped frame, and a frame attributed to the wrong phase
+   * is a measurement of the wrong thing rather than a missing one.
+   */
+  subPhases?: Array<SubPhase | undefined>;
   gravitySamples: GravitySample[];
   device: ClipCapture["device"];
 }
@@ -175,7 +188,14 @@ export function buildSidecar(input: BuildSidecarInput): ClipCapture {
 
   // One entry per frame actually encoded, at its real time: never a count or
   // spacing derived from duration * fps.
-  const frames = frameTimes.map((t, index) => ({ index, t, gravity: gravityAt(samples, t) }));
+  const frames = frameTimes.map((t, index) => {
+    const frame: ClipCapture["frames"][number] = { index, t, gravity: gravityAt(samples, t) };
+    // Omitted, never nulled: the schema has no null for this, and a frame
+    // outside every sub-block window genuinely has no phase.
+    const phase = input.subPhases?.[index];
+    if (phase) frame.subPhase = phase;
+    return frame;
+  });
 
   return {
     clipId: input.clipId,
