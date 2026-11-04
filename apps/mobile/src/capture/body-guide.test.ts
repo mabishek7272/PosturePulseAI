@@ -21,7 +21,7 @@ describe("bodyGuideBox", () => {
     expect(span).toBeLessThan(DISTANCE_MAX);
   });
   it("feet end at the lowest allowed ankle position and the head stays inside the safe box", () => {
-    for (const [W, H] of [[768, 1024], [834, 1194], [390, 844]]) {
+    for (const [W, H] of [[768, 1024], [834, 1194], [390, 844]] as Array<[number, number]>) {
       const b = bodyGuideBox(W, H)!;
       const feetY = b.y + (232 / 240) * b.h;
       const headY = b.y + (6 / 240) * b.h;

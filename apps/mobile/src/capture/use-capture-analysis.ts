@@ -71,7 +71,11 @@ export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }:
         tracker.push(snap.pts, tMs);
         const motion = tracker.motion();
         const g = evaluateGuidance({ pts: snap.pts, view: viewRef.current, rollDeg: rollRef.current, pitchDeg: pitchRef.current, motion, scores: snap.scores });
-        const steady = g.checks[5].ok; // "steady" implies a person; framing is separate
+        // Looked up by id, not by position: `checks[5]` was "steady" only
+        // because of the order of an array in another module. Both paths that
+        // build `checks` emit all six, so `?? false` is unreachable - and if it
+        // ever were reached, "not steady" is the direction that claims nothing.
+        const steady = g.checks.find((c) => c.id === "steady")?.ok ?? false; // implies a person; framing is separate
         steadyNow.current = steady && g.inFrame && g.personOk;
         publish(g);
         const a = acc.current;

@@ -20,6 +20,7 @@
  *    near side, so only the side with more visible points is required (one
  *    ankle, one shoulder/hip pair), and 6+ points are enough.
  */
+import { sample } from "../lib/required";
 import { HIDDEN, visibleCount } from "./pose-overlay";
 
 export type GuidanceView = "anterior" | "posterior" | "left_lateral" | "right_lateral";
@@ -128,14 +129,20 @@ export function isLateral(view: string): boolean {
 }
 
 function seen(pts: readonly number[], i: number): boolean {
-  return pts[2 * i] >= 0 && pts[2 * i + 1] >= 0;
+  return sample(pts, 2 * i) >= 0 && sample(pts, 2 * i + 1) >= 0;
 }
 
-/** MoveNet indices per side: [ear, shoulder, hip, knee, ankle]. */
-const LEFT_SIDE = [3, 5, 11, 13, 15];
-const RIGHT_SIDE = [4, 6, 12, 14, 16];
+/**
+ * MoveNet indices for one side of the body, in the fixed order
+ * [ear, shoulder, hip, knee, ankle]. A tuple, not `number[]`: the slots are
+ * positional (`side[4]` IS the ankle), and typing the length means those reads
+ * need no bounds check that could never fail.
+ */
+type BodySide = readonly [ear: number, shoulder: number, hip: number, knee: number, ankle: number];
+const LEFT_SIDE: BodySide = [3, 5, 11, 13, 15];
+const RIGHT_SIDE: BodySide = [4, 6, 12, 14, 16];
 
-function visibleSide(pts: readonly number[]): readonly number[] {
+function visibleSide(pts: readonly number[]): BodySide {
   let l = 0;
   let r = 0;
   for (const i of LEFT_SIDE) if (seen(pts, i)) l++;
@@ -175,15 +182,15 @@ export function checkFraming(pts: readonly number[], view: string, scores?: read
   for (const i of requiredKeypoints(pts, view)) {
     const isHead = i <= 4;
     const isAnkle = i === 15 || i === 16;
-    if (!seen(pts, i) || (scores !== undefined && !(scores[i] >= MIN_KEY_SCORE))) {
+    if (!seen(pts, i) || (scores !== undefined && !(sample(scores, i) >= MIN_KEY_SCORE))) {
       // Missing or low-confidence: attribute to the end of the body it belongs to.
       if (isAnkle) feet = true;
       else if (isHead) head = true;
       else { feet = true; head = true; }
       continue;
     }
-    const x = pts[2 * i];
-    const y = pts[2 * i + 1];
+    const x = sample(pts, 2 * i);
+    const y = sample(pts, 2 * i + 1);
     if (isAnkle && y > SAFE_ANKLE_Y_MAX) feet = true;
     if (y < SAFE_HEAD_Y_MIN) head = true;
     if (x < SAFE_X_MIN) left = true;
@@ -216,7 +223,7 @@ function torsoCentreX(pts: readonly number[], torso: number[]): number | null {
   let n = 0;
   for (const i of torso) {
     if (seen(pts, i)) {
-      sum += pts[2 * i];
+      sum += sample(pts, 2 * i);
       n++;
     }
   }
@@ -228,8 +235,8 @@ export function bodySpan(pts: readonly number[], view: string): number | null {
   const b = bodyFor(pts, view);
   const ankles = b.ankles.filter((i) => seen(pts, i));
   if (b.head.length === 0 || ankles.length === 0) return null;
-  const top = Math.min(...b.head.map((i) => pts[2 * i + 1]));
-  const bottom = Math.max(...ankles.map((i) => pts[2 * i + 1]));
+  const top = Math.min(...b.head.map((i) => sample(pts, 2 * i + 1)));
+  const bottom = Math.max(...ankles.map((i) => sample(pts, 2 * i + 1)));
   return bottom - top;
 }
 
@@ -361,10 +368,20 @@ export class MotionTracker {
   push(pts: readonly number[], tMs: number): void {
     const ref: number[] = [];
     for (const i of MOTION_POINTS) {
-      ref.push(seen(pts, i) ? pts[2 * i] : HIDDEN, seen(pts, i) ? pts[2 * i + 1] : HIDDEN);
+      ref.push(seen(pts, i) ? sample(pts, 2 * i) : HIDDEN, seen(pts, i) ? sample(pts, 2 * i + 1) : HIDDEN);
     }
     this.samples.push({ t: tMs, pts: ref });
-    while (this.samples.length > 0 && tMs - this.samples[0].t > STEADY_WINDOW_MS) this.samples.shift();
+    // Drop samples that have aged out of the window, oldest first. Same loop as
+    // `while (length > 0 && tMs - samples[0].t > W) shift()`, with the first
+    // element read once per pass so the empty case and the age test share one
+    // `undefined` check.
+    for (
+      let oldest = this.samples[0];
+      oldest !== undefined && tMs - oldest.t > STEADY_WINDOW_MS;
+      oldest = this.samples[0]
+    ) {
+      this.samples.shift();
+    }
   }
 
   reset(): void {
@@ -378,17 +395,17 @@ export class MotionTracker {
     let total = 0;
     let count = 0;
     for (let k = 0; k < MOTION_POINTS.length; k++) {
-      if (!s.every((x) => x.pts[2 * k] >= 0)) continue;
+      if (!s.every((x) => sample(x.pts, 2 * k) >= 0)) continue;
       let mx = 0;
       let my = 0;
       for (const x of s) {
-        mx += x.pts[2 * k];
-        my += x.pts[2 * k + 1];
+        mx += sample(x.pts, 2 * k);
+        my += sample(x.pts, 2 * k + 1);
       }
       mx /= s.length;
       my /= s.length;
       for (const x of s) {
-        total += (x.pts[2 * k] - mx) ** 2 + (x.pts[2 * k + 1] - my) ** 2;
+        total += (sample(x.pts, 2 * k) - mx) ** 2 + (sample(x.pts, 2 * k + 1) - my) ** 2;
         count++;
       }
     }

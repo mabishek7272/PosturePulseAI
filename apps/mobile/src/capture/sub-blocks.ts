@@ -99,9 +99,10 @@ export function cadenceAt(
   elapsedSeconds: number,
   previousPhaseIndex: number | null = null
 ): CadenceState {
-  const total = windows.length === 0 ? 0 : windows[windows.length - 1].endSeconds;
+  // 0 for an empty list is the true total of nothing, not a fabricated reading.
+  const total = windows[windows.length - 1]?.endSeconds ?? 0;
   const current = phaseAt(windows, elapsedSeconds);
-  const next = current && current.index + 1 < windows.length ? windows[current.index + 1] : null;
+  const next = current ? (windows[current.index + 1] ?? null) : null;
 
   if (!current) {
     return {
@@ -151,7 +152,9 @@ export function framesPerPhase(
   const counts: Record<string, number> = {};
   for (const window of windows) counts[window.phase] = 0;
   for (const phase of tagFrames(windows, frameTimes)) {
-    if (phase) counts[phase] += 1;
+    // `?? 0` is a counter's starting value, not a manufactured measurement: every
+    // phase tagFrames can return was initialised above.
+    if (phase) counts[phase] = (counts[phase] ?? 0) + 1;
   }
   return counts;
 }

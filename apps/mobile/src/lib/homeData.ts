@@ -18,9 +18,11 @@ export function usernameFromToken(token: string | null): string | null {
 /** Up to two uppercase initials: first letters of two words, else the first two letters. */
 export function initialsOf(name: string): string {
   const words = name.trim().split(/[\s._-]+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
+  const [first, second] = words;
+  if (!first) return "?"; // no words
+  if (!second) return first.slice(0, 2).toUpperCase();
+  // `charAt(0)` rather than `[0]`: same character, typed `string` not `string | undefined`.
+  return (first.charAt(0) + second.charAt(0)).toUpperCase();
 }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -56,7 +58,11 @@ export function dayCounts(sessions: SessionSummary[], now: Date, days: number): 
   const out = new Array<number>(days).fill(0);
   for (const s of sessions) {
     const n = daysAgo(s.createdAt, now);
-    if (n >= 0 && n < days) out[days - 1 - n] += 1;
+    if (n >= 0 && n < days) {
+      // `daysAgo` rounds, so n is an integer and the slot is in range.
+      const slot = days - 1 - n;
+      out[slot] = (out[slot] ?? 0) + 1;
+    }
   }
   return out;
 }

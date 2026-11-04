@@ -26,6 +26,7 @@
  *    non-quarter-turn rotation, inconsistent sample tables, truncation) throws
  *    a typed VideoInfoError. Nothing is guessed.
  */
+import { required } from "../lib/required";
 
 export type VideoInfoErrorCode =
   | "unreadable" // could not read bytes from the file
@@ -93,7 +94,16 @@ interface Box {
 }
 
 function fourcc(b: Uint8Array, o: number): string {
-  return String.fromCharCode(b[o], b[o + 1], b[o + 2], b[o + 3]);
+  const [c0, c1, c2, c3] = [b[o], b[o + 1], b[o + 2], b[o + 3]];
+  // Past the end of the buffer an index reads `undefined`, which
+  // `String.fromCharCode` turns into a NUL - so a truncated box used to yield a
+  // four-character "type" of "\0\0\0\0" that simply failed to match anything
+  // and let the walk carry on (a truncated hdlr, for one, would be skipped and
+  // surface later as a misleading "no video track"). Say it is truncated.
+  if (c0 === undefined || c1 === undefined || c2 === undefined || c3 === undefined) {
+    throw new VideoInfoError("truncated", `a box type at offset ${o} runs past the end of the file`);
+  }
+  return String.fromCharCode(c0, c1, c2, c3);
 }
 
 function viewOf(b: Uint8Array): DataView {
@@ -150,14 +160,14 @@ function requireBytes(box: Box, n: number, what: string): void {
 // -------------------------------------------------------------------- parsing
 
 /** FFmpeg's av_display_rotation_get(): counterclockwise degrees, or null if not a pure rotation. */
-function rotationFromMatrix(m: number[]): number | null {
+function rotationFromMatrix(m: DisplayMatrix): number | null {
   const scale0 = Math.hypot(m[0], m[3]);
   const scale1 = Math.hypot(m[1], m[4]);
   if (scale0 === 0 || scale1 === 0) return null;
   return -(Math.atan2(m[1] / scale1, m[0] / scale0) * 180) / Math.PI;
 }
 
-function quarterTurnRotation(m: number[]): 0 | 90 | 180 | 270 {
+function quarterTurnRotation(m: DisplayMatrix): 0 | 90 | 180 | 270 {
   const degrees = rotationFromMatrix(m);
   if (degrees === null) throw new VideoInfoError("unsupported", "video track has a degenerate display matrix");
   const quarters = degrees / 90;
@@ -168,14 +178,20 @@ function quarterTurnRotation(m: number[]): 0 | 90 | 180 | 270 {
   return ((((rounded % 4) + 4) % 4) * 90) as 0 | 90 | 180 | 270;
 }
 
-function parseTkhdMatrix(buf: Uint8Array, tkhd: Box): number[] {
+/**
+ * The 3x3 display matrix of a `tkhd` box, row-major. A tuple rather than
+ * `number[]` because it is exactly nine values by construction, and typing it so
+ * means `m[3]` is a `number` without a bounds check that could never fail.
+ */
+type DisplayMatrix = [number, number, number, number, number, number, number, number, number];
+
+function parseTkhdMatrix(buf: Uint8Array, tkhd: Box): DisplayMatrix {
   const version = buf[tkhd.start];
   const matrixAt = tkhd.start + (version === 1 ? 52 : 40);
   requireBytes(tkhd, matrixAt + 36 - tkhd.start, "tkhd");
   const v = viewOf(buf);
-  const m: number[] = [];
-  for (let i = 0; i < 9; i += 1) m.push(v.getInt32(matrixAt + i * 4));
-  return m;
+  const at = (i: number) => v.getInt32(matrixAt + i * 4);
+  return [at(0), at(1), at(2), at(3), at(4), at(5), at(6), at(7), at(8)];
 }
 
 function parseMdhdTimescale(buf: Uint8Array, mdhd: Box): number {
@@ -196,6 +212,9 @@ function parseSampleEntry(buf: Uint8Array, stsd: Box): { codec: string; width: n
   if (entries.length !== count) throw new VideoInfoError("malformed", "stsd entry count does not match its contents");
   if (count > 1) throw new VideoInfoError("unsupported", "video track has several sample descriptions");
   const e = entries[0];
+  // Present: `count >= 1` and `entries.length === count` are checked above. An
+  // explicit error in this module's own class rather than a bare assertion.
+  if (!e) throw new VideoInfoError("malformed", "stsd has no sample entries");
   // VisualSampleEntry: 6 reserved + 2 data_reference_index + 16 pre_defined/reserved, then width, height.
   requireBytes(e, 24 + 4, "visual sample entry");
   const width = v.getUint16(e.start + 24);
@@ -301,9 +320,13 @@ export function parseMoov(moov: Uint8Array): VideoInfo {
     }
     const ctts = find(moov, stbl, "ctts");
     const offsets = ctts ? parseCtts(moov, ctts, dts.length) : null;
-    const pts = dts.map((d, i) => d + (offsets ? offsets[i] : 0));
+    // `parseCtts` throws unless it returns exactly `dts.length` offsets, so the
+    // index is always present. Asserted rather than defaulted to 0: a missing
+    // composition offset read as 0 would be a plausible frame time that is wrong.
+    const pts = dts.map((d, i) => d + (offsets ? required(offsets[i], "ctts offsets match stts samples") : 0));
     pts.sort((a, b) => a - b);
     const first = pts[0];
+    if (first === undefined) throw new VideoInfoError("malformed", "video track has no samples");
 
     checkEditList(moov, trak, first);
 

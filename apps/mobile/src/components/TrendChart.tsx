@@ -66,7 +66,9 @@ export function TrendChart({ counts }: { counts: number[] }) {
                 ))}
               </G>
             ) : null}
-            <AnimatedCircle cx={last.x} cy={last.y} fill={colors.accent600} animatedProps={jointProps} />
+            {/* `last` is defined whenever this branch renders (it is only reached when
+                the chart is not empty); the check is for the type checker. */}
+            {last ? <AnimatedCircle cx={last.x} cy={last.y} fill={colors.accent600} animatedProps={jointProps} /> : null}
           </>
         )}
       </Svg>

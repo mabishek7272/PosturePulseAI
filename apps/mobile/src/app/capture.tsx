@@ -23,7 +23,8 @@ import { ArJigCapture } from "../components/ArJigCapture";
 import { SymptomStop } from "../components/SymptomStop";
 import { startGravitySampling } from "../capture/gravity";
 import { createFeedback, ISSUE_TEXT, type FeedbackEvent, type Issue } from "../capture/feedback";
-import { distanceState, isLateral, PITCH_TOLERANCE_DEG, ROLL_TOLERANCE_DEG } from "../capture/guidance";
+import { distanceState, isLateral, PITCH_TOLERANCE_DEG, ROLL_TOLERANCE_DEG, type CheckId } from "../capture/guidance";
+import { required } from "../lib/required";
 import { useDeviceTilt } from "../capture/level";
 import { recordingStartHaptic, recoveredHaptic, milestoneHaptic, tickHaptic, warnHaptic } from "../capture/haptics";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
@@ -135,7 +136,12 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
   // step, not from a global: the battery declared 15/5/5/5 second holds while
   // this screen recorded 30 s for all four, and nothing reported the gap.
   const POSES = sequence.steps;
-  const currentStep = POSES[Math.min(poseIndex, POSES.length - 1)];
+  // The router mounts this component only with a non-empty sequence, so the
+  // lookup cannot miss; stated as an invariant rather than silenced.
+  const currentStep = required(
+    POSES[Math.min(poseIndex, POSES.length - 1)],
+    "the capture router only mounts this screen with a non-empty sequence"
+  );
   const CLIP_SECONDS = currentStep.durationSeconds;
   const subWindows = useMemo(
     () => (currentStep.subBlocks ? windowsFor(currentStep.subBlocks) : []),
@@ -186,7 +192,7 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
   const pose = useSharedValue<PoseSnapshot>(EMPTY_POSE);
   // The far side of the body is hidden in a lateral pose, so the presence test
   // is relaxed for those views (see personPresent).
-  const lateralView = isLateral(POSES[poseIndex].view);
+  const lateralView = isLateral(currentStep.view);
   const onFrame = useCallback(
     (frame: Frame) => {
       "worklet";
@@ -200,7 +206,13 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
           const gpu = resizer.resize(frame);
           try {
             const outputs = tflite.runSync([gpu.getPixelBuffer()]);
-            const raw = new Float32Array(outputs[0]);
+            const output = outputs[0];
+            // Best-effort like the rest of this block: a model that returned no
+            // output skips this frame, which is what the throw-and-catch did.
+            // (Plain `if`, not `required`: this runs in the frame worklet, which
+            // cannot call a non-worklet function from another module.)
+            if (output === undefined) return;
+            const raw = new Float32Array(output);
             pose.value = { pts: personPresent(raw, lateralView) ? decodeMoveNet(raw, fw, fh) : EMPTY_POSE.pts, w: fw, h: fh, n: (pose.value.n ?? 0) + 1, conf: meanVisibleScore(raw), scores: keypointScores(raw) };
           } finally {
             gpu.dispose();
@@ -245,7 +257,7 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
 
   const { guidance, beginRecording, endRecording, getLive } = useCaptureAnalysis({
     pose,
-    view: POSES[poseIndex].view,
+    view: currentStep.view,
     available: poseGuideRunning,
     rollRef,
     pitchRef,
@@ -283,7 +295,9 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
     };
   }, []);
 
-  const currentPose = POSES[poseIndex];
+  // Same step as `currentStep`: `poseIndex` never passes the last index (advance
+  // only increments when not on the last step), so the clamp above never bites.
+  const currentPose = currentStep;
   // Top edge (screen y) of the bottom card + controls, so the framing hint stays above them.
   const [infoOpen, setInfoOpen] = useState(false);
   useEffect(() => setInfoOpen(false), [poseIndex]);
@@ -328,15 +342,19 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
         if (pitch !== null && pitch > PITCH_TOLERANCE_DEG) issues.add("tilt");
         else if (roll !== null && Math.abs(roll) > ROLL_TOLERANCE_DEG) issues.add("level");
         if (g.available) {
-          const ok = (i: number) => g.checks[i].ok;
+          // By id, not position: `checks[2]` was "distance" only because of the
+          // order of an array in another module. A missing check reads as failing,
+          // which surfaces the hint rather than hiding it - unreachable, since
+          // both paths that build `checks` emit all six.
+          const ok = (id: CheckId) => g.checks.find((c) => c.id === id)?.ok ?? false;
           if (!g.personOk) issues.add("personLost");
           else {
             if (!g.inFrame) issues.add("inFrame");
             else {
-              if (!ok(2)) issues.add("distance");
-              if (!ok(3)) issues.add("centred");
+              if (!ok("distance")) issues.add("distance");
+              if (!ok("centred")) issues.add("centred");
             }
-            if (!ok(5)) issues.add("steady");
+            if (!ok("steady")) issues.add("steady");
           }
         }
         for (const e of fb.step({ phase: "recording", issues, now: performance.now() })) dispatch(e);

@@ -69,7 +69,7 @@ describe("regionItems", () => {
     const rs = [est(), unsupported, est({ side: "left" }), est(), est(), est(), est()];
     const { items, more } = regionItems(rs, 4);
     expect(items).toHaveLength(4);
-    expect(items[0].text).toBe("Shoulder line tilt — +1.8°");
+    expect(items[0]!.text).toBe("Shoulder line tilt — +1.8°");
     expect(more).toBe(2);
   });
 });

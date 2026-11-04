@@ -33,7 +33,7 @@ function standing(top = 0.12, bottom = 0.84, cx = 0.5): number[] {
 
 /** Confident score for every visible keypoint. */
 function scoresOf(p: number[], v = 0.9): number[] {
-  return Array.from({ length: 17 }, (_, i) => (p[2 * i] >= 0 ? v : 0));
+  return Array.from({ length: 17 }, (_, i) => (p[2 * i]! >= 0 ? v : 0));
 }
 function frame(p: number[], over: Partial<Parameters<typeof evaluateGuidance>[0]> = {}) {
   return evaluateGuidance({ pts: p, scores: scoresOf(p), ...ok, ...over });
@@ -158,7 +158,7 @@ describe("safe framing box (server frame gate)", () => {
   it("each frontal side landmark outside the x range fails; on the boundary passes", () => {
     const p = standing(0.15, 0.8);
     for (const i of [3, 4, 5, 6, 11, 12, 13, 14, 15, 16]) {
-      const y = p[2 * i + 1];
+      const y = p[2 * i + 1]!;
       expect(checkFraming(move(p, i, SAFE_X_MIN, y), "anterior").ok).toBe(true);
       expect(checkFraming(move(p, i, SAFE_X_MAX, y), "anterior").ok).toBe(true);
       expect(checkFraming(move(p, i, SAFE_X_MIN - 0.001, y), "anterior")).toEqual({ ok: false, problem: "left" });
@@ -195,7 +195,7 @@ describe("safe framing box (server frame gate)", () => {
     expect(frame(p).inFrame).toBe(false);
   });
   it("band edges: span just inside passes distance", () => {
-    expect(frame(standing(0.88 - DISTANCE_MAX + 0.005, 0.88)).checks[2].ok).toBe(true);
+    expect(frame(standing(0.88 - DISTANCE_MAX + 0.005, 0.88)).checks[2]!.ok).toBe(true);
     expect(frame(standing(0.88 - DISTANCE_MIN + 0.005, 0.88)).message).toBe("Move closer");
   });
 });

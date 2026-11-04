@@ -34,7 +34,7 @@ describe("trendsData", () => {
     expect(pts[2]).toEqual({ x: 292, y: 30 });
     expect(linePath(pts)).toBe("M8 90 L150 60 L292 30");
     expect(areaPath(pts)).toBe("M8 90 L150 60 L292 30 L292 120 L8 120 Z");
-    expect(chartPoints([0, 0])[1].y).toBe(90);
+    expect(chartPoints([0, 0])[1]!.y).toBe(90);
   });
   it("labels the axis", () => {
     expect(axisLabels(12)).toEqual(["11w ago", "7w ago", "4w ago", "This week"]);

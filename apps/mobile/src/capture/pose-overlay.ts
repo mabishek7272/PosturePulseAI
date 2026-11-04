@@ -11,6 +11,22 @@
  * frame-output worklet and in Reanimated animated props (UI thread).
  */
 
+/**
+ * `buf[i]`, with an out-of-range index read as NaN. See `sample` in
+ * `lib/required.ts` for why NaN and why it changes no behaviour.
+ *
+ * DUPLICATED here on purpose rather than imported. These functions run inside
+ * the camera frame-output worklet and Reanimated animated props, and a worklet
+ * cannot synchronously call a plain function from another module: importing
+ * `sample` would type-check and pass every Jest test, then throw on device
+ * ("Tried to synchronously call a non-worklet function on the UI thread"). The
+ * directive below makes this one a worklet, so it is captured with its callers.
+ */
+function sample(buf: ArrayLike<number>, i: number): number {
+  'worklet';
+  return buf[i] ?? Number.NaN;
+}
+
 export const MOVENET_INPUT = 192;
 export const KEYPOINT_COUNT = 17;
 /** Minimum MoveNet score for a keypoint to be drawn / counted. */
@@ -69,14 +85,14 @@ export function decodeMoveNet(raw: ArrayLike<number>, fw: number, fh: number): n
   const oy = (size - rh) / 2;
   const out: number[] = new Array(KEYPOINT_COUNT * 2);
   for (let i = 0; i < KEYPOINT_COUNT; i++) {
-    const score = raw[i * 3 + 2];
+    const score = sample(raw, i * 3 + 2);
     if (!(score >= VISIBILITY_THRESHOLD)) {
       out[2 * i] = HIDDEN;
       out[2 * i + 1] = HIDDEN;
       continue;
     }
-    const x = (raw[i * 3 + 1] * size - ox) / rw;
-    const y = (raw[i * 3] * size - oy) / rh;
+    const x = (sample(raw, i * 3 + 1) * size - ox) / rw;
+    const y = (sample(raw, i * 3) * size - oy) / rh;
     // Padding area (outside the real image) is not a valid location.
     const inside = x >= 0 && x <= 1 && y >= 0 && y <= 1;
     out[2 * i] = inside ? x : HIDDEN;
@@ -107,12 +123,12 @@ export const PERSON_MIN_TORSO_POINTS = 3;
 export function personPresent(raw: ArrayLike<number>, lateral: boolean = false): boolean {
   'worklet';
   let confident = 0;
-  for (let i = 0; i < KEYPOINT_COUNT; i++) if (raw[i * 3 + 2] >= PERSON_KEYPOINT_SCORE) confident++;
+  for (let i = 0; i < KEYPOINT_COUNT; i++) if (sample(raw, i * 3 + 2) >= PERSON_KEYPOINT_SCORE) confident++;
   if (confident < (lateral ? PERSON_MIN_POINTS_LATERAL : PERSON_MIN_POINTS)) return false;
-  const lSho = raw[5 * 3 + 2] >= PERSON_KEYPOINT_SCORE;
-  const rSho = raw[6 * 3 + 2] >= PERSON_KEYPOINT_SCORE;
-  const lHip = raw[11 * 3 + 2] >= PERSON_KEYPOINT_SCORE;
-  const rHip = raw[12 * 3 + 2] >= PERSON_KEYPOINT_SCORE;
+  const lSho = sample(raw, 5 * 3 + 2) >= PERSON_KEYPOINT_SCORE;
+  const rSho = sample(raw, 6 * 3 + 2) >= PERSON_KEYPOINT_SCORE;
+  const lHip = sample(raw, 11 * 3 + 2) >= PERSON_KEYPOINT_SCORE;
+  const rHip = sample(raw, 12 * 3 + 2) >= PERSON_KEYPOINT_SCORE;
   // Side-on only the near shoulder and hip are reliable, so one of each is the
   // most a real person can offer; front-on all four are visible and demanding
   // three keeps junk scenes from drawing a ghost skeleton.
@@ -126,7 +142,7 @@ export function meanVisibleScore(raw: ArrayLike<number>): number {
   let sum = 0;
   let n = 0;
   for (let i = 0; i < KEYPOINT_COUNT; i++) {
-    const s = raw[i * 3 + 2];
+    const s = sample(raw, i * 3 + 2);
     if (s >= VISIBILITY_THRESHOLD) {
       sum += s;
       n++;
@@ -139,7 +155,7 @@ export function meanVisibleScore(raw: ArrayLike<number>): number {
 export function keypointScores(raw: ArrayLike<number>): number[] {
   'worklet';
   const out: number[] = new Array(KEYPOINT_COUNT);
-  for (let i = 0; i < KEYPOINT_COUNT; i++) out[i] = raw[i * 3 + 2];
+  for (let i = 0; i < KEYPOINT_COUNT; i++) out[i] = sample(raw, i * 3 + 2);
   return out;
 }
 
@@ -147,7 +163,7 @@ export function keypointScores(raw: ArrayLike<number>): number[] {
 export function visibleCount(pts: readonly number[]): number {
   'worklet';
   let n = 0;
-  for (let i = 0; i < KEYPOINT_COUNT; i++) if (pts[2 * i] >= 0 && pts[2 * i + 1] >= 0) n++;
+  for (let i = 0; i < KEYPOINT_COUNT; i++) if (sample(pts, 2 * i) >= 0 && sample(pts, 2 * i + 1) >= 0) n++;
   return n;
 }
 
@@ -183,12 +199,12 @@ export function jointPosition(
   let u: number;
   let v: number;
   if (index === NECK_INDEX) {
-    if (!(pts[10] >= 0 && pts[12] >= 0)) return null;
-    u = (pts[10] + pts[12]) / 2;
-    v = (pts[11] + pts[13]) / 2;
+    if (!(sample(pts, 10) >= 0 && sample(pts, 12) >= 0)) return null;
+    u = (sample(pts, 10) + sample(pts, 12)) / 2;
+    v = (sample(pts, 11) + sample(pts, 13)) / 2;
   } else {
-    u = pts[2 * index];
-    v = pts[2 * index + 1];
+    u = sample(pts, 2 * index);
+    v = sample(pts, 2 * index + 1);
     if (!(u >= 0 && v >= 0)) return null;
   }
   return coverMap(u, v, snap.w, snap.h, viewW, viewH);

@@ -61,8 +61,9 @@ export default function TrendsScreen() {
   }, [sessions, now]);
 
   const inRange = counts.reduce((a, b) => a + b, 0);
-  const thisWeek = counts.length ? counts[counts.length - 1] : 0;
-  const prevWeek = counts.length > 1 ? counts[counts.length - 2] : 0;
+  // 0 for a missing week is a count of nothing, not a fabricated measurement.
+  const thisWeek = counts[counts.length - 1] ?? 0;
+  const prevWeek = counts[counts.length - 2] ?? 0;
   const chartDelta = thisWeek - prevWeek;
 
   return (

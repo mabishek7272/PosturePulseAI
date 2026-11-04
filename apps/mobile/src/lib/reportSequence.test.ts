@@ -32,11 +32,11 @@ describe("buildReport", () => {
   });
   it("ignores null SQI in the mean and never turns it into 0", () => {
     const r = buildReport([["static.anterior", clip({ sqi: null, band: null, stars: null })], ["static.left_lateral", clip({ sqi: 60, stars: 2 })]]);
-    expect(r.views[0].sqi).toBeNull();
-    expect(r.views[0].hasStats).toBe(true);
+    expect(r.views[0]!.sqi).toBeNull();
+    expect(r.views[0]!.hasStats).toBe(true);
     expect(r.overallSqi).toBe(60);
     expect(r.sqiViews).toBe(1);
-    expect(sqiText(r.views[0].sqi)).toBe("Unavailable");
+    expect(sqiText(r.views[0]!.sqi)).toBe("Unavailable");
     expect(r.starsTotal).toBe(2);
   });
   it("full set when all four views have stats, even with null SQI", () => {
@@ -47,9 +47,9 @@ describe("buildReport", () => {
   });
   it("ignores unknown steps and sanitises bad numbers", () => {
     const r = buildReport([["static.other", clip()], ["static.anterior", clip({ framesAnalysed: NaN, meanRollDegrees: NaN, sqi: 140 })]]);
-    expect(r.views[0].framesAnalysed).toBe(0);
-    expect(r.views[0].meanRollDegrees).toBeNull();
-    expect(r.views[0].sqi).toBe(100);
+    expect(r.views[0]!.framesAnalysed).toBe(0);
+    expect(r.views[0]!.meanRollDegrees).toBeNull();
+    expect(r.views[0]!.sqi).toBe(100);
     expect(r.hasAny).toBe(true);
     expect(r.rollViews).toHaveLength(0);
   });

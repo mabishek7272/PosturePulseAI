@@ -1,3 +1,4 @@
+import { required } from "../lib/required";
 import type { GravitySample, Vector3 } from "./gravity";
 
 export const APP_VERSION = "1.0.0";
@@ -133,14 +134,20 @@ function normalise(v: Vector3): Vector3 {
 
 /** Linear interpolation between the two samples bracketing `t`, clamped at both ends. */
 function gravityAt(samples: GravitySample[], t: number): Vector3 {
-  if (t <= samples[0].t) return normalise(samples[0].g);
+  const first = samples[0];
   const last = samples[samples.length - 1];
+  // `buildSidecar` rejects an empty sample list before this is reached, so
+  // reaching the throw means that guard was bypassed. It is the same rejection
+  // (no upload) rather than the TypeError an empty array used to produce.
+  if (!first || !last) throw new MissingGravityError();
+  if (t <= first.t) return normalise(first.g);
   if (t >= last.t) return normalise(last.g);
 
   for (let i = 1; i < samples.length; i += 1) {
-    const b = samples[i];
-    if (b.t < t) continue;
     const a = samples[i - 1];
+    const b = samples[i];
+    if (!a || !b) break; // unreachable: 1 <= i < samples.length
+    if (b.t < t) continue;
     const span = b.t - a.t;
     const ratio = span <= 0 ? 0 : (t - a.t) / span;
     return normalise([
@@ -161,13 +168,18 @@ export function buildSidecar(input: BuildSidecarInput): ClipCapture {
 
   const { frameTimes } = input;
   if (frameTimes.length === 0) throw new InvalidFrameTimingError();
-  for (let i = 0; i < frameTimes.length; i += 1) {
-    const t = frameTimes[i];
-    if (!Number.isFinite(t) || t < 0 || (i > 0 && t < frameTimes[i - 1])) {
+  // Iterated with a running `previous` rather than `frameTimes[i - 1]`: the
+  // indexed form read `undefined` on frame 0, and only the `i > 0` guard kept
+  // that comparison from running.
+  let previous = Number.NEGATIVE_INFINITY;
+  for (const [i, t] of frameTimes.entries()) {
+    if (!Number.isFinite(t) || t < 0 || t < previous) {
       throw new InvalidFrameTimingError(`Frame ${i} has an invalid time (${t}); the video cannot be uploaded.`);
     }
+    previous = t;
   }
-  const durationSeconds = frameTimes[frameTimes.length - 1];
+  // Non-empty: checked above.
+  const durationSeconds = required(frameTimes[frameTimes.length - 1], "frameTimes is non-empty");
 
   // Sort a copy by time. gravityAt assumes ascending t; out-of-order samples
   // (e.g. Date.now() stepping backwards under an NTP adjustment) would
@@ -178,7 +190,9 @@ export function buildSidecar(input: BuildSidecarInput): ClipCapture {
   // One sample (or a burst covering a sliver of the clip) held across the whole
   // recording would be fabricated per-frame data (CLAUDE.md rule 3).
   if (durationSeconds > COVERAGE_CHECK_MIN_DURATION_S) {
-    const span = samples[samples.length - 1].t - samples[0].t;
+    const earliest = required(samples[0], "gravitySamples is non-empty");
+    const latest = required(samples[samples.length - 1], "gravitySamples is non-empty");
+    const span = latest.t - earliest.t;
     if (samples.length < 2 || span < durationSeconds * MIN_COVERAGE_FRACTION) {
       throw new MissingGravityError(
         `Gravity readings cover only ${span.toFixed(2)}s of a ${durationSeconds.toFixed(2)}s clip; it cannot be uploaded.`,

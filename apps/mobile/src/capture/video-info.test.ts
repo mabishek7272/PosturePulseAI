@@ -39,7 +39,7 @@ describe("readVideoInfo on real ffmpeg fixtures", () => {
     expect(info.frameTimes[0]).toBe(0);
     expect(info.frameTimes[c.frames - 1]).toBeCloseTo(c.last, 5);
     for (let i = 1; i < info.frameTimes.length; i += 1) {
-      expect(info.frameTimes[i]).toBeGreaterThan(info.frameTimes[i - 1]);
+      expect(info.frameTimes[i]!).toBeGreaterThan(info.frameTimes[i - 1]!);
     }
   });
 

@@ -36,7 +36,8 @@ export function ordinalAt(index: number, total: number): number {
 export function protocolLabel(protocolId: string): string | null {
   const base = protocolId.trim().replace(/\.v\d.*$/i, "");
   const words = base.split(/[-_\s]+/).filter(Boolean);
-  if (words.length === 0 || words[0].toLowerCase() === "assessment") return null;
+  const [first] = words;
+  if (!first || first.toLowerCase() === "assessment") return null;
   const text = words.join(" ").toLowerCase();
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

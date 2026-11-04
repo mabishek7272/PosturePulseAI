@@ -16,7 +16,7 @@ describe("feedback state machine", () => {
     const fb = createFeedback();
     const r = run(fb, 0, 2000, []);
     expect(kinds(r).filter((k) => k === "start")).toHaveLength(1);
-    expect(r[0][0]).toBe(0);
+    expect(r[0]![0]).toBe(0);
   });
 
   it("fires nothing during idle or countdown, and restarts after", () => {

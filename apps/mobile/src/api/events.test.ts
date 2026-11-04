@@ -16,7 +16,7 @@ describe("events api", () => {
 
     const results = await listMetricResults("s-1", "tok");
     expect(results).toHaveLength(1);
-    expect(results[0].metricKey).toBe("static.head_lateral_tilt");
+    expect(results[0]!.metricKey).toBe("static.head_lateral_tilt");
   });
 
   it("sends the clinician token, since the events log is clinician-only", async () => {

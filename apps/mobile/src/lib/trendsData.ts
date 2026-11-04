@@ -33,7 +33,12 @@ export function weeklyCounts(sessions: SessionSummary[], now: Date, weeks: numbe
     const n = daysAgo(s.createdAt, now);
     if (!(n >= 0)) continue;
     const bucket = Math.floor(n / 7);
-    if (bucket < weeks) out[weeks - 1 - bucket] += 1;
+    if (bucket < weeks) {
+      // In range: `n >= 0` is enforced by the `continue` above, so bucket >= 0,
+      // and bucket < weeks. `?? 0` is a counter's starting value, not data.
+      const slot = weeks - 1 - bucket;
+      out[slot] = (out[slot] ?? 0) + 1;
+    }
   }
   return out;
 }
@@ -87,14 +92,19 @@ export function linePath(pts: Pt[]): string {
 }
 
 export function areaPath(pts: Pt[]): string {
-  if (pts.length === 0) return "";
+  const first = pts[0];
   const last = pts[pts.length - 1];
-  return `${linePath(pts)} L${r(last.x)} ${CHART.height} L${r(pts[0].x)} ${CHART.height} Z`;
+  if (!first || !last) return ""; // empty
+  return `${linePath(pts)} L${r(last.x)} ${CHART.height} L${r(first.x)} ${CHART.height} Z`;
 }
 
 export function pathLength(pts: Pt[]): number {
   let len = 0;
-  for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  let previous: Pt | undefined;
+  for (const p of pts) {
+    if (previous) len += Math.hypot(p.x - previous.x, p.y - previous.y);
+    previous = p;
+  }
   return Math.ceil(len) + 1;
 }
 

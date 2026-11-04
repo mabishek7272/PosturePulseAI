@@ -1,5 +1,7 @@
 // Pure signature helpers. The signature lives only in component state; nothing here
 // touches disk, network or logs.
+import { required } from "./required";
+
 export type Point = { x: number; y: number };
 export type Stroke = Point[];
 
@@ -7,7 +9,12 @@ export type Stroke = Point[];
 export function totalLength(strokes: Stroke[]): number {
   let sum = 0;
   for (const s of strokes) {
-    for (let i = 1; i < s.length; i++) sum += Math.hypot(s[i].x - s[i - 1].x, s[i].y - s[i - 1].y);
+    // Pairwise via a carried previous point, rather than `s[i]` / `s[i - 1]`.
+    let previous: Point | undefined;
+    for (const p of s) {
+      if (previous) sum += Math.hypot(p.x - previous.x, p.y - previous.y);
+      previous = p;
+    }
   }
   return sum;
 }
@@ -25,17 +32,20 @@ const r = (n: number) => Math.round(n * 10) / 10;
 
 /** One stroke as a smooth SVG path (quadratic curves through midpoints). */
 export function strokeToPath(stroke: Stroke): string {
-  if (stroke.length === 0) return "";
-  const [p0] = stroke;
+  const [p0, p1] = stroke;
+  if (!p0) return ""; // length 0
   if (stroke.length === 1) return `M${r(p0.x)} ${r(p0.y)}l0.01 0`;
-  if (stroke.length === 2) return `M${r(p0.x)} ${r(p0.y)}L${r(stroke[1].x)} ${r(stroke[1].y)}`;
+  if (p1 && stroke.length === 2) return `M${r(p0.x)} ${r(p0.y)}L${r(p1.x)} ${r(p1.y)}`;
   let d = `M${r(p0.x)} ${r(p0.y)}`;
   for (let i = 1; i < stroke.length - 1; i++) {
-    const mx = (stroke[i].x + stroke[i + 1].x) / 2;
-    const my = (stroke[i].y + stroke[i + 1].y) / 2;
-    d += `Q${r(stroke[i].x)} ${r(stroke[i].y)} ${r(mx)} ${r(my)}`;
+    // Both reads are proven by the loop bound (1 <= i, i + 1 <= length - 1).
+    const cur = required(stroke[i], "stroke[i] exists inside the loop bound");
+    const next = required(stroke[i + 1], "stroke[i + 1] exists inside the loop bound");
+    const mx = (cur.x + next.x) / 2;
+    const my = (cur.y + next.y) / 2;
+    d += `Q${r(cur.x)} ${r(cur.y)} ${r(mx)} ${r(my)}`;
   }
-  const last = stroke[stroke.length - 1];
+  const last = required(stroke[stroke.length - 1], "stroke has at least 3 points here");
   return `${d}L${r(last.x)} ${r(last.y)}`;
 }
 

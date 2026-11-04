@@ -39,6 +39,7 @@ export function ReportSequence({ sessionId }: { sessionId: string | undefined })
   }, [paused, still, cards.length]);
 
   const current = cards[index % cards.length];
+  if (!current) return null; // no cards: nothing to show (this used to crash)
   return (
     <View>
       <Pressable

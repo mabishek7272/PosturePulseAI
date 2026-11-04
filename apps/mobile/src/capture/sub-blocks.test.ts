@@ -27,9 +27,9 @@ describe("windowsFor", () => {
   });
 
   it("keeps each block's own instruction and preparation", () => {
-    expect(W[1].preparation).toMatch(/March in place/);
-    expect(W[0].preparation).toBeNull();
-    expect(W[2].instruction).toMatch(/heels on the marks/);
+    expect(W[1]!.preparation).toMatch(/March in place/);
+    expect(W[0]!.preparation).toBeNull();
+    expect(W[2]!.instruction).toMatch(/heels on the marks/);
   });
 });
 
@@ -140,7 +140,7 @@ describe("tagFrames", () => {
     expect(counts.relaxed).toBe(300); // 10 s
     expect(counts.habitual).toBe(180); // 6 s
     expect(counts.standardized).toBe(180); // 6 s
-    expect(counts.relaxed + counts.habitual + counts.standardized).toBe(times.length);
+    expect(counts.relaxed! + counts.habitual! + counts.standardized!).toBe(times.length);
   });
 
   it("a dropped run of frames shrinks that phase's count and no other", () => {
@@ -207,13 +207,15 @@ describe("resolveSequence with a synthetic multi-block battery", () => {
   });
 
   it("resolves sub-blocks only on the step that declares them", () => {
-    const [multi, single] = resolveSequence(battery).steps;
+    const steps = resolveSequence(battery).steps;
+    const multi = steps[0]!;
+    const single = steps[1]!;
     expect(multi.subBlocks?.map((b) => b.phase)).toEqual(["relaxed", "habitual", "standardized"]);
     expect(single.subBlocks).toBeUndefined();
   });
 
   it("the resolved sub-blocks sum to the step's declared duration", () => {
-    const [multi] = resolveSequence(battery).steps;
+    const multi = resolveSequence(battery).steps[0]!;
     expect(totalSeconds(multi.subBlocks!)).toBe(multi.durationSeconds);
   });
 
@@ -241,21 +243,21 @@ describe("resolveSequence with a synthetic multi-block battery", () => {
         },
       ],
     };
-    expect(resolveSequence(bad).steps[0].subBlocks).toBeUndefined();
+    expect(resolveSequence(bad).steps[0]!.subBlocks).toBeUndefined();
   });
 
   it("ignores a single sub-block, which is not a multi-phase hold", () => {
     const one = {
       steps: [{ ...battery.steps[0], subBlocks: [BLOCKS[0]] }],
     };
-    expect(resolveSequence(one).steps[0].subBlocks).toBeUndefined();
+    expect(resolveSequence(one).steps[0]!.subBlocks).toBeUndefined();
   });
 
   it("defaults the risk flags to false, never to required", () => {
     // An absent flag must not be read as "a spotter is required", which would
     // block an ordinary static step. The server refuses the clip independently,
     // so the app being wrong here cannot get an unspotted capture recorded.
-    const [step] = resolveSequence(battery).steps;
+    const step = resolveSequence(battery).steps[0]!;
     expect(step.requiresSpotter).toBe(false);
     expect(step.eyesClosed).toBe(false);
     expect(step.stance).toBe("bilateral");
@@ -281,7 +283,7 @@ describe("resolveSequence with a synthetic multi-block battery", () => {
 
   it("falls back per step when a duration is missing, and says so by value", () => {
     const noDuration = { steps: [{ ...battery.steps[1], durationSeconds: undefined }] };
-    expect(resolveSequence(noDuration).steps[0].durationSeconds).toBe(30);
+    expect(resolveSequence(noDuration).steps[0]!.durationSeconds).toBe(30);
   });
 });
 
@@ -313,12 +315,12 @@ describe("subPhase through buildSidecar into the uploaded sidecar", () => {
 
   it("tags each frame with the phase it was captured in", () => {
     const sidecar = build(times, true);
-    expect(sidecar.frames[0].subPhase).toBe("relaxed");
-    expect(sidecar.frames[299].subPhase).toBe("relaxed"); // t = 9.967
-    expect(sidecar.frames[300].subPhase).toBe("habitual"); // t = 10.0
-    expect(sidecar.frames[479].subPhase).toBe("habitual"); // t = 15.967
-    expect(sidecar.frames[480].subPhase).toBe("standardized"); // t = 16.0
-    expect(sidecar.frames[659].subPhase).toBe("standardized");
+    expect(sidecar.frames[0]!.subPhase).toBe("relaxed");
+    expect(sidecar.frames[299]!.subPhase).toBe("relaxed"); // t = 9.967
+    expect(sidecar.frames[300]!.subPhase).toBe("habitual"); // t = 10.0
+    expect(sidecar.frames[479]!.subPhase).toBe("habitual"); // t = 15.967
+    expect(sidecar.frames[480]!.subPhase).toBe("standardized"); // t = 16.0
+    expect(sidecar.frames[659]!.subPhase).toBe("standardized");
   });
 
   it("gives the analysis deterministic boundaries with no heuristic splitting", () => {
@@ -345,8 +347,8 @@ describe("subPhase through buildSidecar into the uploaded sidecar", () => {
     // the hold ended was taken while the person was no longer holding anything.
     const overrun = [...times, 22.5, 23.0];
     const sidecar = build(overrun, true);
-    expect(sidecar.frames[659].subPhase).toBe("standardized");
-    expect("subPhase" in sidecar.frames[660]).toBe(false);
-    expect("subPhase" in sidecar.frames[661]).toBe(false);
+    expect(sidecar.frames[659]!.subPhase).toBe("standardized");
+    expect("subPhase" in sidecar.frames[660]!).toBe(false);
+    expect("subPhase" in sidecar.frames[661]!).toBe(false);
   });
 });

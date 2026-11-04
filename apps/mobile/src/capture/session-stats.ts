@@ -3,6 +3,7 @@
  * ON-DEVICE PRE-CHECK values only (see sqi.ts): not persisted, not uploaded,
  * lost when the app restarts, and not a clinical result.
  */
+import { required } from "../lib/required";
 import { pitchDegrees, rollDegrees } from "./level";
 import type { GravitySample } from "./gravity";
 import type { SqiBand } from "./sqi";
@@ -47,7 +48,9 @@ export function medianPitchFromSamples(samples: readonly GravitySample[]): numbe
   if (v.length === 0) return null;
   v.sort((a, b) => a - b);
   const m = v.length >> 1;
-  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+  const upper = required(v[m], "v is non-empty");
+  if (v.length % 2) return upper;
+  return (required(v[m - 1], "an even-length v has m >= 1") + upper) / 2;
 }
 
 export function recordClipStats(sessionId: string, stepId: string, stats: ClipStats): void {

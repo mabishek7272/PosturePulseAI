@@ -46,7 +46,7 @@ describe("compareScans", () => {
     const b: MetricResult[] = [{ metricKey: "static.tilt", unsupported: { reasons: ["low pose quality"] } }];
     const r = compareScans(a, b);
     expect(r.compared).toHaveLength(0);
-    expect(r.notCompared[0].reasons).toEqual(["Later scan: Not measured — low pose quality"]);
+    expect(r.notCompared[0]!.reasons).toEqual(["Later scan: Not measured — low pose quality"]);
     expect(JSON.stringify(r.notCompared)).not.toMatch(/3\.0/);
   });
   it("reports notMeasurable and metrics missing from one scan", () => {
@@ -62,7 +62,7 @@ describe("compareScans", () => {
   it("does not compare differing units", () => {
     const r = compareScans([est("m.z", 1, 1)], [est("m.z", 2, 1, { unit: "cm" })]);
     expect(r.compared).toHaveLength(0);
-    expect(r.notCompared[0].reasons[0]).toMatch(/Units differ/);
+    expect(r.notCompared[0]!.reasons[0]).toMatch(/Units differ/);
   });
   it("formats with the Results conventions (sign, 1 dp, degree)", () => {
     expect(formatCompareValue(2, "deg")).toBe("+2.0°");

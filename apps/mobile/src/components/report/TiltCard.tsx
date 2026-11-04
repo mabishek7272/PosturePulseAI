@@ -41,9 +41,12 @@ export function TiltCard({ views, still, paused }: { views: ViewReport[]; still:
     return () => clearInterval(id);
   }, [paused, still, views.length]);
   const view = views[i % views.length];
-  const t = tiltNumbers(view.meanRollDegrees);
-  const deg = useTween(t?.degrees ?? 0, 900, still, view.stepId);
-  if (!t) return null;
+  // `view` is undefined only for an empty `views` (`i % 0` is NaN), which used to
+  // crash here. The hook below stays UNCONDITIONAL - an early return before it
+  // would change the hook count between renders whenever `views` goes empty.
+  const t = view ? tiltNumbers(view.meanRollDegrees) : null;
+  const deg = useTween(t?.degrees ?? 0, 900, still, view?.stepId);
+  if (!view || !t) return null;
   return (
     <ReportCard title={`TILT CORRECTION · ${view.label}`}>
       <Diagram deg={deg} labels={{ theta: `θ = ${t.thetaLabel}`, sin: t.sinLabel, cos: t.cosLabel }} />

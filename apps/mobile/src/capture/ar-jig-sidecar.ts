@@ -33,9 +33,11 @@ export function buildArJigSidecar(input: {
 
   if (clip.frames.length === 0) throw new InvalidFrameTimingError();
 
-  for (let i = 0; i < clip.frames.length; i += 1) {
-    const frame = clip.frames[i];
-
+  // `previousT` is carried rather than read back as `frames[i - 1].t`: frame 0
+  // has no predecessor, and the indexed form only avoided reading one because of
+  // an `i > 0` guard the type checker could not see.
+  let previousT = Number.NEGATIVE_INFINITY;
+  for (const [i, frame] of clip.frames.entries()) {
     if (frame.index !== i) {
       throw new InvalidFrameTimingError(
         `Frame ${i} reports index ${frame.index}; the sidecar and the video would not line up.`,
@@ -43,11 +45,12 @@ export function buildArJigSidecar(input: {
     }
 
     const { t } = frame;
-    if (!Number.isFinite(t) || t < 0 || (i > 0 && t < clip.frames[i - 1].t)) {
+    if (!Number.isFinite(t) || t < 0 || t < previousT) {
       throw new InvalidFrameTimingError(
         `Frame ${i} has an invalid time (${t}); the video cannot be uploaded.`,
       );
     }
+    previousT = t;
 
     // The module normalises gravity natively and omits any frame it could not
     // certify, so a non-unit vector here means something is wrong upstream.
@@ -117,11 +120,12 @@ function depthBlock(clip: ARJigRecordedClip): ClipCapture["depth"] {
   // frameCount is what the server cross-checks against frames.length, and the
   // schema requires index 0..n-1 in order with t >= 0 and non-decreasing.
   if (depth.frameCount !== depth.frames.length || depth.frameCount === 0) return undefined;
-  for (let i = 0; i < depth.frames.length; i += 1) {
-    const frame = depth.frames[i];
+  let previousDepthT = Number.NEGATIVE_INFINITY;
+  for (const [i, frame] of depth.frames.entries()) {
     if (frame.index !== i) return undefined;
     if (!Number.isFinite(frame.t) || frame.t < 0) return undefined;
-    if (i > 0 && frame.t < depth.frames[i - 1].t) return undefined;
+    if (frame.t < previousDepthT) return undefined;
+    previousDepthT = frame.t;
   }
   if (!/^[0-9a-f]{64}$/.test(depth.sha256)) return undefined;
   if (!(depth.width >= 1 && depth.height >= 1)) return undefined;
