@@ -196,6 +196,17 @@ Until then `apps/mobile/src/lib/compare.ts` keeps its existing gate on the combi
 uncertainty of the two scans, which makes no claim about between-visit reliability and says
 so.
 
+**Implementation note.** The arithmetic is laid down in `services/ml-service/app/analysis/mdc.py`
+and is deliberately unreachable from any per-clip quantity. Its SEM parameter is a
+`BetweenSessionSEM`, not a number: it carries the dataset id, the subject count, and the
+metric and method it was estimated on, refuses to exist below 30 subjects, and can only be
+estimated from paired values of the same subjects at least 24 hours apart. A bare float is
+a `TypeError`. Simulated against the failure this section describes: with a between-session
+SEM of 2.0 and a within-clip sigma of 0.2, a within-clip MDC flags ~85% of no-change pairs
+as changed (84.5% analytically), the correct one 5%. Nothing calls it, and a test asserts that stays true until
+a real dataset exists. The 30-subject floor is an engineering floor, not a protocol (the SEM
+is then known to about +-26%); the study plan sets the real number.
+
 ## Consequences
 
 - **Nothing regresses.** `clip_quality.assess_clip` is unmodified; the depth gate runs after
