@@ -21,4 +21,5 @@ export * from "./report-rejection";
 export * from "./scale-calibration-record";
 export * from "./sensor-reading";
 export * from "./session";
+export * from "./spotter-confirmation";
 export * from "./symptom-report";

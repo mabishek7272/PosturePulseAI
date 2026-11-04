@@ -63,7 +63,13 @@ describe("PUT /sessions/:id/clips/:stepId", () => {
         { provide: SafetyService, useValue: safety },
         { provide: PrismaService, useValue: prisma },
         { provide: BatteryService, useValue: battery },
-        { provide: ClipsService, useValue: new ClipsService(prisma as never, safety as never, battery, clipDir) },
+        { provide: ClipsService, useValue: new ClipsService(
+            prisma as never,
+            safety as never,
+            battery,
+            { isConfirmed: jest.fn().mockResolvedValue(false) } as never,
+            clipDir
+          ) },
       ],
     }).compile();
     app = moduleRef.createNestApplication();

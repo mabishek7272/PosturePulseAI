@@ -18,6 +18,7 @@ class Module(Enum):
     functional = 'functional'
     gait = 'gait'
     workstation = 'workstation'
+    balance = 'balance'
 
 
 class View(Enum):
@@ -36,6 +37,16 @@ class Kind(Enum):
 class Mode(Enum):
     clinic = 'clinic'
     patient = 'patient'
+
+
+class Stance(Enum):
+    """
+    Base of support. single_left means standing on the person's LEFT leg. Named per side rather than as a generic 'single_leg' because the two are different measurements and a report that pooled them would be comparing different limbs.
+    """
+
+    bilateral = 'bilateral'
+    single_left = 'single_left'
+    single_right = 'single_right'
 
 
 class Step(BaseModel):
@@ -57,6 +68,26 @@ class Step(BaseModel):
     levelToleranceDegrees: PositiveFloat | None = 6
     modes: list[Mode] = Field(..., min_length=1)
     metricKeys: list[str]
+    requiresSpotter: bool | None = Field(
+        False,
+        description="True when a member of staff must be within arm's reach for the whole step (HZ-09, induced fall). This is NOT advisory: a step with this set cannot reach recording until a clinician has confirmed presence, and the server refuses a clip for such a step with no confirmation recorded for that session and step. See docs/hazard-analysis.md HZ-09, whose own bar is that a control is structurally enforced rather than documented.",
+    )
+    eyesClosed: bool | None = Field(
+        False,
+        description='True when the person is asked to close their eyes. Removes visual balance correction, so it raises fall risk independently of stance and is the main reason a step would set requiresSpotter.',
+    )
+    stance: Stance | None = Field(
+        'bilateral',
+        description="Base of support. single_left means standing on the person's LEFT leg. Named per side rather than as a generic 'single_leg' because the two are different measurements and a report that pooled them would be comparing different limbs.",
+    )
+    contraindications: list[str] | None = Field(
+        None,
+        description="Clinician-authored conditions under which this step must not be offered. Same shape as protocol-definition.schema.json's field of the same name, deliberately: a clinician writing one should not have to learn two formats. Free text because the authority is the clinician, not an enum this repo maintains.",
+    )
+    symptomStopRules: list[str] | None = Field(
+        None,
+        description='Clinician-authored plain-language stop/escalate instructions surfaced on a SymptomReport, mirroring protocol-definition.schema.json. These do NOT gate anything on their own: every symptom report reaches Pause regardless of what any rule says (CLAUDE.md rule 2), and these are what a clinician reads afterwards.',
+    )
 
 
 class AssessmentBattery(BaseModel):

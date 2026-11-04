@@ -17,6 +17,16 @@ export interface BatteryStep {
   levelToleranceDegrees?: number;
   modes: Array<"clinic" | "patient">;
   metricKeys: string[];
+  /**
+   * HZ-09. A step with this set cannot be captured until a named clinician has
+   * attested to being within arm's reach (`SpotterService`), enforced both in
+   * the app and - because an app is a client - on the clip upload.
+   */
+  requiresSpotter?: boolean;
+  eyesClosed?: boolean;
+  stance?: "bilateral" | "single_left" | "single_right";
+  contraindications?: string[];
+  symptomStopRules?: string[];
 }
 
 export interface AssessmentBattery {

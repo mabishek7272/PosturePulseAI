@@ -17,7 +17,7 @@
         "required": ["stepId", "module", "title", "instruction", "view", "kind", "minFps", "modes", "metricKeys"],
         "properties": {
           "stepId": { "type": "string" },
-          "module": { "type": "string", "enum": ["static", "functional", "gait", "workstation"] },
+          "module": { "type": "string", "enum": ["static", "functional", "gait", "workstation", "balance"] },
           "title": { "type": "string" },
           "instruction": { "type": "string", "description": "Shown and spoken to the person being assessed." },
           "view": { "type": "string", "enum": ["anterior", "posterior", "left_lateral", "right_lateral"] },
@@ -31,11 +31,48 @@
             "minItems": 1,
             "items": { "type": "string", "enum": ["clinic", "patient"] }
           },
-          "metricKeys": { "type": "array", "items": { "type": "string" } }
+          "metricKeys": { "type": "array", "items": { "type": "string" } },
+
+          "requiresSpotter": {
+            "type": "boolean",
+            "default": false,
+            "description": "True when a member of staff must be within arm's reach for the whole step (HZ-09, induced fall). This is NOT advisory: a step with this set cannot reach recording until a clinician has confirmed presence, and the server refuses a clip for such a step with no confirmation recorded for that session and step. See docs/hazard-analysis.md HZ-09, whose own bar is that a control is structurally enforced rather than documented."
+          },
+          "eyesClosed": {
+            "type": "boolean",
+            "default": false,
+            "description": "True when the person is asked to close their eyes. Removes visual balance correction, so it raises fall risk independently of stance and is the main reason a step would set requiresSpotter."
+          },
+          "stance": {
+            "type": "string",
+            "enum": ["bilateral", "single_left", "single_right"],
+            "default": "bilateral",
+            "description": "Base of support. single_left means standing on the person's LEFT leg. Named per side rather than as a generic 'single_leg' because the two are different measurements and a report that pooled them would be comparing different limbs."
+          },
+          "contraindications": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Clinician-authored conditions under which this step must not be offered. Same shape as protocol-definition.schema.json's field of the same name, deliberately: a clinician writing one should not have to learn two formats. Free text because the authority is the clinician, not an enum this repo maintains."
+          },
+          "symptomStopRules": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Clinician-authored plain-language stop/escalate instructions surfaced on a SymptomReport, mirroring protocol-definition.schema.json. These do NOT gate anything on their own: every symptom report reaches Pause regardless of what any rule says (CLAUDE.md rule 2), and these are what a clinician reads afterwards."
+          }
         },
         "allOf": [
           { "if": { "properties": { "kind": { "const": "hold" } } }, "then": { "required": ["durationSeconds"] } },
-          { "if": { "properties": { "kind": { "enum": ["reps", "passes"] } } }, "then": { "required": ["reps"] } }
+          { "if": { "properties": { "kind": { "enum": ["reps", "passes"] } } }, "then": { "required": ["reps"] } },
+          {
+            "$comment": "A step that asks for eyes closed, or for a single-leg stance, MUST require a spotter. Encoded in the schema rather than left to the author because this is the structural half of HZ-09: a battery that asked for a one-legged eyes-closed hold without a spotter would fail to load (BatteryService throws on a battery that does not validate) rather than reaching a patient.",
+            "if": {
+              "anyOf": [
+                { "properties": { "eyesClosed": { "const": true } }, "required": ["eyesClosed"] },
+                { "properties": { "stance": { "enum": ["single_left", "single_right"] } }, "required": ["stance"] }
+              ]
+            },
+            "then": { "properties": { "requiresSpotter": { "const": true } }, "required": ["requiresSpotter"] }
+          }
         ]
       }
     }

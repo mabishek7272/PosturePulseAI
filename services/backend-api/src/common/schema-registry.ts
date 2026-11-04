@@ -26,6 +26,7 @@ import qualityGateFlag from "../../../../packages/schemas/src/quality-gate-flag.
 import scaleCalibrationRecord from "../../../../packages/schemas/src/scale-calibration-record.schema.json";
 import sensorReading from "../../../../packages/schemas/src/sensor-reading.schema.json";
 import session from "../../../../packages/schemas/src/session.schema.json";
+import spotterConfirmation from "../../../../packages/schemas/src/spotter-confirmation.schema.json";
 import symptomReport from "../../../../packages/schemas/src/symptom-report.schema.json";
 import common from "../../../../packages/schemas/src/common.schema.json";
 
@@ -58,6 +59,7 @@ const SCHEMAS: Record<string, object> = {
   "scale-calibration-record": scaleCalibrationRecord,
   "sensor-reading": sensorReading,
   session,
+  "spotter-confirmation": spotterConfirmation,
   "symptom-report": symptomReport,
 };
 

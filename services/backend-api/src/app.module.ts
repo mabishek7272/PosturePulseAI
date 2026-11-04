@@ -19,6 +19,7 @@ import { ProtocolsModule } from "./protocols/protocols.module";
 import { ReportsModule } from "./reports/reports.module";
 import { ResearchExportModule } from "./research-export/research-export.module";
 import { SafetyModule } from "./safety/safety.module";
+import { SpotterModule } from "./spotter/spotter.module";
 import { SensorsModule } from "./sensors/sensors.module";
 import { SessionsModule } from "./sessions/sessions.module";
 import { SymptomsModule } from "./symptoms/symptoms.module";
@@ -38,6 +39,7 @@ import { WsModule } from "./ws/ws.module";
     SessionsModule,
     EventsModule,
     SafetyModule,
+    SpotterModule,
     SymptomsModule,
     MlIntegrationModule,
     PolicyModule,

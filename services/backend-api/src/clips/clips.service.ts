@@ -14,6 +14,7 @@ import type { View } from "../battery/types";
 import { PrismaService } from "../common/prisma.service";
 import { getValidator } from "../common/schema-registry";
 import { SafetyService } from "../safety/safety.service";
+import { SpotterService } from "../spotter/spotter.service";
 import { clipDirFromEnv } from "./clip-dir";
 
 export const MAX_CLIP_BYTES = 100 * 1024 * 1024;
@@ -82,6 +83,7 @@ export class ClipsService {
     private readonly prisma: PrismaService,
     private readonly safety: SafetyService,
     private readonly battery: BatteryService,
+    private readonly spotter: SpotterService,
     private readonly clipDir: string = clipDirFromEnv()
   ) {}
 
@@ -103,6 +105,17 @@ export class ClipsService {
       if (!step) throw new NotFoundException(`Unknown step "${stepId}".`);
 
       assertUploadAllowed(await this.safety.getState(sessionId));
+
+      // HZ-09. The app will not offer the shutter for a requiresSpotter step
+      // without an attestation, but an app is a client - it can be an old
+      // build, a modified build, or simply wrong. Refusing here is what makes
+      // the control structural rather than documented: bypassing the prompt
+      // cannot get the capture into the record.
+      if (step.requiresSpotter && !(await this.spotter.isConfirmed(sessionId, stepId))) {
+        throw new ConflictException(
+          `Step "${stepId}" requires a clinician to confirm they are within arm's reach before it can be recorded.`
+        );
+      }
 
       if (!ACCEPTED_CLIP_TYPES.includes(file.mimetype)) {
         throw new UnsupportedMediaTypeException("The clip must be video/mp4 or video/quicktime.");

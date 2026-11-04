@@ -20,4 +20,5 @@ from .report_rejection import ReportRejection
 from .scale_calibration_record import ScaleCalibrationRecord
 from .sensor_reading import SensorReading
 from .session import Session
+from .spotter_confirmation import SpotterConfirmation
 from .symptom_report import SymptomReport

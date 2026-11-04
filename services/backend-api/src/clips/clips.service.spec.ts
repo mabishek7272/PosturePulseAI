@@ -41,13 +41,17 @@ function setup(state = "Observing") {
   };
   prisma.$transaction = jest.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(prisma));
   const safety = { getState: jest.fn().mockResolvedValue(state) };
-  const service = new ClipsService(prisma as never, safety as never, battery, clipDir);
+  // No step in the v0 battery sets requiresSpotter, so this stub is only
+  // reached by the tests that opt into one; it defaults to "not confirmed" so a
+  // spotter-requiring step is refused unless a test says otherwise.
+  const spotter = { isConfirmed: jest.fn().mockResolvedValue(false) };
+  const service = new ClipsService(prisma as never, safety as never, battery, spotter as never, clipDir);
   const upload = (bytes = "fake-video-bytes", mimetype = "video/quicktime") => {
     const file = path.join(root, `incoming-${Math.random().toString(16).slice(2)}`);
     writeFileSync(file, bytes);
     return { path: file, size: Buffer.byteLength(bytes), mimetype };
   };
-  return { service, prisma, safety, clipDir, upload };
+  return { service, prisma, safety, spotter, clipDir, upload };
 }
 
 describe("ClipsService.accept", () => {
@@ -364,5 +368,123 @@ describe("ClipsService.accept with a depth track (ADR-020)", () => {
     expect(existsSync(clip.path)).toBe(false);
     expect(existsSync(depth.path)).toBe(false);
     expect(existsSync(clipDir) ? readdirSync(clipDir).filter((f) => f.endsWith(".depth")) : []).toEqual([]);
+  });
+});
+
+describe("ClipsService and the HZ-09 spotter gate", () => {
+  /** A battery whose one step demands a spotter, as a balance block would. */
+  function spotterBattery() {
+    return {
+      step: (id: string) =>
+        id === "balance.single_left_eyes_closed"
+          ? {
+              stepId: "balance.single_left_eyes_closed",
+              module: "balance",
+              title: "Stand on your left leg, eyes closed",
+              instruction: "x",
+              view: "anterior",
+              kind: "hold",
+              durationSeconds: 10,
+              minFps: 24,
+              levelToleranceDegrees: 6,
+              modes: ["clinic"],
+              metricKeys: [],
+              requiresSpotter: true,
+              eyesClosed: true,
+              stance: "single_left",
+            }
+          : battery.step(id),
+    };
+  }
+
+  function setupSpotter(confirmed: boolean) {
+    const root = mkdtempSync(path.join(tmpdir(), "spotter-"));
+    const clipDir = path.join(root, "clips");
+    const prisma: Record<string, any> = {
+      clip: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ ...data })),
+      },
+    };
+    prisma.$transaction = jest.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(prisma));
+    const safety = { getState: jest.fn().mockResolvedValue("Observing") };
+    const spotter = { isConfirmed: jest.fn().mockResolvedValue(confirmed) };
+    const service = new ClipsService(
+      prisma as never,
+      safety as never,
+      spotterBattery() as never,
+      spotter as never,
+      clipDir
+    );
+    const file = path.join(root, "incoming");
+    writeFileSync(file, "bytes");
+    return {
+      service,
+      prisma,
+      spotter,
+      clipDir,
+      file: { path: file, size: 5, mimetype: "video/quicktime" },
+    };
+  }
+
+  const side = () =>
+    JSON.stringify(
+      sidecar({ stepId: "balance.single_left_eyes_closed", view: "anterior" })
+    );
+
+  it("refuses a clip for a requiresSpotter step with no confirmation", async () => {
+    // The structural half of HZ-09. The app will not offer the shutter without
+    // an attestation, but an app is a client - an old build, a modified build,
+    // or simply wrong. This is what stops a bypassed prompt reaching the record.
+    const { service, prisma, file, clipDir } = setupSpotter(false);
+    await expect(
+      service.accept("s1", "balance.single_left_eyes_closed", file, side())
+    ).rejects.toThrow(ConflictException);
+    expect(prisma.clip.create).not.toHaveBeenCalled();
+    // And nothing is left on disk.
+    expect(existsSync(file.path)).toBe(false);
+    expect(existsSync(clipDir) ? readdirSync(clipDir) : []).toEqual([]);
+  });
+
+  it("names the step and what is needed, so the message is actionable", async () => {
+    const { service, file } = setupSpotter(false);
+    await expect(
+      service.accept("s1", "balance.single_left_eyes_closed", file, side())
+    ).rejects.toThrow(/within arm's reach/);
+  });
+
+  it("accepts the clip once a confirmation exists for that session and step", async () => {
+    const { service, prisma, spotter, file } = setupSpotter(true);
+    const res = await service.accept("s1", "balance.single_left_eyes_closed", file, side());
+    expect(res.status).toBe("uploaded");
+    expect(prisma.clip.create).toHaveBeenCalled();
+    // Checked per STEP, never per session: one tick must not cover a step the
+    // clinician never saw.
+    expect(spotter.isConfirmed).toHaveBeenCalledWith("s1", "balance.single_left_eyes_closed");
+  });
+
+  it("does not consult the spotter gate for a step that does not need one", async () => {
+    // Every step in the v0 battery is a quiet standing hold. Calling the gate
+    // for them would add a query per upload and, worse, invite someone to make
+    // the default "confirmed".
+    const { service, spotter, upload } = setup();
+    await service.accept("s1", "static.anterior", upload(), JSON.stringify(sidecar()));
+    expect(spotter.isConfirmed).not.toHaveBeenCalled();
+  });
+
+  it("checks the safety state before the spotter gate", async () => {
+    // Order matters: a paused session must answer 409 for the pause, not for a
+    // missing spotter, or the clinician is sent to fix the wrong thing.
+    const { service, file } = setupSpotter(false);
+    const paused = new ClipsService(
+      { clip: { findUnique: jest.fn(), create: jest.fn() } } as never,
+      { getState: jest.fn().mockResolvedValue("Pause") } as never,
+      spotterBattery() as never,
+      { isConfirmed: jest.fn().mockResolvedValue(false) } as never,
+      "/tmp/nowhere"
+    );
+    await expect(
+      paused.accept("s1", "balance.single_left_eyes_closed", file, side())
+    ).rejects.toThrow(/clinician resumes/);
   });
 });

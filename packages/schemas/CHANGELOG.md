@@ -194,3 +194,43 @@ behind a flag and emits no metric until a clinical lead signs it off).
   method, so adding this value cannot give a depth-derived row a reference
   comparison it has not earned. That control is the architectural guardrail; the
   feature flag is only runtime convenience.
+
+## v0 - assessment-battery safety fields (non-breaking, additive)
+
+- `assessment-battery` steps gained five **optional** fields: `requiresSpotter`,
+  `eyesClosed`, `stance` (`bilateral` | `single_left` | `single_right`),
+  `contraindications[]` and `symptomStopRules[]`; `module` gained `balance`.
+  Every field is optional, so the shipped `references/assessment-battery.v0-draft.json`
+  (four static holds) is still valid unchanged and `version` stays `v0`.
+- `contraindications` and `symptomStopRules` deliberately copy
+  `protocol-definition.schema.json`'s shapes - free-text arrays - so a clinician
+  authoring one does not have to learn two formats, and because the authority on
+  a contraindication is the clinician, not an enum this repo maintains.
+- `stance` names the two single-leg cases **separately** rather than offering a
+  generic `single_leg`: they are different measurements, and a report that
+  pooled them would be comparing different limbs.
+- **The schema encodes a safety rule, not just a shape.** An `eyesClosed` step,
+  or one with a single-leg `stance`, MUST set `requiresSpotter: true`.
+  `BatteryService` throws on a battery that fails its own schema, so a battery
+  asking for a one-legged eyes-closed hold with no spotter stops the server
+  booting rather than reaching a patient. It is in the schema because the field
+  is a hand-set boolean and the one combination where forgetting it matters most
+  is the hardest to spot in a JSON file.
+- `symptomStopRules` gates nothing by itself. Every symptom report reaches
+  `Pause` regardless of what any rule says (CLAUDE.md rule 2); these are what a
+  clinician reads afterwards.
+
+## v0 - spotter-confirmation, a new canonical record (additive)
+
+- New `spotter-confirmation` schema, `version: "v0"`: a named clinician's
+  attestation that they are within arm's reach for a specific step. HZ-09's
+  structural control.
+- `withinArmsReach` is `const: true`. A "no" is not a recordable state - it means
+  the step does not run, so there is nothing to attest to - and pinning it means
+  a stored `false` can never later be read as a confirmation.
+- `confirmedBy` is required and comes from the clinician's verified token, never
+  the request body. An attestation nobody is named on records only that a button
+  was tapped.
+- Scoped to `stepId`, never the session: standing on the left leg and standing
+  on the right are separate steps and separate risks, and one session-wide tick
+  would cover a step the clinician never saw.
