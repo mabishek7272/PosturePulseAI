@@ -5,7 +5,16 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import AwareDatetime, BaseModel, Field, PositiveFloat, confloat, conint
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    PositiveFloat,
+    confloat,
+    conint,
+    constr,
+)
 
 
 class View(Enum):
@@ -42,6 +51,71 @@ class Intrinsics(BaseModel):
     fy: float
     cx: float
     cy: float
+
+
+class Encoding(Enum):
+    """
+    Per-frame payload format. uint16_millimetres_deflate: row-major little-endian uint16 planar depth in millimetres along the optical axis (NOT range along the ray), 0 meaning no return, compressed per frame as RAW DEFLATE (RFC 1951) with no zlib header or Adler-32 trailer. Raw rather than zlib-wrapped because that is what Apple's Compression framework emits for COMPRESSION_ZLIB, and a name that implied a wrapper that is not there would send a reader looking for the wrong first two bytes. Enumerated rather than free text so an unknown encoding is rejected at the boundary instead of being read as millimetres.
+    """
+
+    uint16_millimetres_deflate = 'uint16_millimetres_deflate'
+
+
+class Frame1(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    index: conint(ge=0) = Field(
+        ...,
+        description='Position of this frame in the depth file, from 0. Not a video frame index.',
+    )
+    t: confloat(ge=0.0) = Field(
+        ...,
+        description="Seconds since the clip's FIRST VIDEO frame, on the same clock as frames[].t, so a depth frame can be paired with the nearest pose observation.",
+    )
+
+
+class Depth(BaseModel):
+    """
+    Optional LiDAR depth track uploaded alongside the clip (ADR-020). Absent or null means the device captured no depth; it is never synthesised. The depth frames are a separate, sparser time series from the encoded video frames - they are NOT index-aligned with "frames" above, and each carries its own timestamp on the same clock.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    width: conint(ge=1) = Field(
+        ...,
+        description="Depth map width in pixels (256 on current iPad Pro hardware), after applying the clip's orientation. Lower than the video's width; see geometry/intrinsics.py for the rescaling convention.",
+    )
+    height: conint(ge=1)
+    encoding: Encoding = Field(
+        ...,
+        description="Per-frame payload format. uint16_millimetres_deflate: row-major little-endian uint16 planar depth in millimetres along the optical axis (NOT range along the ray), 0 meaning no return, compressed per frame as RAW DEFLATE (RFC 1951) with no zlib header or Adler-32 trailer. Raw rather than zlib-wrapped because that is what Apple's Compression framework emits for COMPRESSION_ZLIB, and a name that implied a wrapper that is not there would send a reader looking for the wrong first two bytes. Enumerated rather than free text so an unknown encoding is rejected at the boundary instead of being read as millimetres.",
+    )
+    scaleMillimetres: PositiveFloat = Field(
+        ...,
+        description='Millimetres per stored unit. 1 for the encoding above. Carried explicitly so a future fixed-point scale does not silently reinterpret existing files.',
+    )
+    nominalFps: PositiveFloat | None = Field(
+        None,
+        description='Intended depth capture rate, typically 15. Informational only; "frames" carries the authoritative timing.',
+    )
+    frameCount: conint(ge=0) = Field(
+        ...,
+        description='Number of depth frames in the file. Must equal the length of "frames"; the server rejects a mismatch rather than trusting either.',
+    )
+    sha256: constr(pattern=r'^[0-9a-f]{64}$') = Field(
+        ...,
+        description='SHA-256 of the uploaded depth file, so a truncated or swapped track is detected before any geometry is computed.',
+    )
+    hasConfidence: bool = Field(
+        ...,
+        description="True when each frame carries ARKit's confidenceMap (uint8 per pixel, 0-2) appended after the depth plane. Apple documents depth accuracy as highly dependent on this value, so a false here means the per-sample confidence gate cannot run and depth sampling falls back to its statistical gates alone.",
+    )
+    frames: list[Frame1] = Field(
+        ...,
+        description='One entry per depth frame present, in order. A dropped depth frame is simply absent - gaps in t are expected and must not be interpolated.',
+    )
 
 
 class Lens(Enum):
@@ -131,6 +205,10 @@ class ClipCapture(BaseModel):
     intrinsics: Intrinsics | None = Field(
         None,
         description='Pinhole intrinsics in pixels for the oriented image, when the device reports them.',
+    )
+    depth: Depth | None = Field(
+        None,
+        description='Optional LiDAR depth track uploaded alongside the clip (ADR-020). Absent or null means the device captured no depth; it is never synthesised. The depth frames are a separate, sparser time series from the encoded video frames - they are NOT index-aligned with "frames" above, and each carries its own timestamp on the same clock.',
     )
     device: Device
     provenance: Provenance = Field(

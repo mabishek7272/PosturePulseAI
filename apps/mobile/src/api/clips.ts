@@ -20,17 +20,26 @@ export function clipMediaType(videoPath: string): {
 }
 
 /**
- * Multipart upload of one clip plus its ClipCapture sidecar.
+ * Multipart upload of one clip, its ClipCapture sidecar, and - when the AR jig
+ * captured one - the LiDAR depth track (ADR-020).
  *
  * `token` must be the SESSION token returned by POST /sessions, not the
  * clinician JWT: SessionOwnershipGuard requires role === "subject" matching
  * this session id and answers 403 for anything else.
+ *
+ * The `depth` part and the sidecar's `depth` block travel together or not at
+ * all: the server rejects either one without the other, because a declared
+ * track that never arrived would make the analyser read a missing file and an
+ * undeclared one has no encoding, scale or timing to be read by. `depthPath` is
+ * therefore only ever passed alongside a sidecar that describes it.
  */
 export async function uploadClip(input: {
   sessionId: string;
   stepId: string;
   videoPath: string;
   sidecar: ClipCapture;
+  /** `file://` path of the .depth file; omitted when the clip has no depth. */
+  depthPath?: string;
   token: string;
 }): Promise<{ clipId: string; status: string }> {
   const { extension, contentType } = clipMediaType(input.videoPath);
@@ -47,6 +56,20 @@ export async function uploadClip(input: {
     bytes: () => file.bytes(),
   } as unknown as Blob);
   form.append("sidecar", JSON.stringify(input.sidecar));
+
+  // Sent only when the sidecar describes it, so the two can never disagree -
+  // including when a caller passes a path for a clip whose depth block was
+  // dropped as undescribable.
+  if (input.depthPath && input.sidecar.depth) {
+    const depthFile = new File(
+      input.depthPath.startsWith("file://") ? input.depthPath : `file://${input.depthPath}`
+    );
+    form.append("depth", {
+      name: `${input.stepId}.depth`,
+      type: "application/octet-stream",
+      bytes: () => depthFile.bytes(),
+    } as unknown as Blob);
+  }
 
   const response = await fetch(
     `${BACKEND_URL}/sessions/${encodeURIComponent(input.sessionId)}/clips/${encodeURIComponent(input.stepId)}`,

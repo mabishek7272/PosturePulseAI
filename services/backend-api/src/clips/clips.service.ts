@@ -17,6 +17,14 @@ import { SafetyService } from "../safety/safety.service";
 import { clipDirFromEnv } from "./clip-dir";
 
 export const MAX_CLIP_BYTES = 100 * 1024 * 1024;
+/**
+ * The depth track (ADR-020) is uint16 millimetres, zlib per frame, 256x192 at
+ * 15 Hz: about 10-15 MB for a 30 s clip. 64 MB leaves generous headroom for a
+ * longer capture or a poorly-compressing scene while still refusing a file that
+ * cannot plausibly be a depth track for one clip. multer's per-file fileSize
+ * (MAX_CLIP_BYTES) is the outer bound; this is the one that carries the meaning.
+ */
+export const MAX_DEPTH_BYTES = 64 * 1024 * 1024;
 export const ACCEPTED_CLIP_TYPES = ["video/mp4", "video/quicktime"];
 /** Session states in which no new clip may be taken (symptom pause, setup failure, clinician review). */
 export const UPLOAD_BLOCKED_STATES = ["Pause", "Unavailable", "ClinicianReview"];
@@ -31,11 +39,19 @@ export interface UploadedClipFile {
   mimetype: string;
 }
 
+interface SidecarDepth {
+  frameCount: number;
+  sha256: string;
+  frames: Array<{ index: number; t: number }>;
+}
+
 interface Sidecar {
   clipId: string;
   sessionId: string;
   stepId: string;
   view: View;
+  /** Absent or null when the device captured no depth (ADR-020). Never synthesised. */
+  depth?: SidecarDepth | null;
 }
 
 export function assertUploadAllowed(state: string): void {
@@ -69,14 +85,19 @@ export class ClipsService {
     private readonly clipDir: string = clipDirFromEnv()
   ) {}
 
-  /** Always consumes (deletes) the temporary upload file, whether or not the clip is accepted. */
+  /**
+   * Always consumes (deletes) the temporary upload files - the clip and the
+   * optional depth track - whether or not the clip is accepted.
+   */
   async accept(
     sessionId: string,
     stepId: string,
     file: UploadedClipFile,
-    sidecarRaw: string | undefined
+    sidecarRaw: string | undefined,
+    depthFile?: UploadedClipFile
   ): Promise<{ clipId: string; status: string }> {
     let moved = false;
+    let depthMoved = false;
     try {
       const step = this.battery.step(stepId);
       if (!step) throw new NotFoundException(`Unknown step "${stepId}".`);
@@ -96,6 +117,8 @@ export class ClipsService {
         throw new BadRequestException("Sidecar clipId must be 1-64 letters, digits, '-' or '_'.");
       }
 
+      await this.checkDepthPart(sidecar, depthFile);
+
       const sha256 = await sha256OfFile(file.path);
 
       // A retried upload (the device may not have seen our 2xx) is answered from the stored row.
@@ -104,10 +127,12 @@ export class ClipsService {
 
       await mkdir(this.clipDir, { recursive: true });
       const finalPath = path.join(this.clipDir, `${sidecar.clipId}.mov`);
+      const depthFinalPath = depthFile ? path.join(this.clipDir, `${sidecar.clipId}.depth`) : null;
       // The row is created first and the file moved into place inside the same transaction. Two uploads of the
       // same new clipId therefore race on the unique key, and the loser never touches the winner's file; the job
       // only becomes visible to the runner at commit, after the file is in place.
       let renamed = false;
+      let depthRenamed = false;
       try {
         const clip = await this.prisma.$transaction(async (tx) => {
           const created = await tx.clip.create({
@@ -116,22 +141,35 @@ export class ClipsService {
               sessionId,
               stepId,
               path: finalPath,
+              depthPath: depthFinalPath,
               sha256,
               sidecar: JSON.parse(sidecarRaw as string) as object,
               status: "uploaded",
               job: { create: {} },
             },
           });
+          // The depth track moves first: a depthPath row with no file would make
+          // the analyser fail a clip whose video is perfectly good, whereas a
+          // stray .depth file with no row is only wasted bytes, cleaned up below.
+          if (depthFile && depthFinalPath) {
+            await rename(depthFile.path, depthFinalPath);
+            depthRenamed = true;
+          }
           await rename(file.path, finalPath);
           renamed = true;
           return created;
         });
         moved = true;
+        depthMoved = true;
         return { clipId: clip.id, status: clip.status };
       } catch (error) {
         if (renamed) {
           await rm(finalPath, { force: true });
           moved = true; // the temporary file is gone (renamed away); nothing left to delete at file.path
+        }
+        if (depthRenamed && depthFinalPath) {
+          await rm(depthFinalPath, { force: true });
+          depthMoved = true;
         }
         if ((error as { code?: string }).code === "P2002") {
           // Lost a race on the same clipId: answer from the winner's row instead of a 500.
@@ -142,6 +180,41 @@ export class ClipsService {
       }
     } finally {
       if (!moved) await rm(file.path, { force: true });
+      if (depthFile && !depthMoved) await rm(depthFile.path, { force: true });
+    }
+  }
+
+  /**
+   * The sidecar's `depth` block and the `depth` file part describe the same
+   * thing, so one without the other is always an error rather than something to
+   * paper over: a declared depth track that never arrived would otherwise make
+   * the analyser read a missing file, and an undeclared one would be stored with
+   * no encoding, scale or timing to interpret it by - a measurement with no
+   * provenance (CLAUDE.md rules 3 and 4).
+   */
+  private async checkDepthPart(sidecar: Sidecar, depthFile: UploadedClipFile | undefined): Promise<void> {
+    const declared = sidecar.depth ?? null;
+    if (declared && !depthFile) {
+      throw new BadRequestException("The sidecar declares a depth track but no 'depth' file part was uploaded.");
+    }
+    if (depthFile && !declared) {
+      throw new BadRequestException("A 'depth' file part was uploaded but the sidecar has no 'depth' block to describe it.");
+    }
+    if (!declared || !depthFile) return;
+
+    if (declared.frames.length !== declared.frameCount) {
+      throw new BadRequestException(
+        `Sidecar depth.frameCount is ${declared.frameCount} but depth.frames has ${declared.frames.length} entries.`
+      );
+    }
+    if (depthFile.size > MAX_DEPTH_BYTES) {
+      throw new BadRequestException(`The depth track is larger than ${MAX_DEPTH_BYTES} bytes.`);
+    }
+    // Hashed before anything reads it as geometry: a truncated or swapped track
+    // would otherwise decode into plausible-looking millimetres.
+    const actual = await sha256OfFile(depthFile.path);
+    if (actual !== declared.sha256) {
+      throw new BadRequestException("The uploaded depth track does not match the sha256 declared in the sidecar.");
     }
   }
 

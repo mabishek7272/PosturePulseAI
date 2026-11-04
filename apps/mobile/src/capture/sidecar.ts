@@ -37,6 +37,20 @@ export interface ClipCapture {
   width: number;
   height: number;
   frames: Array<{ index: number; t: number; gravity: Vector3 }>;
+  /**
+   * Pinhole intrinsics in pixels for the oriented image, when the device reports
+   * them. The AVFoundation capture path does not, so it omits this; the AR jig
+   * path does (ARKit gives true intrinsics). Optional in
+   * clip-capture.schema.json.
+   */
+  intrinsics?: { fx: number; fy: number; cx: number; cy: number } | null;
+  /**
+   * The LiDAR depth track uploaded alongside the clip (ADR-020). OMITTED when
+   * there is none - never sent as null or as an empty block, because the server
+   * rejects a declared depth track with no file. The AVFoundation path never
+   * sets it.
+   */
+  depth?: ClipCaptureDepth;
   device: { model: string; lens: "back_wide" | "back_ultrawide" | "front"; appVersion: string };
   provenance: {
     schemaVersion: string;
@@ -44,6 +58,23 @@ export interface ClipCapture {
     calibrationVersion: string;
     producedAt: string;
   };
+}
+
+/**
+ * The sidecar's description of the depth track. Exactly the schema's `depth`
+ * block - `depthPath` is NOT part of it: the file travels as its own multipart
+ * part, and the server assigns its own storage path.
+ */
+export interface ClipCaptureDepth {
+  width: number;
+  height: number;
+  encoding: "uint16_millimetres_deflate";
+  scaleMillimetres: number;
+  nominalFps: number;
+  frameCount: number;
+  sha256: string;
+  hasConfidence: boolean;
+  frames: Array<{ index: number; t: number }>;
 }
 
 /**

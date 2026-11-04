@@ -17,13 +17,13 @@ export function incomingDir(): string {
 }
 
 /**
- * The `clip` part streams to CLIP_DIR/incoming (never held in memory);
- * a `sidecar` sent as a file part is small JSON and is buffered (capped).
- * Any other file part is refused.
+ * The `clip` and `depth` parts stream to CLIP_DIR/incoming (never held in
+ * memory - the depth track is tens of megabytes); a `sidecar` sent as a file
+ * part is small JSON and is buffered (capped). Any other file part is refused.
  */
 export class ClipUploadStorage {
   _handleFile(_req: unknown, file: IncomingFile, cb: Done): void {
-    if (file.fieldname === "clip") {
+    if (file.fieldname === "clip" || file.fieldname === "depth") {
       const dir = incomingDir();
       mkdirSync(dir, { recursive: true });
       const target = path.join(dir, randomUUID());

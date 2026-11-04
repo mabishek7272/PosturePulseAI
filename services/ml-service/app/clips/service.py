@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Callable
 
 import av
+import numpy as np
 from beaive_schemas import ClipCapture, MetricResult
 from pydantic import BaseModel, Field
 
@@ -21,10 +22,18 @@ from app.clips.analysis import (
     unsupported_outcome,
     validate_metric_keys,
 )
+from app.clips.depth_track import (
+    DepthTrackError,
+    depth_health,
+    info_from_sidecar,
+    read_depth_track,
+)
 from app.clips.errors import ClipDecodeError
 from app.clips.landmark_store import store_landmark_series
 from app.clips.observation import FrameObservation
+from app.clips.observation import LEFT_HIP, RIGHT_HIP
 from app.config import get_clip_dir
+from app.geometry import intrinsics as intrinsics_module
 from app.versioning import (
     CALIBRATION_VERSION,
     CLIP_MODEL_VERSION,
@@ -49,6 +58,11 @@ class AnalyzeRequest(BaseModel):
     clipId: str
     stepId: str
     clipPath: str
+    # The clip's LiDAR depth track on the shared volume (ADR-020), or None when
+    # the device captured none. Optional with a None default so every existing
+    # caller - and every clip recorded before the depth writer shipped - keeps
+    # working byte-identically.
+    depthPath: str | None = None
     sidecar: ClipCapture
     metricKeys: list[str] = Field(min_length=1)
     minFps: float = Field(gt=0)
@@ -65,6 +79,86 @@ def resolve_clip_path(clip_path: str, clip_dir: Path) -> Path:
     if not resolved.is_file():
         raise ClipRequestError(404, "clip file not found")
     return resolved
+
+
+def resolve_depth_path(depth_path: str, clip_dir: Path) -> Path:
+    """Same containment rule as the clip: the depth file must live in the shared
+    clip directory. A path escaping it is a request bug, not a depth problem, so
+    it is refused loudly rather than degraded into "no depth"."""
+    root = clip_dir.resolve()
+    candidate = Path(depth_path)
+    resolved = (candidate if candidate.is_absolute() else root / candidate).resolve()
+    if root != resolved and root not in resolved.parents:
+        raise ClipRequestError(400, "depthPath must be inside the clip directory")
+    return resolved
+
+
+def _mid_hip_pixels(observations: list[FrameObservation]) -> tuple[float, float] | None:
+    """Median mid-hip pixel over the frames that actually have a pose.
+
+    The median, not the mean, so one badly-placed frame cannot drag the sample
+    patch off the body. None when no frame had a pose - there is then no landmark
+    to sample at, and no depth health block is produced rather than one taken at a
+    guessed location.
+    """
+    points = [o.points for o in observations if o.points is not None]
+    if not points:
+        return None
+    mid = np.array([(p[LEFT_HIP] + p[RIGHT_HIP]) / 2.0 for p in points])
+    return float(np.median(mid[:, 0])), float(np.median(mid[:, 1]))
+
+
+def _depth_block(
+    req: AnalyzeRequest, clip_dir: Path, observations: list[FrameObservation]
+) -> dict | None:
+    """Transport health values for the clip's depth track, or None when it has none.
+
+    PHASE 1 BOUNDARY: this returns a transport-health block only. No metric is derived
+    from depth, no MetricResult field is added or changed, and nothing here can
+    alter a 2D result. ADR-020 is `Proposed` and requires clinical-lead sign-off
+    before any depth-derived value reaches a report; until then the point of this
+    code is to prove the track arrives and aligns.
+
+    Every depth failure is reported inside the block and never raised: a clip
+    whose video analysed perfectly must not be failed because its depth track was
+    unreadable.
+    """
+    side = req.sidecar
+    try:
+        info = info_from_sidecar(side)
+    except DepthTrackError as exc:
+        return {"state": "unreadable", "error": str(exc)}
+
+    if info is None and req.depthPath is None:
+        return None
+    if info is None:
+        # The caller passed a file the sidecar does not describe: there is no
+        # encoding, scale or timing to read it by, so it stays unread.
+        return {"state": "undeclared", "error": "a depth file was supplied but the sidecar has no depth block"}
+    if req.depthPath is None:
+        return {"state": "missing", "error": "the sidecar declares a depth track but no depthPath was supplied"}
+
+    path = resolve_depth_path(req.depthPath, clip_dir)
+    try:
+        frames = read_depth_track(path, info)
+    except DepthTrackError as exc:
+        return {"state": "unreadable", "error": str(exc)}
+
+    block = {
+        "state": "decoded",
+        "width": info.width,
+        "height": info.height,
+        "declaredFrameCount": info.frame_count,
+    }
+    block.update(
+        depth_health(
+            frames,
+            intrinsics=intrinsics_module.from_sidecar(side),
+            hip_pixels=_mid_hip_pixels(observations),
+            video_size=(side.width, side.height),
+        )
+    )
+    return block
 
 
 def _sha256_file(path: Path) -> str:
@@ -160,4 +254,11 @@ def analyze_clip(req: AnalyzeRequest, loader: ObservationLoader) -> dict:
     clip_sha = _sha256_file(clip_path)
     now = datetime.now(timezone.utc).isoformat()
     results = [_record(req, m, clip_sha=clip_sha, series_sha=series["sha256"], now=now) for m in metrics]
-    return {"results": results, "landmarkSeries": series, "frameQuality": frame_quality}
+    response = {"results": results, "landmarkSeries": series, "frameQuality": frame_quality}
+    # Added last and only when there is something to say, so a clip with no
+    # depth track produces a response byte-identical to the one it produced
+    # before ADR-020.
+    depth = _depth_block(req, clip_dir, observations)
+    if depth is not None:
+        response["depth"] = depth
+    return response

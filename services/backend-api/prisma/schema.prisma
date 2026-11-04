@@ -151,6 +151,10 @@ model Clip {
   path      String
   sha256    String
   sidecar   Json
+  // Optional LiDAR depth track stored beside the clip (ADR-020). Null when the
+  // device sent none. Deleted on the same retention rule as `path`: a depth map
+  // is a recording of the person, so it must never outlive the video.
+  depthPath String?
   status    String       @default("uploaded")
   createdAt DateTime     @default(now())
   job       AnalysisJob?

@@ -143,3 +143,66 @@ export function useHapticFeedbackPref(): [boolean, (value: boolean) => void] {
   }, []);
   return [value, set];
 }
+
+// ---- Guided (AR) capture: the ARKit spatial gate + LiDAR depth path ----
+//
+// DEFAULTS TO OFF, unlike every other preference here, and deliberately so.
+//
+// The guided path refuses to record until the iPad is inside a spatial gate
+// whose thresholds (distance 2.3-3.0 m, camera height 0.9-1.3 m, tilt, floor
+// clearance) are engineering defaults that have never been exercised on a real
+// iPad Pro in a real clinic room. A threshold that is too strict does not
+// mis-measure anything - it simply will not let the operator record, which with
+// a patient already standing in front of the camera is the worse failure. So the
+// path ships reachable and off, to be switched on for hardware testing and made
+// the default only once the gates have been tuned against a real room.
+//
+// It also has no effect on a device without ARKit world tracking: the capture
+// screen checks `ARJigModule.isSupported` as well, and falls back to the
+// standard camera path.
+
+const AR_JIG_KEY = "pp.pref.arJigCapture";
+const arJigListeners = new Set<Listener>();
+
+/** Read the persisted preference (default OFF - see above). Never throws. */
+export async function readArJigCapturePref(): Promise<boolean> {
+  try {
+    return parseBoolPref(await SecureStore.getItemAsync(AR_JIG_KEY), false);
+  } catch {
+    return false;
+  }
+}
+
+export async function writeArJigCapturePref(value: boolean): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(AR_JIG_KEY, serialiseBoolPref(value));
+  } catch {
+    // Storage unavailable: the in-memory value still applies for this run.
+  }
+  arJigListeners.forEach((l) => l(value));
+}
+
+/**
+ * `[value, setValue]` for guided (AR) capture. Defaults to OFF, and stays OFF
+ * until the stored value loads - so a slow SecureStore read can never flash the
+ * untuned path in front of a patient.
+ */
+export function useArJigCapturePref(): [boolean, (value: boolean) => void] {
+  const [value, setValue] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    readArJigCapturePref().then((v) => {
+      if (!cancelled) setValue(v);
+    });
+    arJigListeners.add(setValue);
+    return () => {
+      cancelled = true;
+      arJigListeners.delete(setValue);
+    };
+  }, []);
+  const set = useCallback((next: boolean) => {
+    setValue(next);
+    void writeArJigCapturePref(next);
+  }, []);
+  return [value, set];
+}

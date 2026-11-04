@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { BatteryService } from "../battery/battery.service";
@@ -38,10 +38,19 @@ const okResponse = () => ({
   frameQuality: { usable: 120, total: 130, reasons: [] },
 });
 
-function setup(options: { scopes?: string[]; analyze?: jest.Mock; claimed?: unknown[]; attempts?: number } = {}) {
+function setup(
+  options: { scopes?: string[]; analyze?: jest.Mock; claimed?: unknown[]; attempts?: number; depth?: boolean } = {}
+) {
   const dir = mkdtempSync(path.join(tmpdir(), "runner-"));
   const clipFile = path.join(dir, "c1.mov");
   writeFileSync(clipFile, "video");
+  // null, not undefined, so the mock matches what Prisma returns for a clip
+  // uploaded without a depth track.
+  let depthFile: string | null = null;
+  if (options.depth) {
+    depthFile = path.join(dir, "c1.depth");
+    writeFileSync(depthFile, "depth");
+  }
   const claims = [...(options.claimed ?? [{ id: "j1", clipId: "c1", attempts: options.attempts ?? 1 }])];
   const prisma = {
     $queryRaw: jest.fn().mockImplementation(() => Promise.resolve(claims.length ? [claims.shift()] : [])),
@@ -52,6 +61,7 @@ function setup(options: { scopes?: string[]; analyze?: jest.Mock; claimed?: unkn
         sessionId: "s1",
         stepId: "static.posterior",
         path: clipFile,
+        depthPath: depthFile,
         sidecar: { clipId: "c1" },
         status: "uploaded",
       }),
@@ -68,7 +78,7 @@ function setup(options: { scopes?: string[]; analyze?: jest.Mock; claimed?: unkn
     hasActiveScope: jest.fn().mockImplementation((_id: string, scope: string) => Promise.resolve((options.scopes ?? []).includes(scope))),
   };
   const runner = new AnalysisJobRunner(prisma as never, ml as never, events as never, battery, consent as never, 2, 1000);
-  return { runner, prisma, ml, events, consent, clipFile };
+  return { runner, prisma, ml, events, consent, clipFile, depthFile };
 }
 
 describe("AnalysisJobRunner.claimNext", () => {
@@ -100,6 +110,9 @@ describe("AnalysisJobRunner.process", () => {
       clipId: "c1",
       stepId: "static.posterior",
       clipPath: expect.stringMatching(/c1\.mov$/),
+      // Part of the request contract since ADR-020: null, never omitted, so a
+      // clip with no depth is explicitly "no depth" rather than "unspecified".
+      depthPath: null,
       sidecar: { clipId: "c1" },
       metricKeys: STEP.metricKeys,
       minFps: STEP.minFps,
@@ -237,5 +250,49 @@ describe("AnalysisJobRunner.reapExhausted", () => {
     expect(strings).toMatch(/status = 'running'/);
     expect(strings).toMatch(/RETURNING "clipId"/);
     expect(prisma.clip.updateMany).toHaveBeenCalledWith({ where: { id: { in: ["c9"] } }, data: { status: "failed" } });
+  });
+});
+
+describe("AnalysisJobRunner and the depth track (ADR-020)", () => {
+  it("passes the clip's depthPath to ml-service", async () => {
+    const { runner, ml, depthFile } = setup({ depth: true });
+    await runner.process({ id: "j1", clipId: "c1", attempts: 1 });
+    expect(ml.analyzeClip).toHaveBeenCalledWith(expect.objectContaining({ depthPath: depthFile }));
+  });
+
+  it("passes depthPath: null when the clip has no depth track", async () => {
+    const { runner, ml } = setup();
+    await runner.process({ id: "j1", clipId: "c1", attempts: 1 });
+    expect(ml.analyzeClip).toHaveBeenCalledWith(expect.objectContaining({ depthPath: null }));
+  });
+
+  it("deletes the depth track with the clip when the consent has no raw_video scope", async () => {
+    const { runner, clipFile, depthFile } = setup({ depth: true });
+    await runner.process({ id: "j1", clipId: "c1", attempts: 1 });
+    expect(existsSync(clipFile)).toBe(false);
+    // A depth map is a recording of the person: it must never outlive the video.
+    expect(existsSync(depthFile as string)).toBe(false);
+  });
+
+  it("keeps the depth track only when the clip itself is kept under raw_video", async () => {
+    const { runner, clipFile, depthFile } = setup({ depth: true, scopes: ["raw_video"] });
+    await runner.process({ id: "j1", clipId: "c1", attempts: 1 });
+    expect(existsSync(clipFile)).toBe(true);
+    expect(existsSync(depthFile as string)).toBe(true);
+  });
+
+  it("still deletes the depth track when the clip file is already gone", async () => {
+    const { runner, clipFile, depthFile } = setup({ depth: true });
+    rmSync(clipFile);
+    await runner.process({ id: "j1", clipId: "c1", attempts: 1 });
+    expect(existsSync(depthFile as string)).toBe(false);
+  });
+
+  it("deletes the depth track when the job finally fails", async () => {
+    const analyze = jest.fn().mockRejectedValue(new Error("ml down"));
+    const { runner, clipFile, depthFile } = setup({ depth: true, analyze, attempts: MAX_ATTEMPTS });
+    await runner.process({ id: "j1", clipId: "c1", attempts: MAX_ATTEMPTS });
+    expect(existsSync(clipFile)).toBe(false);
+    expect(existsSync(depthFile as string)).toBe(false);
   });
 });

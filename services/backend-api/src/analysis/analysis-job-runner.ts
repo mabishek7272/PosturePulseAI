@@ -32,8 +32,9 @@ export function concurrencyFromEnv(): number {
  * with one UPDATE ... FOR UPDATE SKIP LOCKED statement, so several backend
  * instances can poll the same table without picking the same job. The runner
  * sends the clip to ml-service, stores each returned MetricResult in the event
- * log, and deletes the clip file unless the session's consent includes
- * raw_video. It never touches the safety state machine.
+ * log, and deletes the clip file - and its depth track, which is equally a
+ * recording of the person - unless the session's consent includes raw_video.
+ * It never touches the safety state machine.
  */
 @Injectable()
 export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
@@ -132,11 +133,13 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
   async process(job: ClaimedJob): Promise<void> {
     let sessionId: string | null = null;
     let clipPath: string | null = null;
+    let depthPath: string | null = null;
     try {
       const clip = await this.prisma.clip.findUnique({ where: { id: job.clipId } });
       if (!clip) throw new Error(`Clip ${job.clipId} does not exist.`);
       sessionId = clip.sessionId;
       clipPath = clip.path;
+      depthPath = clip.depthPath;
       const step = this.battery.step(clip.stepId);
       if (!step) throw new Error(`Clip ${clip.id} is for unknown step "${clip.stepId}".`);
 
@@ -145,6 +148,7 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
         clipId: clip.id,
         stepId: clip.stepId,
         clipPath: clip.path,
+        depthPath: clip.depthPath,
         sidecar: clip.sidecar,
         metricKeys: step.metricKeys,
         minFps: step.minFps,
@@ -160,9 +164,9 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
         this.prisma.clip.update({ where: { id: clip.id }, data: { status: "analyzed" } }),
         this.prisma.analysisJob.update({ where: { id: job.id }, data: { status: "done", lockedAt: null, lastError: null } }),
       ]);
-      await this.deleteUnlessKept(sessionId, clipPath);
+      await this.deleteUnlessKept(sessionId, clipPath, depthPath);
     } catch (error) {
-      await this.recordFailure(job, error as Error, sessionId, clipPath);
+      await this.recordFailure(job, error as Error, sessionId, clipPath, depthPath);
     }
   }
 
@@ -194,7 +198,13 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
     return raw as MetricResult[];
   }
 
-  private async recordFailure(job: ClaimedJob, error: Error, sessionId: string | null, clipPath: string | null): Promise<void> {
+  private async recordFailure(
+    job: ClaimedJob,
+    error: Error,
+    sessionId: string | null,
+    clipPath: string | null,
+    depthPath: string | null
+  ): Promise<void> {
     const lastError = (error.message || "unknown error").slice(0, 500);
     const final = job.attempts >= MAX_ATTEMPTS;
     this.logger.warn(`job ${job.id} attempt ${job.attempts}/${MAX_ATTEMPTS} failed: ${lastError}`);
@@ -205,15 +215,21 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
       });
       if (final) {
         await this.prisma.clip.update({ where: { id: job.clipId }, data: { status: "failed" } });
-        if (sessionId && clipPath) await this.deleteUnlessKept(sessionId, clipPath);
+        if (sessionId && clipPath) await this.deleteUnlessKept(sessionId, clipPath, depthPath);
       }
     } catch (e) {
       this.logger.error(`job ${job.id}: could not record the failure: ${(e as Error).message}`);
     }
   }
 
-  /** The clip file is kept only when the session's consent positively includes raw_video. */
-  private async deleteUnlessKept(sessionId: string, clipPath: string): Promise<void> {
+  /**
+   * The clip file is kept only when the session's consent positively includes
+   * raw_video. The depth track follows the same rule and the same scope: it is a
+   * recording of the person's body, so it must never outlive the video it was
+   * captured with. Deleting it under a separate (or no) rule would leave a
+   * recording on disk that no consent record describes.
+   */
+  private async deleteUnlessKept(sessionId: string, clipPath: string, depthPath: string | null): Promise<void> {
     let keep = false;
     try {
       const session = await this.prisma.session.findUnique({ where: { id: sessionId } });
@@ -222,10 +238,15 @@ export class AnalysisJobRunner implements OnModuleInit, OnModuleDestroy {
       keep = false;
     }
     if (keep) return;
-    try {
-      await rm(clipPath, { force: true });
-    } catch (e) {
-      this.logger.error(`could not delete ${clipPath}: ${(e as Error).message}`);
+    // Each deletion is attempted independently: a failure to remove the video
+    // must not leave the depth track behind as well.
+    for (const target of [clipPath, depthPath]) {
+      if (!target) continue;
+      try {
+        await rm(target, { force: true });
+      } catch (e) {
+        this.logger.error(`could not delete ${target}: ${(e as Error).message}`);
+      }
     }
   }
 }

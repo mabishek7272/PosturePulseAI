@@ -108,3 +108,36 @@ See docs/HANDOFF.md §4.C items #1-#3.
 - New `report-rejection` schema, `version: "v0"`, matching the `report-rejection/v0` event id
   `services/backend-api/src/reports/reports.service.ts` already emits - previously an id with no registered
   shape (HANDOFF §4.C item #9).
+
+## v0 - clip-capture depth track (non-breaking, additive)
+
+- `clip-capture` gained an **optional** `depth` block: `{width, height, encoding,
+  scaleMillimetres, nominalFps?, frameCount, sha256, hasConfidence, frames[]}`.
+  `version` stays `v0` because the field is optional and every sidecar valid
+  before this change is still valid: a v0 reader that ignores `depth` behaves
+  exactly as it did.
+- `frames[]` inside `depth` carries its own `{index, t}` per depth frame. The
+  depth track is a **separate, sparser time series** from the video `frames[]` -
+  deliberately not index-aligned, because depth arrives at ~15 Hz against video
+  at 30-60 Hz and frames are dropped. A missing depth frame is simply absent
+  from the array; `t` gaps are expected and must not be interpolated
+  (CLAUDE.md rule 3 - a fabricated depth frame is a fabricated measurement).
+- `encoding` is an **enum**, not free text, so an unrecognised encoding is
+  rejected at the schema boundary rather than being read as millimetres. For the
+  same reason `scaleMillimetres` is carried explicitly instead of assumed.
+- The one value, `uint16_millimetres_deflate`, names **raw DEFLATE** (RFC 1951)
+  rather than zlib: Apple's Compression framework emits raw DEFLATE for
+  `COMPRESSION_ZLIB`, with no two-byte header and no Adler-32 trailer, and the
+  iOS writer uses it. Calling the format "zlib" would have sent every reader
+  looking for a header that was never written - which fails as a decode error on
+  the first frame, loudly, but only after someone has spent a while on it.
+- `additionalProperties: false` is set on the `depth` object and on its frame
+  objects. It is deliberately **not** added to the pre-existing video `frames[]`
+  item or to the top level: those have shipped without it, so adding it now
+  would reject sidecars from TestFlight builds already in the field. The new
+  block has no deployed producers, so it can be strict from the start - which is
+  where it matters, since an unknown field here would otherwise pass AJV, persist
+  into `Clip.sidecar`, and then vanish silently at ml-service's Pydantic boundary.
+
+See `docs/adr/020-lidar-2.5d-depth-fusion.md` (Proposed - the depth path stays
+behind a flag and emits no metric until a clinical lead signs it off).

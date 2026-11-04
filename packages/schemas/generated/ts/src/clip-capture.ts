@@ -69,6 +69,53 @@ export interface ClipCapture {
     cx: number;
     cy: number;
   } | null;
+  /**
+   * Optional LiDAR depth track uploaded alongside the clip (ADR-020). Absent or null means the device captured no depth; it is never synthesised. The depth frames are a separate, sparser time series from the encoded video frames - they are NOT index-aligned with "frames" above, and each carries its own timestamp on the same clock.
+   */
+  depth?: {
+    /**
+     * Depth map width in pixels (256 on current iPad Pro hardware), after applying the clip's orientation. Lower than the video's width; see geometry/intrinsics.py for the rescaling convention.
+     */
+    width: number;
+    height: number;
+    /**
+     * Per-frame payload format. uint16_millimetres_deflate: row-major little-endian uint16 planar depth in millimetres along the optical axis (NOT range along the ray), 0 meaning no return, compressed per frame as RAW DEFLATE (RFC 1951) with no zlib header or Adler-32 trailer. Raw rather than zlib-wrapped because that is what Apple's Compression framework emits for COMPRESSION_ZLIB, and a name that implied a wrapper that is not there would send a reader looking for the wrong first two bytes. Enumerated rather than free text so an unknown encoding is rejected at the boundary instead of being read as millimetres.
+     */
+    encoding: "uint16_millimetres_deflate";
+    /**
+     * Millimetres per stored unit. 1 for the encoding above. Carried explicitly so a future fixed-point scale does not silently reinterpret existing files.
+     */
+    scaleMillimetres: number;
+    /**
+     * Intended depth capture rate, typically 15. Informational only; "frames" carries the authoritative timing.
+     */
+    nominalFps?: number;
+    /**
+     * Number of depth frames in the file. Must equal the length of "frames"; the server rejects a mismatch rather than trusting either.
+     */
+    frameCount: number;
+    /**
+     * SHA-256 of the uploaded depth file, so a truncated or swapped track is detected before any geometry is computed.
+     */
+    sha256: string;
+    /**
+     * True when each frame carries ARKit's confidenceMap (uint8 per pixel, 0-2) appended after the depth plane. Apple documents depth accuracy as highly dependent on this value, so a false here means the per-sample confidence gate cannot run and depth sampling falls back to its statistical gates alone.
+     */
+    hasConfidence: boolean;
+    /**
+     * One entry per depth frame present, in order. A dropped depth frame is simply absent - gaps in t are expected and must not be interpolated.
+     */
+    frames: {
+      /**
+       * Position of this frame in the depth file, from 0. Not a video frame index.
+       */
+      index: number;
+      /**
+       * Seconds since the clip's FIRST VIDEO frame, on the same clock as frames[].t, so a depth frame can be paired with the nearest pose observation.
+       */
+      t: number;
+    }[];
+  } | null;
   device: {
     /**
      * Hardware identifier, e.g. "iPad16,2".

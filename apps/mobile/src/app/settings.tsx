@@ -15,7 +15,8 @@ import {
   AutoCaptureIcon, GuidanceIcon, LockDeviceIcon, OverlayIcon, PrivacyIcon, SparkleSingleIcon, VoiceIcon,
 } from "../components/profileIcons";
 import { initialsOf, usernameFromToken } from "../lib/homeData";
-import { useCaptureGuidancePref, useHapticFeedbackPref, useSkeletonOverlayPref } from "../settings/prefs";
+import ARJigModule from "../../modules/ar-jig";
+import { useArJigCapturePref, useCaptureGuidancePref, useHapticFeedbackPref, useSkeletonOverlayPref } from "../settings/prefs";
 import { colors } from "../theme/colors";
 import { shadows } from "../theme/shadows";
 import { type } from "../theme/typography";
@@ -35,6 +36,11 @@ export default function SettingsScreen() {
   const [skeleton, setSkeleton] = useSkeletonOverlayPref();
   const [guidance, setGuidance] = useCaptureGuidancePref();
   const [haptic, setHaptic] = useHapticFeedbackPref();
+  const [arJig, setArJig] = useArJigCapturePref();
+  // The row is shown disabled rather than hidden on a device without ARKit
+  // world tracking, so it is clear the setting exists and why it cannot be used
+  // here - a missing row reads as a missing feature.
+  const arJigSupported = ARJigModule.isSupported;
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +84,19 @@ export default function SettingsScreen() {
           <Row Icon={GuidanceIcon} label="Haptic feedback" caption="Buzz when the hold is not steady (iPhone only)" value={haptic} onChange={setHaptic} />
           <Divider />
           <Row Icon={VoiceIcon} label="Voice notes" caption="Coming soon" disabled />
+          <Divider />
+          <Row
+            Icon={GuidanceIcon}
+            label="Guided setup (testing)"
+            caption={
+              arJigSupported
+                ? "Uses the iPad's floor and depth sensing to position the camera. Not yet tuned for clinic use."
+                : "This iPad does not support it"
+            }
+            value={arJigSupported ? arJig : false}
+            onChange={arJigSupported ? setArJig : undefined}
+            disabled={!arJigSupported}
+          />
         </Group>
 
         <Text style={styles.section}>PULSE AI</Text>

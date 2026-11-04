@@ -17,7 +17,9 @@ import {
 } from "react-native-vision-camera";
 import { useTensorflowModel } from "react-native-fast-tflite";
 import { useResizer } from "react-native-vision-camera-resizer";
+import ARJigModule from "../../modules/ar-jig";
 import { uploadClip } from "../api/clips";
+import { ArJigCapture } from "../components/ArJigCapture";
 import { startGravitySampling } from "../capture/gravity";
 import { createFeedback, ISSUE_TEXT, type FeedbackEvent, type Issue } from "../capture/feedback";
 import { distanceState, isLateral, PITCH_TOLERANCE_DEG, ROLL_TOLERANCE_DEG } from "../capture/guidance";
@@ -45,7 +47,7 @@ import { PulseDot } from "../components/Motion";
 import { PoseOverlay } from "../components/PoseOverlay";
 import { MAX_CONTENT_WIDTH } from "../components/Screen";
 import { BackButton } from "../components/ScreenHeader";
-import { useCaptureGuidancePref, useHapticFeedbackPref, useSkeletonOverlayPref } from "../settings/prefs";
+import { useArJigCapturePref, useCaptureGuidancePref, useHapticFeedbackPref, useSkeletonOverlayPref } from "../settings/prefs";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 
@@ -83,7 +85,28 @@ const TARGET_FPS = 30;
 // How long the per-pose capture-quality card stays before moving on (tap to skip).
 const RESULT_CARD_MS = 4500;
 
+/**
+ * Picks the capture path. The branch lives in its own component because the two
+ * paths own two different native camera sessions, and React's hook rules mean a
+ * conditional inside one body would still have mounted both.
+ *
+ * BOTH conditions are required. `isSupported` alone is not enough: the guided
+ * path's spatial gate thresholds have never been exercised on real hardware, and
+ * a too-strict gate refuses to record with a patient already standing in front
+ * of the camera. So it is reachable only when a clinician has explicitly turned
+ * it on in Settings, which defaults to off (see `useArJigCapturePref`).
+ */
 export default function CaptureScreen() {
+  const { sessionId, sessionToken } = useLocalSearchParams<{ sessionId: string; sessionToken: string }>();
+  const [arJigEnabled] = useArJigCapturePref();
+
+  if (arJigEnabled && ARJigModule.isSupported) {
+    return <ArJigCapture sessionId={sessionId} sessionToken={sessionToken} />;
+  }
+  return <VisionCameraCapture />;
+}
+
+function VisionCameraCapture() {
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
   const { sessionId, sessionToken } = useLocalSearchParams<{ sessionId: string; sessionToken: string }>();

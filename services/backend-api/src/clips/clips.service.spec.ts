@@ -227,3 +227,142 @@ describe("ClipsService.accept", () => {
     expect(existsSync(clipDir) ? readdirSync(clipDir).filter((f) => f.endsWith(".mov")) : []).toEqual([]);
   });
 });
+
+describe("ClipsService.accept with a depth track (ADR-020)", () => {
+  /** A sidecar depth block whose sha256 matches `bytes`. */
+  function depthBlock(bytes: string, overrides: Record<string, unknown> = {}) {
+    return {
+      width: 256,
+      height: 192,
+      encoding: "uint16_millimetres_deflate",
+      scaleMillimetres: 1,
+      nominalFps: 15,
+      frameCount: 2,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      hasConfidence: true,
+      frames: [
+        { index: 0, t: 0 },
+        { index: 1, t: 0.067 },
+      ],
+      ...overrides,
+    };
+  }
+
+  it("stores the depth track as <clipId>.depth and records depthPath on the row", async () => {
+    const { service, prisma, clipDir, upload } = setup();
+    const clip = upload("hello-clip");
+    const depth = upload("depth-bytes", "application/octet-stream");
+
+    const res = await service.accept(
+      "s1",
+      "static.anterior",
+      clip,
+      JSON.stringify(sidecar({ depth: depthBlock("depth-bytes") })),
+      depth
+    );
+
+    expect(res.status).toBe("uploaded");
+    const depthFinal = path.join(clipDir, "c0ffee00-1111-4222-8333-444455556666.depth");
+    expect(readFileSync(depthFinal, "utf-8")).toBe("depth-bytes");
+    expect(prisma.clip.create.mock.calls[0][0].data.depthPath).toBe(depthFinal);
+    // Both temporaries consumed.
+    expect(existsSync(clip.path)).toBe(false);
+    expect(existsSync(depth.path)).toBe(false);
+  });
+
+  it("stores depthPath: null when no depth part is uploaded, leaving the 2D path untouched", async () => {
+    const { service, prisma, upload } = setup();
+    await service.accept("s1", "static.anterior", upload(), JSON.stringify(sidecar()));
+    expect(prisma.clip.create.mock.calls[0][0].data.depthPath).toBeNull();
+  });
+
+  it("rejects a sidecar that declares depth with no depth part", async () => {
+    const { service, prisma, upload } = setup();
+    const clip = upload();
+    await expect(
+      service.accept("s1", "static.anterior", clip, JSON.stringify(sidecar({ depth: depthBlock("depth-bytes") })))
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.clip.create).not.toHaveBeenCalled();
+    expect(existsSync(clip.path)).toBe(false);
+  });
+
+  it("rejects a depth part the sidecar does not describe", async () => {
+    const { service, prisma, upload } = setup();
+    const clip = upload();
+    const depth = upload("depth-bytes", "application/octet-stream");
+    await expect(service.accept("s1", "static.anterior", clip, JSON.stringify(sidecar()), depth)).rejects.toThrow(
+      BadRequestException
+    );
+    expect(prisma.clip.create).not.toHaveBeenCalled();
+    // An undescribed depth track must not be left on disk.
+    expect(existsSync(depth.path)).toBe(false);
+  });
+
+  it("rejects a depth track whose bytes do not match the declared sha256", async () => {
+    const { service, prisma, clipDir, upload } = setup();
+    const clip = upload();
+    const depth = upload("tampered-bytes", "application/octet-stream");
+    await expect(
+      service.accept("s1", "static.anterior", clip, JSON.stringify(sidecar({ depth: depthBlock("depth-bytes") })), depth)
+    ).rejects.toThrow(/sha256/i);
+    expect(prisma.clip.create).not.toHaveBeenCalled();
+    expect(existsSync(depth.path)).toBe(false);
+    expect(existsSync(clipDir) ? readdirSync(clipDir).filter((f) => f.endsWith(".depth")) : []).toEqual([]);
+  });
+
+  it("rejects a frameCount that disagrees with the frames array", async () => {
+    const { service, prisma, upload } = setup();
+    const depth = upload("depth-bytes", "application/octet-stream");
+    await expect(
+      service.accept(
+        "s1",
+        "static.anterior",
+        upload(),
+        JSON.stringify(sidecar({ depth: depthBlock("depth-bytes", { frameCount: 450 }) })),
+        depth
+      )
+    ).rejects.toThrow(/frameCount/);
+    expect(prisma.clip.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown depth encoding at the schema boundary", async () => {
+    const { service, upload } = setup();
+    const depth = upload("depth-bytes", "application/octet-stream");
+    await expect(
+      service.accept(
+        "s1",
+        "static.anterior",
+        upload(),
+        JSON.stringify(sidecar({ depth: depthBlock("depth-bytes", { encoding: "float32_raw" }) })),
+        depth
+      )
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("rejects an unknown field inside the depth block instead of silently dropping it", async () => {
+    const { service, upload } = setup();
+    const depth = upload("depth-bytes", "application/octet-stream");
+    await expect(
+      service.accept(
+        "s1",
+        "static.anterior",
+        upload(),
+        JSON.stringify(sidecar({ depth: depthBlock("depth-bytes", { depthBias: 0.04 }) })),
+        depth
+      )
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it("deletes both temporaries and leaves no .depth behind when the row cannot be created", async () => {
+    const { service, prisma, clipDir, upload } = setup();
+    prisma.clip.create.mockRejectedValueOnce(new Error("db down"));
+    const clip = upload();
+    const depth = upload("depth-bytes", "application/octet-stream");
+    await expect(
+      service.accept("s1", "static.anterior", clip, JSON.stringify(sidecar({ depth: depthBlock("depth-bytes") })), depth)
+    ).rejects.toThrow("db down");
+    expect(existsSync(clip.path)).toBe(false);
+    expect(existsSync(depth.path)).toBe(false);
+    expect(existsSync(clipDir) ? readdirSync(clipDir).filter((f) => f.endsWith(".depth")) : []).toEqual([]);
+  });
+});

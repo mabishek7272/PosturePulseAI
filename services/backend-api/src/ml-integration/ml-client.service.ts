@@ -31,6 +31,12 @@ export interface ClipAnalysisRequest {
   clipId: string;
   stepId: string;
   clipPath: string;
+  /**
+   * The clip's LiDAR depth track on the shared volume (ADR-020), or absent when
+   * the device captured none. Never a path ml-service should invent: with no
+   * depth, ml-service emits no depth-derived field at all rather than guessing.
+   */
+  depthPath?: string | null;
   sidecar: unknown;
   metricKeys: string[];
   minFps: number;
