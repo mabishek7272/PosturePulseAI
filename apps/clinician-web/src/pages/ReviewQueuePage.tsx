@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listReports, listSessions } from "../api/client";
 import type { ReportSummary, SessionRecord } from "../api/types";
+import { useSubjectNames } from "../api/useSubjectNames";
+import { PatientCell } from "../components/PatientCell";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 
 type ReportFilter = "draft" | "released";
@@ -14,6 +16,7 @@ const FILTERS: Array<{ label: string; status: ReportFilter }> = [
 /** Assessment reports awaiting review (spec slice D), with each session's safety state alongside. */
 export function ReviewQueuePage() {
   const [filter, setFilter] = useState<ReportFilter>("draft");
+  const names = useSubjectNames();
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [sessions, setSessions] = useState<Map<string, SessionRecord>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +80,7 @@ export function ReviewQueuePage() {
         <table className="session-table">
           <thead>
             <tr>
-              <th>Subject</th>
+              <th>Patient</th>
               <th>Version</th>
               <th>Session state</th>
               <th>Built</th>
@@ -89,7 +92,9 @@ export function ReviewQueuePage() {
               return (
                 <tr key={report.id}>
                   <td>
-                    <Link to={`/reports/${report.id}`}>{session?.subjectPseudoId ?? report.sessionId}</Link>
+                    <Link to={`/reports/${report.id}`} className="patient-link">
+                      <PatientCell code={session?.subjectPseudoId ?? report.sessionId} names={names} />
+                    </Link>
                   </td>
                   <td>{report.reportVersion}</td>
                   <td>{session ? <SafetyStateBadge state={session.state} /> : "Unknown"}</td>

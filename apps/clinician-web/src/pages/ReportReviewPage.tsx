@@ -10,7 +10,9 @@ import {
   signOffReport,
 } from "../api/client";
 import type { AssessmentReportBody, ReportStatus, RowExclusion, SafetyState, SessionRecord } from "../api/types";
+import { useSubjectNames } from "../api/useSubjectNames";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
+import { ReportSummary } from "../report/ReportSummary";
 import { ReportRowsTable } from "../report/ReportRowsTable";
 import { SignOffDialog } from "../report/SignOffDialog";
 import "../report/report.css";
@@ -34,6 +36,7 @@ export function ReportReviewPage() {
   const { reportId } = useParams<{ reportId: string }>();
   const [record, setRecord] = useState<AssessmentReportBody | null>(null);
   const [session, setSession] = useState<SessionRecord | null>(null);
+  const names = useSubjectNames();
   const [stepTitles, setStepTitles] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   // Page-level notice only (draft changed, re-check failed). Failures of an
@@ -91,6 +94,7 @@ export function ReportReviewPage() {
   if (!record) return <p>Loading...</p>;
 
   const body = record;
+  const patientName = session ? names[session.subjectPseudoId]?.name : undefined;
   const editable = record.status === "draft";
   const hasDraftReference = body.rows.some((row) => row.reference?.status === "draft");
 
@@ -135,11 +139,18 @@ export function ReportReviewPage() {
       <p>
         <Link to="/reports">&larr; Back to reports</Link>
       </p>
-      <h1>Assessment report, version {record.reportVersion}</h1>
+      <h1>{patientName ? `${patientName} · ` : ""}Assessment report, version {record.reportVersion}</h1>
       <p className="report-actions">
         <span className="report-chip">{STATUS_LABEL[record.status] ?? record.status}</span>
         {session && <SafetyStateBadge state={session.state} />}
       </p>
+
+      <ReportSummary
+        rows={body.rows}
+        patientName={patientName ?? null}
+        visitCode={session?.subjectPseudoId ?? null}
+        scannedAt={session?.createdAt ?? null}
+      />
 
       <dl className="session-facts">
         <dt>Session</dt>

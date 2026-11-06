@@ -72,12 +72,9 @@ function StepSection({
           <thead>
             <tr>
               <th>Measurement</th>
-              <th>Tier</th>
               <th>Value</th>
               <th>Reference</th>
-              <th>Position</th>
-              <th>Quality and notes</th>
-              <th>Analysis</th>
+              <th>Notes</th>
               {editable && <th>Review</th>}
             </tr>
           </thead>
@@ -110,7 +107,7 @@ function ReportRowView({
   const side = sideLabel(row.side);
   return (
     <tr className={row.excluded ? "report-row report-row--excluded" : "report-row"}>
-      <td>
+      <td className="report-cell-label">
         <span className="report-label">{row.label}</span>
         {side && (
           <>
@@ -118,14 +115,16 @@ function ReportRowView({
             <span className="report-side">{side}</span>
           </>
         )}
-      </td>
-      <td>
-        <span className="report-chip" title={TIER_HINT[row.tier]}>
-          {tierLabel(row.tier)}
-        </span>
+        <div>
+          <span className="report-chip" title={TIER_HINT[row.tier]}>
+            {tierLabel(row.tier)}
+          </span>
+        </div>
       </td>
       <td className="report-value">
-        {row.estimate ? formatMeasurement(row.estimate.value, row.estimate.uncertainty, row.unit) : "Not measured"}
+        <span className="report-value__num">
+          {row.estimate ? formatMeasurement(row.estimate.value, row.estimate.uncertainty, row.unit) : "Not measured"}
+        </span>
         {row.estimate && row.signConvention && <small className="report-citation">Sign: {row.signConvention}</small>}
         {row.method && row.method !== DEFAULT_MEASUREMENT_METHOD && (
           <small className="report-citation">Method: {measurementMethodLabel(row.method)}</small>
@@ -150,15 +149,16 @@ function ReportRowView({
             <small className="report-citation">{row.reference.sourceCitation}</small>
           </>
         ) : (
-          <span>None</span>
+          <span className="report-muted">None</span>
         )}
+        <div>
+          <span className="report-position" data-position={row.position}>
+            {positionLabel(row.position)}
+          </span>
+        </div>
       </td>
-      <td>
-        <span className="report-position" data-position={row.position}>
-          {positionLabel(row.position)}
-        </span>
-      </td>
-      <td>
+      <td className="report-analysis">
+        {row.analysis.text}
         {reasons.length > 0 && (
           <ul className="report-reasons">
             {reasons.map((reason) => (
@@ -168,7 +168,6 @@ function ReportRowView({
         )}
         {row.excluded && <p className="report-excluded">Excluded: {row.excluded.reason}</p>}
       </td>
-      <td className="report-analysis">{row.analysis.text}</td>
       {editable && (
         <td>{!row.excluded && onExclude && <ExcludeControl row={row} onExclude={onExclude} />}</td>
       )}

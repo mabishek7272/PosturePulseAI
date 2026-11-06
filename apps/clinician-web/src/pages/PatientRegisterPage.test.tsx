@@ -122,3 +122,44 @@ describe("PatientRegisterPage", () => {
     expect(await screen.findByText("No sessions are linked to this patient yet.")).toBeInTheDocument();
   });
 });
+
+describe("PatientRegisterPage: erase", () => {
+  async function openErase() {
+    vi.spyOn(client, "searchPatients").mockResolvedValue([ann, bo]);
+    vi.spyOn(client, "listPatientSessions").mockResolvedValue([linkedSession]);
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: "Ann Lee" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Erase patient/ }));
+    return screen.getByRole("dialog");
+  }
+
+  it("keeps the erase button disabled until the exact name is typed", async () => {
+    const erase = vi.spyOn(client, "erasePatient").mockResolvedValue({ patientId: "p1", sessions: 1, clips: 1, reports: 0, events: 0, filesRemoved: 0 });
+    const dialog = await openErase();
+    const confirm = within(dialog).getByRole("button", { name: "Erase permanently" });
+    expect(confirm).toBeDisabled();
+    await userEvent.type(within(dialog).getByRole("textbox"), "Ann");
+    expect(confirm).toBeDisabled();
+    expect(erase).not.toHaveBeenCalled();
+  });
+
+  it("erases, then removes the patient from the list", async () => {
+    const erase = vi.spyOn(client, "erasePatient").mockResolvedValue({ patientId: "p1", sessions: 1, clips: 1, reports: 0, events: 0, filesRemoved: 0 });
+    const dialog = await openErase();
+    await userEvent.type(within(dialog).getByRole("textbox"), "ann lee");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Erase permanently" }));
+    await waitFor(() => expect(erase).toHaveBeenCalledWith("p1", "ann lee"));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Ann Lee" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Bo Park" })).toBeInTheDocument();
+  });
+
+  it("shows the server's refusal and keeps the patient", async () => {
+    vi.spyOn(client, "erasePatient").mockRejectedValue(new Error("This patient has adverse-event records, which are kept."));
+    const dialog = await openErase();
+    await userEvent.type(within(dialog).getByRole("textbox"), "Ann Lee");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Erase permanently" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("adverse-event records");
+    expect(screen.getByRole("button", { name: "Ann Lee" })).toBeInTheDocument();
+  });
+});
+

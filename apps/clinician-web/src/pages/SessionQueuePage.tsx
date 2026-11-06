@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listSessions } from "../api/client";
 import type { SafetyState, SessionRecord } from "../api/types";
+import { useSubjectNames } from "../api/useSubjectNames";
+import { PatientCell } from "../components/PatientCell";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 
 const FILTERS: Array<{ label: string; state?: SafetyState }> = [
@@ -14,6 +16,7 @@ const FILTERS: Array<{ label: string; state?: SafetyState }> = [
 
 export function SessionQueuePage() {
   const [filter, setFilter] = useState<SafetyState | undefined>(undefined);
+  const names = useSubjectNames();
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +63,7 @@ export function SessionQueuePage() {
       <table className="session-table">
         <thead>
           <tr>
-            <th>Subject</th>
+            <th>Patient</th>
             <th>Protocol</th>
             <th>Context</th>
             <th>State</th>
@@ -71,7 +74,7 @@ export function SessionQueuePage() {
           {sessions.map((session) => (
             <tr key={session.id}>
               <td>
-                <Link to={`/sessions/${session.id}`}>{session.subjectPseudoId}</Link>
+                <Link to={`/sessions/${session.id}`} className="patient-link"><PatientCell code={session.subjectPseudoId} names={names} /></Link>
               </td>
               <td>
                 {session.protocolId}@{session.protocolVersion}

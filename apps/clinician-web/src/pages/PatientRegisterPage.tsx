@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { createPatient, listPatientSessions, searchPatients } from "../api/client";
+import { createPatient, erasePatient, listPatientSessions, searchPatients } from "../api/client";
 import type { NewPatient, PatientRecord, SessionRecord } from "../api/types";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 import "./patients.css";
@@ -104,7 +104,15 @@ export function PatientRegisterPage() {
         </section>
 
         <section className="patients-layout__detail">
-          {selected ? <PatientDetail patient={selected} /> : <p>Select a patient to see their linked sessions.</p>}
+          {selected ? (
+            <PatientDetail
+              patient={selected}
+              onErased={() => {
+                setPatients((list) => list.filter((p) => p.id !== selected.id));
+                setSelected(null);
+              }}
+            />
+          ) : <p>Select a patient to see their linked sessions.</p>}
         </section>
       </div>
     </div>
@@ -181,7 +189,7 @@ function NewPatientForm({ onCreated }: { onCreated: (patient: PatientRecord) => 
   );
 }
 
-function PatientDetail({ patient }: { patient: PatientRecord }) {
+function PatientDetail({ patient, onErased }: { patient: PatientRecord; onErased: () => void }) {
   const [sessions, setSessions] = useState<SessionRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -210,6 +218,8 @@ function PatientDetail({ patient }: { patient: PatientRecord }) {
         <dt>Contact</dt>
         <dd>{patient.contact || "Not given"}</dd>
       </dl>
+
+      <EraseControl patient={patient} sessionCount={sessions?.length ?? null} onErased={onErased} />
 
       <h3>Linked sessions</h3>
       {error && <p className="error-text">Could not load linked sessions: {error}</p>}
@@ -246,3 +256,96 @@ function PatientDetail({ patient }: { patient: PatientRecord }) {
     </div>
   );
 }
+
+/**
+ * Permanent erasure of a patient and everything recorded under their visit codes. The server
+ * only proceeds when the patient's exact name is typed, and refuses a patient with
+ * adverse-event records; both outcomes are shown here as the server words them.
+ */
+function EraseControl({
+  patient,
+  sessionCount,
+  onErased,
+}: {
+  patient: PatientRecord;
+  sessionCount: number | null;
+  onErased: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputId = useId();
+  const matches = typed.trim().toLowerCase() === patient.name.trim().toLowerCase();
+
+  async function confirm() {
+    if (!matches || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await erasePatient(patient.id, typed);
+      setOpen(false);
+      onErased();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not erase the patient.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <p className="report-actions">
+        <button type="button" className="report-button report-button--danger" onClick={() => setOpen(true)}>
+          Erase patient…
+        </button>
+      </p>
+      {open && (
+        <div className="report-dialog-backdrop" role="presentation">
+          <div className="report-dialog" role="dialog" aria-modal="true" aria-labelledby={`${inputId}-title`}>
+            <h2 id={`${inputId}-title`}>Erase {patient.name}?</h2>
+            <p>
+              This permanently deletes the patient, {sessionCount === null ? "all" : sessionCount} linked
+              {sessionCount === 1 ? " session" : " sessions"}, and every recording, measurement, report and
+              consent signature recorded for them. It cannot be undone.
+            </p>
+            <label htmlFor={inputId} className="report-dialog__label">
+              Type <strong>{patient.name}</strong> to confirm
+            </label>
+            <input
+              id={inputId}
+              className="patients-input"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              autoFocus
+              autoComplete="off"
+            />
+            {error && (
+              <p className="error-text" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="report-actions">
+              <button type="button" className="report-button report-button--danger-solid" disabled={!matches || busy} onClick={confirm}>
+                {busy ? "Erasing..." : "Erase permanently"}
+              </button>
+              <button
+                type="button"
+                className="report-button"
+                disabled={busy}
+                onClick={() => {
+                  setOpen(false);
+                  setTyped("");
+                  setError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+

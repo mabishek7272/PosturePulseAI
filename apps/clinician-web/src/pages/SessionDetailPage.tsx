@@ -5,6 +5,7 @@ import { connectToSession } from "../api/socket";
 import type { EventRecord, ExposureSummary, SessionRecord } from "../api/types";
 import { BuildDraftReportButton } from "../components/BuildDraftReportButton";
 import { EventTimeline } from "../components/EventTimeline";
+import { useSubjectNames } from "../api/useSubjectNames";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 
 // Broadcast names the safety/policy/exposure/movement/symptom paths actually
@@ -24,6 +25,7 @@ const REFRESH_ON_EVENTS = [
 export function SessionDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [session, setSession] = useState<SessionRecord | null>(null);
+  const names = useSubjectNames();
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [exposure, setExposure] = useState<ExposureSummary>({});
   const [error, setError] = useState<string | null>(null);
@@ -70,10 +72,15 @@ export function SessionDetailPage() {
         <Link to="/">&larr; Back to queue</Link>
       </p>
       <h1>
-        {session.subjectPseudoId} <SafetyStateBadge state={session.state} />
+        {names[session.subjectPseudoId]?.name ?? session.subjectPseudoId} <SafetyStateBadge state={session.state} />
         <span className={`live-indicator ${live ? "live-indicator--on" : ""}`}>{live ? "live" : "offline"}</span>
       </h1>
       <dl className="session-facts">
+        <dt>Patient</dt>
+        <dd>
+          {names[session.subjectPseudoId] ? names[session.subjectPseudoId]!.name : "Not linked to a patient"}
+          <small className="patient-cell__code">{session.subjectPseudoId}</small>
+        </dd>
         <dt>Protocol</dt>
         <dd>
           {session.protocolId}@{session.protocolVersion}

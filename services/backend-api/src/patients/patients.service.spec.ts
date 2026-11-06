@@ -197,6 +197,19 @@ describe("PatientsService.get", () => {
   });
 });
 
+describe("PatientsService.subjectNames", () => {
+  it("maps linked visit codes to patient names and leaves unlinked ones out", async () => {
+    const { service, prisma, patients } = setup();
+    const ada = await service.create({ name: "Ada Example", dateOfBirth: "1980-02-29" }, "c");
+    const row = patients.find((p) => p.id === ada.id);
+    (prisma.patientSubjectLink as any).findMany = jest.fn().mockResolvedValue([
+      { subjectPseudoId: "sub-1", patientId: ada.id, patient: row },
+      { subjectPseudoId: "sub-2", patientId: "gone", patient: null },
+    ]);
+    expect(await service.subjectNames()).toEqual({ "sub-1": { patientId: ada.id, name: "Ada Example" } });
+  });
+});
+
 describe("PatientsService.link", () => {
   it("links a pseudonymous subject id that has a session to the patient", async () => {
     const { service, prisma } = setup();

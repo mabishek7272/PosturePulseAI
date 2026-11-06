@@ -37,7 +37,7 @@ describe("ReviewQueuePage", () => {
     const listReports = vi.spyOn(client, "listReports").mockResolvedValue([sampleSummary()]);
     vi.spyOn(client, "listSessions").mockResolvedValue([session]);
     renderPage();
-    const link = await screen.findByRole("link", { name: "subj-9" });
+    const link = await screen.findByRole("link", { name: /subj-9/ });
     expect(link).toHaveAttribute("href", "/reports/rep-1");
     expect(listReports).toHaveBeenCalledWith("draft");
     const row = link.closest("tr") as HTMLElement;
@@ -45,11 +45,20 @@ describe("ReviewQueuePage", () => {
     expect(within(row).getByText("2")).toBeInTheDocument();
   });
 
+  it("shows the patient's name above the visit code when the visit is linked", async () => {
+    vi.spyOn(client, "listReports").mockResolvedValue([sampleSummary()]);
+    vi.spyOn(client, "listSessions").mockResolvedValue([session]);
+    vi.spyOn(client, "getSubjectNames").mockResolvedValue({ "subj-9": { patientId: "p1", name: "Ada Example" } });
+    renderPage();
+    const link = await screen.findByRole("link", { name: /Ada Example/ });
+    expect(within(link).getByText("subj-9")).toBeInTheDocument();
+  });
+
   it("falls back to the session id when the session is not in the list", async () => {
     vi.spyOn(client, "listReports").mockResolvedValue([sampleSummary()]);
     vi.spyOn(client, "listSessions").mockRejectedValue(new Error("offline"));
     renderPage();
-    expect(await screen.findByRole("link", { name: "sess-1" })).toHaveAttribute("href", "/reports/rep-1");
+    expect(await screen.findByRole("link", { name: /sess-1/ })).toHaveAttribute("href", "/reports/rep-1");
     expect(screen.getByText("Unknown")).toBeInTheDocument();
   });
 

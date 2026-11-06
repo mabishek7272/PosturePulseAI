@@ -19,7 +19,9 @@ const ROUTES: Array<[string, string, string]> = [
   ["GET /patients", "search", "search_patients"],
   ["POST /patients/:id/link", "link", "link_patient"],
   ["GET /patients/:id/sessions", "sessions", "list_patient_sessions"],
+  ["GET /patients/subject-names", "subjectNames", "view_patient_names"],
   ["GET /patients/:id", "get", "view_patient"],
+  ["DELETE /patients/:id", "erase", "erase_patient"],
 ];
 
 describe("patient register routes", () => {
@@ -39,7 +41,7 @@ describe("patient register routes", () => {
       link: jest.fn().mockResolvedValue({}),
       sessions: jest.fn().mockResolvedValue([]),
     };
-    const controller = new PatientsController(service as never);
+    const controller = new PatientsController(service as never, {} as never);
     await controller.create({ name: "A", dateOfBirth: "1990-01-01" }, { user: { sub: "clin1" } });
     expect(service.create).toHaveBeenCalledWith({ name: "A", dateOfBirth: "1990-01-01" }, "clin1");
     await controller.search("ada");

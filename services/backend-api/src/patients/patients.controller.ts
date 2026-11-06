@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
 import { AuditAction } from "../audit/audit-action.decorator";
 import { AuditLogInterceptor } from "../audit/audit-log.interceptor";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { PatientErasureService } from "./patient-erasure.service";
 import { NewPatient, PatientsService } from "./patients.service";
 
 /**
@@ -14,7 +15,10 @@ import { NewPatient, PatientsService } from "./patients.service";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles("clinician")
 export class PatientsController {
-  constructor(private readonly patients: PatientsService) {}
+  constructor(
+    private readonly patients: PatientsService,
+    private readonly erasure: PatientErasureService
+  ) {}
 
   @UseInterceptors(AuditLogInterceptor)
   @AuditAction("create_patient")
@@ -37,6 +41,14 @@ export class PatientsController {
     return this.patients.link(patientId, body?.subjectPseudoId);
   }
 
+  /** Declared before ":patientId" so "subject-names" is not read as an id. */
+  @UseInterceptors(AuditLogInterceptor)
+  @AuditAction("view_patient_names")
+  @Get("subject-names")
+  subjectNames() {
+    return this.patients.subjectNames();
+  }
+
   @UseInterceptors(AuditLogInterceptor)
   @AuditAction("view_patient")
   @Get(":patientId")
@@ -49,5 +61,13 @@ export class PatientsController {
   @Get(":patientId/sessions")
   sessions(@Param("patientId") patientId: string) {
     return this.patients.sessions(patientId);
+  }
+
+  /** Permanent. Body `{ confirmName }` must be the patient's exact name. */
+  @UseInterceptors(AuditLogInterceptor)
+  @AuditAction("erase_patient")
+  @Delete(":patientId")
+  erase(@Param("patientId") patientId: string, @Body() body: { confirmName?: string }) {
+    return this.erasure.erase(patientId, body?.confirmName);
   }
 }

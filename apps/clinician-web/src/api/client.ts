@@ -210,3 +210,38 @@ export function createPatient(patient: NewPatient): Promise<PatientRecord> {
 export function listPatientSessions(patientId: string): Promise<SessionRecord[]> {
   return getJson<SessionRecord[]>(`/patients/${encodeURIComponent(patientId)}/sessions`);
 }
+
+/** subjectPseudoId -> linked patient (id and name). Visits with no linked patient are absent. */
+export type SubjectNames = Record<string, { patientId: string; name: string }>;
+
+export function getSubjectNames(): Promise<SubjectNames> {
+  return getJson<SubjectNames>("/patients/subject-names");
+}
+
+export interface ErasureResult {
+  patientId: string;
+  sessions: number;
+  clips: number;
+  reports: number;
+  events: number;
+  filesRemoved: number;
+}
+
+/** PERMANENT. The server also requires `confirmName` to equal the patient's name. */
+export async function erasePatient(patientId: string, confirmName: string): Promise<ErasureResult> {
+  const token = getToken();
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`${BACKEND_API_URL}/patients/${encodeURIComponent(patientId)}`, {
+    method: "DELETE",
+    headers,
+    body: JSON.stringify({ confirmName }),
+  });
+  if (response.status === 401) {
+    clearToken();
+    throw new UnauthorizedError();
+  }
+  if (!response.ok) throw new Error(await serverMessage(response));
+  return (await response.json()) as ErasureResult;
+}
+

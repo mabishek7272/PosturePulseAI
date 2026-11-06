@@ -111,6 +111,21 @@ export class PatientsService {
     return matches.slice(0, MAX_SEARCH_RESULTS);
   }
 
+  /**
+   * subjectPseudoId -> the linked patient's id and name, for clinician screens that list
+   * visits by their anonymous code (queue, reports). Decrypted for this response only;
+   * visits with no linked patient are simply absent.
+   */
+  async subjectNames(): Promise<Record<string, { patientId: string; name: string }>> {
+    const links = await this.prisma.patientSubjectLink.findMany({ include: { patient: true } });
+    const out: Record<string, { patientId: string; name: string }> = {};
+    for (const link of links as { subjectPseudoId: string; patientId: string; patient: any }[]) {
+      const record = link.patient ? this.open(link.patient) : null;
+      if (record) out[link.subjectPseudoId] = { patientId: link.patientId, name: record.name };
+    }
+    return out;
+  }
+
   /** One patient's record, decrypted for this response only (ADR-017). 404 when unknown or not yet clinician-registered. */
   async get(patientId: string): Promise<PatientRecord> {
     const row = await this.prisma.patient.findUnique({ where: { id: patientId } });
