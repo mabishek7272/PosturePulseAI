@@ -78,6 +78,43 @@ NOT_MEASURABLE: list[dict[str, str]] = [
 ]
 
 
+# How each 2D value is computed, in plain notation, written from the compute
+# functions in static_metrics.py (keep them in step: test_catalog checks that
+# every static metric has one). Coordinates are image pixels AFTER roll
+# correction, with y pointing DOWN. s = +1 front view, -1 back view.
+# f = +1 when the person faces image-right, -1 when facing image-left.
+# H = vertical distance from the nose to the heel(s), pixels.
+_LINE_TILT = "angle = atan2(y_left - y_right, |x_left - x_right|), using the {part} landmarks"
+_KNEE = (
+    "angle = 180° - ∠(hip, knee, ankle), where ∠ = acos(v1·v2 / (|v1||v2|)), "
+    "v1 = hip - knee, v2 = ankle - knee; {sign}"
+)
+_PLUMB = "offset = 100 × f × (x_{part} - x_ankle) / H  (% of height), nearer side"
+FORMULAS: dict[str, str] = {
+    "static.head_lateral_tilt": _LINE_TILT.format(part="ear"),
+    "static.shoulder_line_tilt": _LINE_TILT.format(part="shoulder"),
+    "static.hip_line_tilt": _LINE_TILT.format(part="hip"),
+    "static.trunk_lateral_lean": "angle = atan2(s × (x_shoulder-mid - x_hip-mid), y_hip-mid - y_shoulder-mid)",
+    "static.lateral_body_shift": "shift = 100 × s × (x_shoulder-mid - x_ankle-mid) / H  (% of height)",
+    "static.knee_frontal_alignment": _KNEE.format(sign="positive when the knee sits toward the midline of the hip-ankle line"),
+    "static.plumb_offset_ear": _PLUMB.format(part="ear"),
+    "static.plumb_offset_shoulder": _PLUMB.format(part="shoulder"),
+    "static.plumb_offset_hip": _PLUMB.format(part="hip"),
+    "static.plumb_offset_knee": _PLUMB.format(part="knee"),
+    "static.head_shoulder_angle": "angle = atan2(y_shoulder - y_ear, f × (x_ear - x_shoulder)), nearer side",
+    "static.trunk_inclination": "angle = atan2(f × (x_shoulder - x_hip), y_hip - y_shoulder), nearer side",
+    "static.knee_extension": _KNEE.format(sign="positive when the knee sits behind the hip-ankle line"),
+}
+
+# What every 2D value shares: how points are prepared and how frames combine.
+METHOD_NOTE = (
+    "Landmarks come from the pose model on every frame of the hold. Each frame is first rotated by the "
+    "camera roll φ = atan2(g_x, g_y) from the phone's gravity sensor, so horizontal means horizontal. "
+    "The result is the median over the still frames, and ± is √(mean per-frame model variance + "
+    "(1.4826 × MAD)²). It is not divided by √N, because the main errors stay the same across a hold."
+)
+
+
 def _entry(d: MetricDef) -> dict:
     return {
         "metricKey": d.key,
@@ -88,6 +125,7 @@ def _entry(d: MetricDef) -> dict:
         "side": _SIDE_LABEL[d.sides],
         "signConvention": d.sign_convention,
         "description": d.description,
+        "formula": FORMULAS[d.key],
         # Only implemented method this phase (ADR-018); the catalog states what
         # produces a result for this metric today, not what could in principle.
         "measurementMethod": "mediapipe_2d_image_plane",
@@ -98,6 +136,7 @@ def build_catalog() -> dict:
     """2D registry entries plus the depth ones (advertised; requested only if the battery lists them)."""
     return {
         "metricsVersion": METRICS_VERSION,
+        "methodNote": METHOD_NOTE,
         "metrics": [*(_entry(d) for d in STATIC_METRICS.values()), *catalog_entries()],
         "notMeasurable": [dict(item) for item in NOT_MEASURABLE],
     }

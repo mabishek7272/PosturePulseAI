@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import Animated, { Easing, useAnimatedProps, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, G, Line, Path } from "react-native-svg";
+import { getMetricCatalog, type CatalogMetric } from "../api/catalog";
 import { listReportResults, MetricResult } from "../api/events";
 import { UnauthorizedError } from "../api/http";
 import { findPatientHistory, latestEarlierWithResults, type PatientHistory } from "../api/patientHistory";
@@ -70,7 +71,40 @@ function Silhouette() {
   );
 }
 
-function MetricCard({ r }: { r: MetricResult }) {
+/** "How it's measured": the catalog's own words, formula and shared method note. Shown only when the catalog loaded. */
+function HowMeasured({ info, methodNote, r }: { info: CatalogMetric; methodNote?: string; r: MetricResult }) {
+  return (
+    <View style={styles.how}>
+      <Text style={styles.howTitle}>{"How it's measured"}</Text>
+      <Text style={styles.howText}>{info.description}</Text>
+      {info.formula ? <Text style={styles.howFormula}>{info.formula}</Text> : null}
+      <Text style={styles.howText}>{`Sign: ${info.signConvention}.`}</Text>
+      {r.estimate ? (
+        <Text style={styles.howText}>{`This value: ${formatResult(r)}.`}</Text>
+      ) : null}
+      {methodNote ? <Text style={styles.howNote}>{methodNote}</Text> : null}
+    </View>
+  );
+}
+
+function MetricCard({ r, info, methodNote }: { r: MetricResult; info?: CatalogMetric; methodNote?: string }) {
+  const [open, setOpen] = useState(false);
+  const how = info && open ? <HowMeasured info={info} methodNote={methodNote} r={r} /> : null;
+  const card = <MetricCardBody r={r} how={how} />;
+  if (!info) return card;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      accessibilityHint={open ? "Hides how this is measured" : "Shows how this is measured"}
+      onPress={() => setOpen((v) => !v)}
+    >
+      {card}
+    </Pressable>
+  );
+}
+
+function MetricCardBody({ r, how }: { r: MetricResult; how: React.ReactNode }) {
   const kind = resultKind(r);
   const parts = formatValueParts(r);
   if (kind !== "estimate" || !parts) {
@@ -80,6 +114,7 @@ function MetricCard({ r }: { r: MetricResult }) {
         <View style={styles.metricPad}>
           <Text style={styles.metricTitle}>{metricLabel(r)}</Text>
           <Text style={styles.unmeasured}>{formatResult(r)}</Text>
+          {how}
         </View>
       </GlassCard>
     );
@@ -111,6 +146,7 @@ function MetricCard({ r }: { r: MetricResult }) {
         ) : (
           <Text style={styles.captionText}>{NO_REFERENCE_CAPTION}</Text>
         )}
+        {how}
       </View>
     </GlassCard>
   );
@@ -141,6 +177,25 @@ export default function ResultsScreen() {
     })();
     return () => { cancelled = true; };
   }, [sessionId]);
+
+  // Optional: when the catalog cannot load, cards simply are not expandable.
+  const [catalog, setCatalog] = useState<{ byKey: Map<string, CatalogMetric>; methodNote?: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getClinicianToken();
+        if (!token) return;
+        const c = await getMetricCatalog(token);
+        if (!cancelled) setCatalog({ byKey: new Map(c.metrics.map((m) => [m.metricKey, m])), methodNote: c.methodNote });
+      } catch {
+        // No explanation panel; the values themselves are unaffected.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -265,7 +320,7 @@ export default function ResultsScreen() {
             <View style={styles.metricList}>
               {list.length === 0 ? <Text style={styles.empty}>No measurements returned.</Text> : null}
               {list.map((r, i) => (
-                <MetricCard key={`${r.metricKey}-${r.side ?? ""}-${i}`} r={r} />
+                <MetricCard key={`${r.metricKey}-${r.side ?? ""}-${i}`} r={r} info={catalog?.byKey.get(r.metricKey)} methodNote={catalog?.methodNote} />
               ))}
             </View>
 
@@ -351,6 +406,14 @@ const styles = StyleSheet.create({
   fillWrap: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: 3, overflow: "hidden" },
   captionRow: { marginTop: 7, flexDirection: "row", justifyContent: "space-between", gap: 8 },
   captionText: { fontSize: 11, color: colors.textFaint },
+  how: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.hairline, gap: 5 },
+  howTitle: { fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: colors.accent700, textTransform: "uppercase" },
+  howText: { fontSize: 12, lineHeight: 17, color: colors.textSecondary },
+  howFormula: {
+    fontSize: 12, lineHeight: 17, color: colors.text, fontFamily: "Menlo", backgroundColor: colors.accent100,
+    borderRadius: 8, paddingVertical: 6, paddingHorizontal: 8, overflow: "hidden",
+  },
+  howNote: { fontSize: 11, lineHeight: 15.5, color: colors.textFaint },
 
   note: { paddingVertical: 17, paddingHorizontal: 16 },
   noteHead: { flexDirection: "row", alignItems: "center", gap: 10 },

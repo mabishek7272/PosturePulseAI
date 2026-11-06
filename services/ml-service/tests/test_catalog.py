@@ -21,10 +21,12 @@ def test_catalog_lists_every_registry_metric_with_its_convention():
     by_key = {m["metricKey"]: m for m in body["metrics"]}
     assert set(by_key) == set(STATIC_METRICS) | set(DEPTH_METRIC_KEYS)
     for key, m in by_key.items():
-        assert set(m) == {
+        base = {
             "metricKey", "label", "module", "tier", "unit", "side", "signConvention", "description",
             "measurementMethod",
         }
+        # 2D entries also state their formula; depth entries do not (yet).
+        assert set(m) == (base if key in DEPTH_METRIC_KEYS else base | {"formula"})
         expected = "mediapipe_2_5d_depth" if key in DEPTH_METRIC_KEYS else "mediapipe_2d_image_plane"
         assert m["measurementMethod"] == expected
         assert m["module"] == "static"
@@ -66,3 +68,28 @@ def test_catalog_text_has_no_banned_language():
     phrases = [p.lower() for p in (banned if isinstance(banned, list) else banned.get("phrases", []))] + local
     for phrase in phrases:
         assert not re.search(r"\b" + re.escape(phrase), text), phrase
+
+
+
+def test_every_static_metric_states_its_formula():
+    from app.metrics.catalog import FORMULAS, build_catalog
+    from app.metrics.static_metrics import STATIC_METRICS
+
+    assert set(FORMULAS) == set(STATIC_METRICS)
+    entries = {m["metricKey"]: m for m in build_catalog()["metrics"]}
+    for key in STATIC_METRICS:
+        assert entries[key]["formula"] == FORMULAS[key]
+    assert "atan2" in build_catalog()["methodNote"]
+
+
+def test_formula_text_has_no_banned_phrases():
+    import json
+    import re
+    from pathlib import Path
+
+    from app.metrics.catalog import FORMULAS, METHOD_NOTE
+
+    patterns = json.loads((Path(__file__).resolve().parents[3] / "references" / "banned-phrases.json").read_text())["patterns"]
+    for text in [*FORMULAS.values(), METHOD_NOTE]:
+        hits = [p for p in patterns if re.search(p, text, re.IGNORECASE)]
+        assert hits == [], (text, hits)
