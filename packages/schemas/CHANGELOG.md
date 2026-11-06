@@ -308,3 +308,16 @@ behind a flag and emits no metric until a clinical lead signs it off).
 - **Wording: "Clinician-annotated", not "Clinician Verified".** "Verified" says the
   placement was checked and found correct, which adjusting a landmark does not
   establish. The web client already labelled the method "Clinician-annotated".
+
+## v0 - consent-record signatures (non-breaking, additive)
+
+- `consent-record` gains an **optional** `signatures` object: `subject` and
+  `clinician`, each `{svgPath, signedAt}`, plus `clinician.clinicianId`.
+  `svgPath` is limited to SVG path commands M/L/Q/l and numbers (max 40,000
+  characters), so it can be embedded in an exported report without escaping.
+- Stored sealed (AES-256-GCM, patient-register key) in
+  `ConsentRecord.signaturesEnc`. It is written once, through the clinician-guarded
+  `POST /consent-records/:id/signatures`, which takes the clinician id from the token.
+  The unauthenticated create and get routes never return it.
+- Stays `v0`: a v0 reader ignores the new optional property.
+

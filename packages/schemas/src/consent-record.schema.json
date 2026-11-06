@@ -25,6 +25,39 @@
     "withdrawalRequestedAt": {
       "oneOf": [{ "$ref": "common.schema.json#/$defs/isoTimestamp" }, { "type": "null" }],
       "default": null
+    },
+    "signatures": {
+      "description": "Optional. The patient's and the supervising clinician's handwritten signatures, captured on the clinic device before the first recording. Stored encrypted server-side; never returned by the unauthenticated consent routes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "clinician"],
+      "properties": {
+        "subject": { "$ref": "#/$defs/signature" },
+        "clinician": {
+          "allOf": [{ "$ref": "#/$defs/signature" }],
+          "type": "object",
+          "required": ["clinicianId"],
+          "properties": {
+            "clinicianId": { "type": "string", "minLength": 1, "description": "The signed-in clinician (from their token, never from the request body)." }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "signature": {
+      "type": "object",
+      "required": ["svgPath", "signedAt"],
+      "properties": {
+        "svgPath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40000,
+          "pattern": "^[MLQl0-9 .\\-]+$",
+          "description": "The strokes as one SVG path string (M/L/Q/l commands and numbers only), in signature-pad pixels."
+        },
+        "signedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" }
+      }
     }
   }
 }

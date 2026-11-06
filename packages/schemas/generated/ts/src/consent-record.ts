@@ -23,4 +23,23 @@ export interface ConsentRecord {
   grantedAt: string;
   revokedAt?: string | null;
   withdrawalRequestedAt?: string | null;
+  /**
+   * Optional. The patient's and the supervising clinician's handwritten signatures, captured on the clinic device before the first recording. Stored encrypted server-side; never returned by the unauthenticated consent routes.
+   */
+  signatures?: {
+    subject: {
+      /**
+       * The strokes as one SVG path string (M/L/Q/l commands and numbers only), in signature-pad pixels.
+       */
+      svgPath: string;
+      signedAt: string;
+    };
+    clinician: {
+      /**
+       * The strokes as one SVG path string (M/L/Q/l commands and numbers only), in signature-pad pixels.
+       */
+      svgPath: string;
+      signedAt: string;
+    };
+  };
 }

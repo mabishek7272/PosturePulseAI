@@ -3,10 +3,12 @@ import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { linkPatient } from "../api/patients";
+import { ApiError } from "../api/http";
 import {
   createConsentRecord,
   createSession,
   getAssessmentBattery,
+  signConsentRecord,
   type SessionCredentials,
 } from "../api/sessions";
 import { getClinicianToken } from "../auth/tokenStore";
@@ -18,7 +20,7 @@ import { MAX_CONTENT_WIDTH, useResponsive } from "../components/Screen";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { SignaturePad } from "../components/SignaturePad";
 import { initialsOf } from "../lib/homeData";
-import { hasMinimumInk, type Stroke } from "../lib/signature";
+import { hasMinimumInk, serialiseSignature, type Stroke } from "../lib/signature";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 
@@ -37,14 +39,17 @@ export default function ConsentScreen() {
   const [busy, setBusy] = useState(false);
   const [attested, setAttested] = useState(false);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [clinicianStrokes, setClinicianStrokes] = useState<Stroke[]>([]);
   const [drawing, setDrawing] = useState(false);
-  const canSubmit = attested && hasMinimumInk(strokes);
+  // Both signatures are mandatory before any recording can start.
+  const canSubmit = attested && hasMinimumInk(strokes) && hasMinimumInk(clinicianStrokes);
   const [error, setError] = useState<string | null>(null);
   // Held across retries so a mid-flow failure resumes the same visit instead of
   // creating a second consent record and session. A new visit is a new screen
   // instance and therefore a fresh id. In memory only: the session token is never persisted.
   const subjectPseudoIdRef = useRef<string | null>(null);
   const consentRecordIdRef = useRef<string | null>(null);
+  const signedRef = useRef(false);
   const credentialsRef = useRef<SessionCredentials | null>(null);
 
   async function agree() {
@@ -62,6 +67,21 @@ export default function ConsentScreen() {
         const battery = await getAssessmentBattery();
         if (!consentRecordIdRef.current) {
           consentRecordIdRef.current = (await createConsentRecord(subjectPseudoId)).id;
+        }
+        // Signed BEFORE the session exists, so no recording can start on an
+        // unsigned consent. A retry after a lost response gets 409 (write-once),
+        // which means the signatures are already stored.
+        if (!signedRef.current) {
+          try {
+            await signConsentRecord(
+              consentRecordIdRef.current,
+              { subjectSvgPath: serialiseSignature(strokes), clinicianSvgPath: serialiseSignature(clinicianStrokes) },
+              token,
+            );
+          } catch (err) {
+            if (!(err instanceof ApiError && err.status === 409)) throw err;
+          }
+          signedRef.current = true;
         }
         credentialsRef.current = await createSession({
           subjectPseudoId,
@@ -140,9 +160,15 @@ export default function ConsentScreen() {
 
         <View style={styles.sigWrap}>
           <Text style={styles.sigLabel}>Patient signature</Text>
-          <SignaturePad strokes={strokes} onChange={setStrokes} onDrawingChange={(d) => setDrawing(d)} disabled={busy} />
+          <SignaturePad strokes={strokes} onChange={setStrokes} onDrawingChange={(d) => setDrawing(d)} disabled={busy || signedRef.current} />
+        </View>
+
+        <View style={styles.sigWrap}>
+          <Text style={styles.sigLabel}>Clinician signature</Text>
+          <SignaturePad strokes={clinicianStrokes} onChange={setClinicianStrokes} onDrawingChange={(d) => setDrawing(d)} disabled={busy || signedRef.current} />
           <Text style={styles.sigCaption}>
-            Signature confirms consent on this device for this session. It is not stored on the server yet.
+            Both signatures are required before recording. They are stored encrypted with this consent record on the
+            clinic server and appear on the exported report.
           </Text>
         </View>
 
@@ -151,7 +177,7 @@ export default function ConsentScreen() {
 
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 16) + 14 }]}>
         <View style={[column, { paddingHorizontal: gutter - 2 }]}>
-          <PrimaryButton label="Record consent & start capture" onPress={agree} loading={busy} disabled={busy || !canSubmit} accessibilityLabel={canSubmit ? undefined : "Record consent and start capture. Unavailable until the attestation is ticked and the patient has signed."} />
+          <PrimaryButton label="Record consent & start capture" onPress={agree} loading={busy} disabled={busy || !canSubmit} accessibilityLabel={canSubmit ? undefined : "Record consent and start capture. Unavailable until the attestation is ticked and both the patient and the clinician have signed."} />
         </View>
       </View>
     </View>

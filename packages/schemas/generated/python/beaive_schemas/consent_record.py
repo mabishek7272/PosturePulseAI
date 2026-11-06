@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, constr
 
 
 class Scope(Enum):
@@ -13,6 +13,42 @@ class Scope(Enum):
     raw_video = 'raw_video'
     research_data_export = 'research_data_export'
     wearable_integration = 'wearable_integration'
+
+
+class Subject(BaseModel):
+    svgPath: constr(pattern=r'^[MLQl0-9 .\-]+$', min_length=1, max_length=40000) = (
+        Field(
+            ...,
+            description='The strokes as one SVG path string (M/L/Q/l commands and numbers only), in signature-pad pixels.',
+        )
+    )
+    signedAt: AwareDatetime
+
+
+class Clinician(BaseModel):
+    svgPath: constr(pattern=r'^[MLQl0-9 .\-]+$', min_length=1, max_length=40000) = (
+        Field(
+            ...,
+            description='The strokes as one SVG path string (M/L/Q/l commands and numbers only), in signature-pad pixels.',
+        )
+    )
+    signedAt: AwareDatetime
+    clinicianId: constr(min_length=1) = Field(
+        ...,
+        description='The signed-in clinician (from their token, never from the request body).',
+    )
+
+
+class Signatures(BaseModel):
+    """
+    Optional. The patient's and the supervising clinician's handwritten signatures, captured on the clinic device before the first recording. Stored encrypted server-side; never returned by the unauthenticated consent routes.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    subject: Subject
+    clinician: Clinician
 
 
 class ConsentRecord(BaseModel):
@@ -29,3 +65,17 @@ class ConsentRecord(BaseModel):
     grantedAt: AwareDatetime
     revokedAt: AwareDatetime | None = None
     withdrawalRequestedAt: AwareDatetime | None = None
+    signatures: Signatures | None = Field(
+        None,
+        description="Optional. The patient's and the supervising clinician's handwritten signatures, captured on the clinic device before the first recording. Stored encrypted server-side; never returned by the unauthenticated consent routes.",
+    )
+
+
+class Signature(BaseModel):
+    svgPath: constr(pattern=r'^[MLQl0-9 .\-]+$', min_length=1, max_length=40000) = (
+        Field(
+            ...,
+            description='The strokes as one SVG path string (M/L/Q/l commands and numbers only), in signature-pad pixels.',
+        )
+    )
+    signedAt: AwareDatetime

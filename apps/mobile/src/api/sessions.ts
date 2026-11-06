@@ -36,6 +36,31 @@ export function createConsentRecord(subjectPseudoId: string): Promise<{ id: stri
   });
 }
 
+/**
+ * Attaches the patient's and the signed-in clinician's signatures to a consent
+ * record (clinician JWT; the server takes the clinician id from the token).
+ * Write-once on the server: a 409 means this record is already signed.
+ */
+export function signConsentRecord(
+  consentRecordId: string,
+  signatures: { subjectSvgPath: string; clinicianSvgPath: string },
+  token: string,
+): Promise<{ consentRecordId: string; signedAt: string }> {
+  return request(`/consent-records/${encodeURIComponent(consentRecordId)}/signatures`, {
+    method: "POST",
+    body: signatures,
+    token,
+  });
+}
+
+/** Both signatures, for the report PDF (clinician JWT). */
+export function getConsentSignatures(
+  consentRecordId: string,
+  token: string,
+): Promise<{ subject: { svgPath: string; signedAt: string }; clinician: { svgPath: string; signedAt: string; clinicianId: string } }> {
+  return request(`/consent-records/${encodeURIComponent(consentRecordId)}/signatures`, { token });
+}
+
 export function createSession(input: {
   subjectPseudoId: string;
   consentRecordId: string;

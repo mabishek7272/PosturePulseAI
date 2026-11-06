@@ -63,6 +63,9 @@ model ConsentRecord {
   grantedAt             DateTime  @default(now())
   revokedAt             DateTime?
   withdrawalRequestedAt DateTime?
+  /// Patient + clinician signatures (consent-record.schema.json `signatures`), AES-GCM sealed with
+  /// PATIENT_DATA_KEY. Read only through the clinician-guarded signatures routes.
+  signaturesEnc         String?
 
   @@index([subjectPseudoId])
 }

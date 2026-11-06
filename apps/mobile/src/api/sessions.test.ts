@@ -1,4 +1,4 @@
-import { createConsentRecord, createSession } from "./sessions";
+import { createConsentRecord, createSession, signConsentRecord } from "./sessions";
 
 describe("sessions api", () => {
   afterEach(() => jest.restoreAllMocks());
@@ -58,5 +58,22 @@ describe("sessions api", () => {
     expect(body.deploymentContext).toBe("clinic_supervised");
     expect(body.retentionPolicy.rawVideo.optIn).toBe(false);
     expect(result.sessionToken).toBe("subj-tok");
+  });
+});
+
+describe("signConsentRecord", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("posts both signatures with the clinician token to the record's signatures route", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ consentRecordId: "c1", signedAt: "t" }) });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await signConsentRecord("c1", { subjectSvgPath: "M1 1L2 2", clinicianSvgPath: "M3 3L4 4" }, "clin-tok");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toMatch(/\/consent-records\/c1\/signatures$/);
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe("Bearer clin-tok");
+    expect(JSON.parse(init.body)).toEqual({ subjectSvgPath: "M1 1L2 2", clinicianSvgPath: "M3 3L4 4" });
   });
 });

@@ -8,6 +8,16 @@ export interface CreateConsentRecordInput {
   scopes: string[];
 }
 
+/** Columns any caller may see. Deliberately excludes `signaturesEnc`. */
+export const PUBLIC_FIELDS = {
+  id: true,
+  subjectPseudoId: true,
+  scopes: true,
+  grantedAt: true,
+  revokedAt: true,
+  withdrawalRequestedAt: true,
+} as const;
+
 @Injectable()
 export class ConsentService {
   constructor(private readonly prisma: PrismaService) {}
@@ -34,8 +44,12 @@ export class ConsentService {
     return this.get(id);
   }
 
+  /**
+   * The record WITHOUT its sealed signatures. This route is unauthenticated, so
+   * the signature column is never selected here (see ConsentSignaturesService).
+   */
   async get(id: string) {
-    return this.prisma.consentRecord.findUniqueOrThrow({ where: { id } });
+    return this.prisma.consentRecord.findUniqueOrThrow({ where: { id }, select: PUBLIC_FIELDS });
   }
 
   /** The record's subject and scopes if it exists and is not revoked, else null. */
