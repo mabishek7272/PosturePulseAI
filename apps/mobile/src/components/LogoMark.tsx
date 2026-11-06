@@ -1,17 +1,25 @@
-import Svg, { Path } from "react-native-svg";
-import { colors } from "../theme/colors";
+import { Image } from "react-native";
 
-/** The two-stroke "S" pulse mark from the design (viewBox 32). */
-export const LOGO_PATH_TOP = "M16 3c-4.2 0-6.6 2.4-6.6 5.6 0 4.6 6.6 5.1 6.6 9.3 0 3.1-2.3 5.5-6.4 5.5";
-export const LOGO_PATH_BOTTOM = "M16 29c4.2 0 6.6-2.4 6.6-5.6 0-4.6-6.6-5.1-6.6-9.3 0-3.1 2.3-5.5 6.4-5.5";
+/** The PosturePulse emblem (spine, pulse and network) - the same artwork as the app icon and splash. */
+export const EMBLEM = require("../../assets/images/splash-icon.png");
+/** Width / height of the emblem artwork (600 x 518). */
+export const EMBLEM_ASPECT = 600 / 518;
 
-export function LogoMark({ size = 34, top = colors.accent600, bottom = colors.accent400, strokeWidth = 2.4 }: {
+/**
+ * The brand mark. Was a two-stroke "S" drawn in SVG, which read as "SS"; it is
+ * now the real emblem. `size` is the width; colour props are accepted for
+ * call-site compatibility and ignored (the artwork has its own colours).
+ */
+export function LogoMark({ size = 34 }: {
   size?: number; top?: string; bottom?: string; strokeWidth?: number;
 }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 32 32" fill="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Path d={LOGO_PATH_TOP} stroke={top} strokeWidth={strokeWidth} strokeLinecap="round" />
-      <Path d={LOGO_PATH_BOTTOM} stroke={bottom} strokeWidth={strokeWidth} strokeLinecap="round" />
-    </Svg>
+    <Image
+      source={EMBLEM}
+      style={{ width: size, height: size / EMBLEM_ASPECT }}
+      resizeMode="contain"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    />
   );
 }

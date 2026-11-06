@@ -1,6 +1,13 @@
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { login } from "../api/auth";
 import { saveClinicianToken } from "../auth/tokenStore";
@@ -9,7 +16,7 @@ import { PrimaryButton, SecondaryButton } from "../components/Buttons";
 import { DriftingBlobs, type BlobSpec } from "../components/DriftingBlobs";
 import { FadeUp } from "../components/FadeUp";
 import { GlassCard } from "../components/GlassCard";
-import { LogoMark } from "../components/LogoMark";
+import { AnimatedEmblem } from "../components/AnimatedEmblem";
 import { colors } from "../theme/colors";
 import { shadows } from "../theme/shadows";
 
@@ -25,7 +32,7 @@ function Field({
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <View>
-        {focused ? <View pointerEvents="none" style={styles.glow} /> : null}
+        <FocusGlow on={focused} />
         <View style={[styles.input, focused && styles.inputFocused]}>
           {icon(focused ? colors.accent600 : colors.textFaint)}
           {children}
@@ -33,6 +40,36 @@ function Field({
       </View>
     </View>
   );
+}
+
+/** Soft halo that fades and grows in on focus instead of snapping on. */
+function FocusGlow({ on }: { on: boolean }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.value = withTiming(on ? 1 : 0, { duration: 220 });
+  }, [on, t]);
+  const style = useAnimatedStyle(() => ({ opacity: t.value, transform: [{ scale: 0.97 + 0.03 * t.value }] }));
+  return <Animated.View pointerEvents="none" style={[styles.glow, style]} />;
+}
+
+/** A short horizontal shake for a failed sign-in (skipped under Reduce Motion). */
+function useShake() {
+  const reduce = useReducedMotion();
+  const x = useSharedValue(0);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  const shake = () => {
+    if (reduce) return;
+    // `.set()` rather than `.value =`: the React Compiler treats a hook's
+    // return value as immutable, and Reanimated 4's setter is the sanctioned form.
+    x.set(withSequence(
+      withTiming(-9, { duration: 50 }),
+      withTiming(9, { duration: 70 }),
+      withTiming(-6, { duration: 60 }),
+      withTiming(6, { duration: 60 }),
+      withTiming(0, { duration: 50 }),
+    ));
+  };
+  return { style, shake };
 }
 
 export default function LoginScreen() {
@@ -43,6 +80,7 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const passRef = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const card = useShake();
 
   async function submit() {
     if (busy || !username || !password) return;
@@ -53,6 +91,7 @@ export default function LoginScreen() {
       router.replace("/permissions");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
+      card.shake();
     } finally {
       setBusy(false);
     }
@@ -71,12 +110,13 @@ export default function LoginScreen() {
         >
           <View style={styles.column}>
             <FadeUp style={styles.heading}>
-              <LogoMark size={34} />
+              <AnimatedEmblem width={64} delay={80} float glowColor={colors.accent200} style={styles.emblem} />
               <Text accessibilityRole="header" style={styles.title}>Clinician{"\n"}sign-in</Text>
               <Text style={styles.subtitle}>Shared clinic device. Sessions lock after 10 minutes idle.</Text>
             </FadeUp>
 
-            <FadeUp delay={120} style={{ marginTop: 34 }}>
+            <FadeUp delay={180} distance={28} duration={800} style={{ marginTop: 34 }}>
+              <Animated.View style={card.style}>
               <GlassCard radius={20} fill={colors.glass} ring={colors.hairline} intensity={50} style={styles.cardShadow}>
                 <View style={styles.cardBody}>
                   <Field label="Username" focused={focus === "user"} icon={(c) => <FieldMailIcon color={c} />}>
@@ -124,9 +164,10 @@ export default function LoginScreen() {
                   />
                 </View>
               </GlassCard>
+              </Animated.View>
             </FadeUp>
 
-            <FadeUp delay={200} style={{ marginTop: 14 }}>
+            <FadeUp delay={320} style={{ marginTop: 14 }}>
               {/* Not built yet: rendered as designed, visibly disabled, no action. */}
               <SecondaryButton
                 label="Sign in with clinic badge"
@@ -156,6 +197,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, paddingHorizontal: 28 },
   column: { flexGrow: 1, width: "100%", maxWidth: 440, alignSelf: "center" },
   heading: { gap: 11 },
+  emblem: { alignSelf: "flex-start", marginBottom: 4 },
   title: { fontSize: 29, fontWeight: "600", letterSpacing: -1.015, lineHeight: 33.35, color: colors.text },
   subtitle: { fontSize: 14, lineHeight: 21, color: colors.textMuted },
   cardShadow: { ...shadows.card, shadowOpacity: 0.07, shadowRadius: 17, shadowOffset: { width: 0, height: 14 } },

@@ -1,4 +1,5 @@
 import { BlurView } from "expo-blur";
+import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
@@ -16,8 +17,8 @@ import Svg, { Circle, G, Path } from "react-native-svg";
 import { VisionCamera } from "react-native-vision-camera";
 import { getClinicianToken } from "../auth/tokenStore";
 import { DARK_BLOBS, DriftingBlobs } from "../components/DriftingBlobs";
-import { EASE_OUT, EASE_OUT_EXPO, FadeUp } from "../components/FadeUp";
-import { LOGO_PATH_BOTTOM, LOGO_PATH_TOP } from "../components/LogoMark";
+import { EASE_OUT, FadeUp } from "../components/FadeUp";
+import { AnimatedEmblem } from "../components/AnimatedEmblem";
 import { colors } from "../theme/colors";
 
 /** Design shows the splash ~2.6s; the constellation finishes drawing at 2.9s. */
@@ -102,29 +103,6 @@ function Dot({ delay }: { delay: number }) {
   return <Animated.View style={[styles.dot, style]} />;
 }
 
-function LogoDraw() {
-  const a = useSharedValue(0);
-  const b = useSharedValue(0);
-  const fade = useSharedValue(0);
-  useEffect(() => {
-    const cfg = { duration: 1100, easing: EASE_OUT_EXPO };
-    a.value = withDelay(150, withTiming(1, cfg));
-    b.value = withDelay(500, withTiming(1, cfg));
-    fade.value = withTiming(1, { duration: 1100, easing: EASE_OUT });
-  }, [a, b, fade]);
-  const pa = useAnimatedProps(() => ({ strokeDashoffset: 46 * (1 - a.value) }));
-  const pb = useAnimatedProps(() => ({ strokeDashoffset: 46 * (1 - b.value) }));
-  const fs = useAnimatedStyle(() => ({ opacity: fade.value }));
-  return (
-    <Animated.View style={fs}>
-      <Svg width={62} height={62} viewBox="0 0 32 32" fill="none">
-        <AnimatedPath d={LOGO_PATH_TOP} stroke={colors.accent100} strokeWidth={2.3} strokeLinecap="round" strokeDasharray={[46]} animatedProps={pa} />
-        <AnimatedPath d={LOGO_PATH_BOTTOM} stroke={colors.accent400} strokeWidth={2.3} strokeLinecap="round" strokeDasharray={[46]} animatedProps={pb} />
-      </Svg>
-    </Animated.View>
-  );
-}
-
 export default function SplashScreen() {
   // Same destination rule the app always used: stored token -> /home, else /login.
   useEffect(() => {
@@ -177,7 +155,7 @@ export default function SplashScreen() {
               <View style={[StyleSheet.absoluteFill, styles.discRing]} />
             </View>
           </View>
-          <LogoDraw />
+          <AnimatedEmblem width={84} delay={150} />
         </View>
 
         <FadeUp delay={900} duration={900} style={styles.titleBlock}>
@@ -194,7 +172,7 @@ export default function SplashScreen() {
         </FadeUp>
       </View>
 
-      <Text style={styles.footer}>Clinician-supervised · v4.2</Text>
+      <Text style={styles.footer}>{`Clinician-supervised · v${Constants.expoConfig?.version ?? "dev"}`}</Text>
     </View>
   );
 }
