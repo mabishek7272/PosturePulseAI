@@ -50,6 +50,11 @@ export function searchPatients(query: string | undefined, token: string): Promis
   return request<PatientRecord[]>(path, { token });
 }
 
+/** GET /patients/:id - one record, decrypted for this response only. */
+export function getPatient(patientId: string, token: string): Promise<PatientRecord> {
+  return request<PatientRecord>(`/patients/${encodeURIComponent(patientId)}`, { token });
+}
+
 export function createPatient(patient: NewPatient, token: string): Promise<PatientRecord> {
   return request<PatientRecord>("/patients", { method: "POST", body: patient, token });
 }

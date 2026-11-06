@@ -38,6 +38,13 @@ export class PatientsController {
   }
 
   @UseInterceptors(AuditLogInterceptor)
+  @AuditAction("view_patient")
+  @Get(":patientId")
+  get(@Param("patientId") patientId: string) {
+    return this.patients.get(patientId);
+  }
+
+  @UseInterceptors(AuditLogInterceptor)
   @AuditAction("list_patient_sessions")
   @Get(":patientId/sessions")
   sessions(@Param("patientId") patientId: string) {

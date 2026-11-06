@@ -182,6 +182,21 @@ describe("PatientsService.search", () => {
   });
 });
 
+describe("PatientsService.get", () => {
+  it("returns one decrypted record", async () => {
+    const { service } = setup();
+    const created = await service.create(input, "c");
+    await expect(service.get(created.id)).resolves.toMatchObject({ id: created.id, name: "Ada Example", dateOfBirth: "1980-02-29" });
+  });
+
+  it("is 404 for an unknown id and for a self-signup row with no clinician-entered identity", async () => {
+    const { service, patients } = setup();
+    await expect(service.get("nope")).rejects.toThrow(NotFoundException);
+    patients.push({ id: "selfsignup", createdAt: new Date(), createdBy: null, nameEnc: null, dobEnc: null, contactEnc: null });
+    await expect(service.get("selfsignup")).rejects.toThrow(NotFoundException);
+  });
+});
+
 describe("PatientsService.link", () => {
   it("links a pseudonymous subject id that has a session to the patient", async () => {
     const { service, prisma } = setup();

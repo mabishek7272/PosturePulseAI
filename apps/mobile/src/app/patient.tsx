@@ -80,8 +80,9 @@ export default function PatientPickerScreen() {
     };
   }, [query, reloadTick]);
 
+  /** Opens the patient's profile (details, previous scans, "New scan"). */
   function choose(patient: PatientRecord) {
-    router.push({ pathname: "/consent", params: { patientId: patient.id, patientName: patient.name } });
+    router.push({ pathname: "/patient-profile", params: { patientId: patient.id } });
   }
 
   async function createAndChoose(name: string, dateOfBirth: string, intake: PatientIntake | undefined) {

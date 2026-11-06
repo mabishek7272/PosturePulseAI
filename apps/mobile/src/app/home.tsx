@@ -187,7 +187,12 @@ export default function HomeScreen() {
               <Text style={styles.empty}>No sessions yet.</Text>
             ) : (
               recent.map((s) => (
-                <Pressable key={s.id} accessibilityRole="button" onPress={() => router.push("/history")}>
+                <Pressable
+                  key={s.id}
+                  accessibilityRole="button"
+                  accessibilityHint="Opens this scan's report"
+                  onPress={() => router.push({ pathname: "/results", params: { sessionId: s.id } })}
+                >
                   {({ pressed }) => (
                     <GlassCard
                       fill={pressed ? colors.accent100 : colors.glassStrong}

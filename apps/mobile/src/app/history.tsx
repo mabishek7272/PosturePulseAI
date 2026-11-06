@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { listSessions, SessionSummary } from "../api/sessions-list";
 import { getClinicianToken } from "../auth/tokenStore";
 import { BottomTabBar } from "../components/BottomTabBar";
@@ -80,7 +80,14 @@ export default function HistoryScreen() {
                           </View>
                         )}
                       </View>
-                      <SessionCard session={s} now={now} highlighted={first} />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Open the report for the scan on ${dateChip(s.createdAt, now)}`}
+                        onPress={() => router.push({ pathname: "/results", params: { sessionId: s.id } })}
+                        style={({ pressed }) => [styles.cardFlex, pressed && { opacity: 0.7 }]}
+                      >
+                        <SessionCard session={s} now={now} highlighted={first} />
+                      </Pressable>
                     </FadeUp>
                   );
                 })}

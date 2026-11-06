@@ -111,6 +111,14 @@ export class PatientsService {
     return matches.slice(0, MAX_SEARCH_RESULTS);
   }
 
+  /** One patient's record, decrypted for this response only (ADR-017). 404 when unknown or not yet clinician-registered. */
+  async get(patientId: string): Promise<PatientRecord> {
+    const row = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const record = row ? this.open(row) : null;
+    if (!record) throw new NotFoundException(`Patient ${patientId} not found.`);
+    return record;
+  }
+
   async link(patientId: string, subjectPseudoId: string): Promise<{ patientId: string; subjectPseudoId: string }> {
     if (typeof subjectPseudoId !== "string" || !subjectPseudoId.trim()) {
       throw new BadRequestException("subjectPseudoId is required.");

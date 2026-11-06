@@ -19,6 +19,7 @@ const ROUTES: Array<[string, string, string]> = [
   ["GET /patients", "search", "search_patients"],
   ["POST /patients/:id/link", "link", "link_patient"],
   ["GET /patients/:id/sessions", "sessions", "list_patient_sessions"],
+  ["GET /patients/:id", "get", "view_patient"],
 ];
 
 describe("patient register routes", () => {
