@@ -13,5 +13,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./src/test-setup.ts",
     globals: true,
+    // Pinned so the API-client tests (which assert http://localhost:3000) never
+    // depend on a developer's gitignored .env.local pointing at a real server.
+    env: { VITE_BACKEND_API_URL: "http://localhost:3000" },
   },
 });
