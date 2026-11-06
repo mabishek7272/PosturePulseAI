@@ -59,9 +59,7 @@
       }
     },
     "owner": "airivuinnovationmachina",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/822a48dc-e755-45c7-94cb-0c9c65bff511"
     }

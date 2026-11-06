@@ -1,0 +1,23 @@
+# EAS archives the npm-workspace root. Keep only what the iOS build needs.
+.git/
+.claude/
+node_modules/
+**/node_modules/
+*.zip
+services/
+apps/clinician-web/
+docs/
+logo/
+ios/Pods/
+ios/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
+apps/mobile/.expo/
+apps/mobile/dist/
+# Never upload local notes, server details or design files from the repo root.
+/server.md
+/suggesiton.md
+/posturepulse-technical-reference.md
+/*.pdf
+/*.png
+/*.html
