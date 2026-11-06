@@ -83,6 +83,11 @@ export const ROLL_TOLERANCE_DEG = 3;
 export const PITCH_TOLERANCE_DEG = 5;
 /** RMS keypoint wander (fraction of frame height) over the window below which the subject is "steady". */
 export const STEADY_THRESHOLD = 0.012;
+/**
+ * Once steady, the subject stays "steady" until wander exceeds this multiple of
+ * STEADY_THRESHOLD (hysteresis), so a breath does not flip the check off and on.
+ */
+export const STEADY_RELEASE_FACTOR = 1.3;
 export const STEADY_WINDOW_MS = 1000;
 /** Samples needed in the window before steadiness can be judged. */
 export const STEADY_MIN_SAMPLES = 5;
@@ -249,6 +254,8 @@ export interface GuidanceInput {
   pitchDeg: number | null;
   /** Keypoint wander from MotionTracker, or null when not enough history. */
   motion: number | null;
+  /** The steady check passed on the previous evaluation (enables the release hysteresis). */
+  wasSteady?: boolean;
   /** MoveNet score per keypoint (17). When given, required keypoints must reach MIN_KEY_SCORE. */
   scores?: readonly number[];
 }
@@ -319,7 +326,8 @@ export function evaluateGuidance(input: GuidanceInput): Guidance {
   const pitchKnown = pitchDeg !== null && Number.isFinite(pitchDeg);
   const pitchOk = pitchKnown && pitchDeg! <= PITCH_TOLERANCE_DEG;
   const levelOk = rollDeg !== null && Math.abs(rollDeg) <= ROLL_TOLERANCE_DEG && pitchOk;
-  const steadyOk = personOk && motion !== null && motion <= STEADY_THRESHOLD;
+  const steadyLimit = input.wasSteady ? STEADY_THRESHOLD * STEADY_RELEASE_FACTOR : STEADY_THRESHOLD;
+  const steadyOk = personOk && motion !== null && motion <= steadyLimit;
 
   const ok: Record<CheckId, boolean> = {
     person: personOk,
@@ -353,8 +361,13 @@ export function evaluateGuidance(input: GuidanceInput): Guidance {
   };
 }
 
-/** Keypoints that represent whole-body motion: nose, shoulders, hips. */
-const MOTION_POINTS = [0, 5, 6, 11, 12];
+/**
+ * Keypoints that represent whole-body motion: the hips. Nose and shoulders were
+ * included before, but breathing lifts the shoulders and the head nods with it,
+ * so a subject standing still failed "Hold still" on every breath. The server's
+ * stillness gate (clip_quality.py) also uses the hip midpoint.
+ */
+const MOTION_POINTS = [11, 12];
 
 /**
  * Keeps the last ~1 s of reference keypoints and reports how much they wander.

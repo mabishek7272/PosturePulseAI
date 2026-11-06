@@ -66,6 +66,10 @@ export interface PoseSnapshot {
   scores?: number[];
   /** Mean MoveNet score of the visible keypoints in this frame (0 when none are visible). */
   conf?: number;
+  /** Wall-clock ms each keypoint was last actually detected (see stabilisePts); absent before the first frame. */
+  seenAt?: number[];
+  /** Wall-clock ms of this snapshot. */
+  t?: number;
 }
 
 export const EMPTY_POSE: PoseSnapshot = { pts: new Array(KEYPOINT_COUNT * 2).fill(HIDDEN), w: 0, h: 0 };
@@ -99,6 +103,59 @@ export function decodeMoveNet(raw: ArrayLike<number>, fw: number, fh: number): n
     out[2 * i + 1] = inside ? y : HIDDEN;
   }
   return out;
+}
+
+/** Time constant of the per-keypoint smoothing, ms. Short, so the overlay still follows real movement. */
+export const POSE_SMOOTH_TAU_MS = 120;
+/** A keypoint that drops out is held at its last position this long before it is hidden, ms. */
+export const POSE_HOLD_MS = 300;
+
+/**
+ * Steadies the live keypoints between frames.
+ *
+ * MoveNet jitters by a few pixels frame to frame, and one shaky frame below the
+ * person threshold used to hide the whole skeleton. Here each keypoint is
+ * EMA-smoothed (time constant POSE_SMOOTH_TAU_MS) and, when it drops out, held
+ * at its last position for up to POSE_HOLD_MS before it is hidden. A point
+ * that was never seen stays hidden: nothing is invented.
+ *
+ * This feeds ONLY the on-screen guide and its pre-checks. The clip the server
+ * measures is the raw video; no keypoint from here is ever uploaded.
+ */
+export function stabilisePts(
+  prevPts: readonly number[],
+  prevSeenAt: readonly number[] | undefined,
+  nextPts: readonly number[],
+  dtMs: number,
+  nowMs: number,
+): { pts: number[]; seenAt: number[] } {
+  'worklet';
+  const pts: number[] = new Array(KEYPOINT_COUNT * 2);
+  const seenAt: number[] = new Array(KEYPOINT_COUNT);
+  const alpha = dtMs > 0 ? 1 - Math.exp(-dtMs / POSE_SMOOTH_TAU_MS) : 1;
+  for (let i = 0; i < KEYPOINT_COUNT; i++) {
+    const nx = sample(nextPts, 2 * i);
+    const ny = sample(nextPts, 2 * i + 1);
+    const px = sample(prevPts, 2 * i);
+    const py = sample(prevPts, 2 * i + 1);
+    const last = prevSeenAt ? sample(prevSeenAt, i) : -Infinity;
+    const nextSeen = nx >= 0 && ny >= 0;
+    const prevSeen = px >= 0 && py >= 0;
+    if (nextSeen) {
+      pts[2 * i] = prevSeen ? px + alpha * (nx - px) : nx;
+      pts[2 * i + 1] = prevSeen ? py + alpha * (ny - py) : ny;
+      seenAt[i] = nowMs;
+    } else if (prevSeen && nowMs - last <= POSE_HOLD_MS) {
+      pts[2 * i] = px;
+      pts[2 * i + 1] = py;
+      seenAt[i] = last;
+    } else {
+      pts[2 * i] = HIDDEN;
+      pts[2 * i + 1] = HIDDEN;
+      seenAt[i] = -Infinity;
+    }
+  }
+  return { pts, seenAt };
 }
 
 /** A keypoint counts toward "a person is here" at or above this score (higher than the draw threshold). */

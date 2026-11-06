@@ -28,7 +28,7 @@ import { required } from "../lib/required";
 import { useDeviceTilt } from "../capture/level";
 import { recordingStartHaptic, recoveredHaptic, milestoneHaptic, tickHaptic, warnHaptic } from "../capture/haptics";
 import { EMPTY_POSE, MOVENET_INPUT, decodeMoveNet,
-  personPresent, meanVisibleScore, keypointScores, poseStatusText, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
+  personPresent, meanVisibleScore, keypointScores, poseStatusText, stabilisePts, visibleCount, type PoseSnapshot } from "../capture/pose-overlay";
 import { type ResolvedSequence } from "../capture/battery-steps";
 import { CUES_BY_STEP } from "../capture/poses";
 import { cadenceAt, tagFrames, windowsFor } from "../capture/sub-blocks";
@@ -41,6 +41,7 @@ import { readVideoInfoFromFile } from "../capture/video-info-file";
 import { ArTarget, CentreGuides, CloseGlyph, GuidanceChips, InfoButton, ScanLine, Shutter, SquareGlassButton, ViewProgress, CaptureGlass } from "../components/CaptureChrome";
 import { EdgeGlow, HoldToast, type ToastMessage } from "../components/HoldToast";
 import { isLowQuality, PoseResultCard, RecordingHud } from "../components/CaptureHud";
+import { TelemetryPanel } from "../components/TelemetryPanel";
 import { ScanRing } from "../components/ScanRing";
 import { BubbleLevel2D } from "../components/BubbleLevel2D";
 import { DistanceMeter } from "../components/DistanceMeter";
@@ -213,7 +214,13 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
             // cannot call a non-worklet function from another module.)
             if (output === undefined) return;
             const raw = new Float32Array(output);
-            pose.value = { pts: personPresent(raw, lateralView) ? decodeMoveNet(raw, fw, fh) : EMPTY_POSE.pts, w: fw, h: fh, n: (pose.value.n ?? 0) + 1, conf: meanVisibleScore(raw), scores: keypointScores(raw) };
+            const detected = personPresent(raw, lateralView) ? decodeMoveNet(raw, fw, fh) : EMPTY_POSE.pts;
+            // Smoothed and briefly held across dropouts so a tremor does not
+            // blank the skeleton; display and pre-checks only (stabilisePts).
+            const prev = pose.value;
+            const now = Date.now();
+            const steadied = stabilisePts(prev.pts, prev.seenAt, detected, prev.t === undefined ? 0 : now - prev.t, now);
+            pose.value = { pts: steadied.pts, seenAt: steadied.seenAt, t: now, w: fw, h: fh, n: (prev.n ?? 0) + 1, conf: meanVisibleScore(raw), scores: keypointScores(raw) };
           } finally {
             gpu.dispose();
           }
@@ -255,7 +262,7 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
   hapticRef.current = hapticOn;
   const poseGuideRunning = modelState.state === "loaded" && !resizerState.error && !!resizer;
 
-  const { guidance, beginRecording, endRecording, getLive } = useCaptureAnalysis({
+  const { guidance, telemetry, beginRecording, endRecording, getLive } = useCaptureAnalysis({
     pose,
     view: currentStep.view,
     available: poseGuideRunning,
@@ -679,6 +686,8 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
           </View>
 
           <ViewProgress labels={VIEW_LABELS} current={poseIndex} />
+
+          {result || !poseGuideRunning ? null : <TelemetryPanel telemetry={telemetry} />}
 
           {result ? null : recording && recordingStartedAt !== null ? (
             <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={40} elevated={false} radius={14} style={styles.strip}>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SharedValue } from "react-native-reanimated";
-import { MotionTracker, evaluateGuidance, unavailableGuidance, type Guidance } from "./guidance";
+import { MotionTracker, STEADY_RELEASE_FACTOR, STEADY_THRESHOLD, evaluateGuidance, unavailableGuidance, type Guidance } from "./guidance";
+import { visibleCount } from "./pose-overlay";
 import type { PoseSnapshot } from "./pose-overlay";
 import { addFrame, emptyAccumulator, summarise, type SqiAccumulator, type SqiSummary } from "./sqi";
 
@@ -13,6 +14,33 @@ export interface LiveStats extends SqiSummary {
   /** Subject is steady and framed right now. */
   steadyNow: boolean;
 }
+
+/**
+ * Live sensor readings for the capture screen's readout panel. Display only:
+ * none of this is uploaded or used by the server. `null` = not available now
+ * (shown as a dash, never as 0).
+ */
+export interface Telemetry {
+  rollDeg: number | null;
+  pitchDeg: number | null;
+  /** Keypoint span as a fraction of frame height (the distance gauge's input). */
+  span: number | null;
+  /** RMS hip wander, fraction of frame height. */
+  motion: number | null;
+  /** The limit `motion` is judged against right now (relaxed once steady). */
+  steadyLimit: number;
+  /** Mean MoveNet score of the visible keypoints, 0..1. */
+  confidence: number | null;
+  /** Keypoints currently shown (0-17). */
+  visiblePoints: number;
+}
+
+export const EMPTY_TELEMETRY: Telemetry = {
+  rollDeg: null, pitchDeg: null, span: null, motion: null, steadyLimit: STEADY_THRESHOLD, confidence: null, visiblePoints: 0,
+};
+
+/** Readout refresh interval: fast enough to watch, slow enough not to re-render the camera screen 10x/s. */
+const TELEMETRY_MS = 250;
 
 interface Options {
   pose: SharedValue<PoseSnapshot>;
@@ -34,11 +62,14 @@ interface Options {
  */
 export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }: Options) {
   const [guidance, setGuidance] = useState<Guidance>(unavailableGuidance);
+  const [telemetry, setTelemetry] = useState<Telemetry>(EMPTY_TELEMETRY);
+  const lastTelemetry = useRef(0);
   const keyRef = useRef("");
   const tracker = useRef(new MotionTracker()).current;
   const acc = useRef<SqiAccumulator | null>(null);
   const lastStreak = useRef(0);
   const steadyNow = useRef(false);
+  const wasSteady = useRef(false);
   const lastN = useRef(-1);
   const viewRef = useRef(view);
   viewRef.current = view;
@@ -46,6 +77,7 @@ export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }:
   useEffect(() => {
     tracker.reset();
     lastN.current = -1;
+    wasSteady.current = false;
   }, [view, available, tracker]);
 
   useEffect(() => {
@@ -58,6 +90,7 @@ export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }:
     };
     if (!available) {
       publish(unavailableGuidance());
+      setTelemetry(EMPTY_TELEMETRY);
       return;
     }
     const id = setInterval(() => {
@@ -70,12 +103,26 @@ export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }:
         const tMs = performance.now();
         tracker.push(snap.pts, tMs);
         const motion = tracker.motion();
-        const g = evaluateGuidance({ pts: snap.pts, view: viewRef.current, rollDeg: rollRef.current, pitchDeg: pitchRef.current, motion, scores: snap.scores });
+        const g = evaluateGuidance({ pts: snap.pts, view: viewRef.current, rollDeg: rollRef.current, pitchDeg: pitchRef.current, motion, scores: snap.scores, wasSteady: wasSteady.current });
         // Looked up by id, not by position: `checks[5]` was "steady" only
         // because of the order of an array in another module. Both paths that
         // build `checks` emit all six, so `?? false` is unreachable - and if it
         // ever were reached, "not steady" is the direction that claims nothing.
         const steady = g.checks.find((c) => c.id === "steady")?.ok ?? false; // implies a person; framing is separate
+        const limit = wasSteady.current ? STEADY_THRESHOLD * STEADY_RELEASE_FACTOR : STEADY_THRESHOLD;
+        wasSteady.current = steady;
+        if (tMs - lastTelemetry.current >= TELEMETRY_MS) {
+          lastTelemetry.current = tMs;
+          setTelemetry({
+            rollDeg: rollRef.current,
+            pitchDeg: pitchRef.current,
+            span: g.span,
+            motion,
+            steadyLimit: limit,
+            confidence: g.personOk ? snap.conf ?? null : null,
+            visiblePoints: visibleCount(snap.pts),
+          });
+        }
         steadyNow.current = steady && g.inFrame && g.personOk;
         publish(g);
         const a = acc.current;
@@ -111,5 +158,5 @@ export function useCaptureAnalysis({ pose, view, available, rollRef, pitchRef }:
     return { ...s, streakSeconds: lastStreak.current, steadyNow: steadyNow.current };
   }, []);
 
-  return { guidance, beginRecording, endRecording, getLive };
+  return { guidance, telemetry, beginRecording, endRecording, getLive };
 }

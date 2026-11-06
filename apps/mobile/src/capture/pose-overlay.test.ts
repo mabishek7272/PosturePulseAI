@@ -1,5 +1,6 @@
 import {
   BONES, EMPTY_POSE, personPresent, HIDDEN, NECK_INDEX, boneSegment, coverMap, decodeMoveNet, jointPosition, poseStatusText, visibleCount,
+  POSE_HOLD_MS, stabilisePts,
 } from "./pose-overlay";
 
 function raw(points: Record<number, [number, number, number]>): number[] {
@@ -129,5 +130,44 @@ describe("personPresent", () => {
     const raw = all(0.7);
     for (const k of [5, 6, 11, 12]) raw[k * 3 + 2] = 0.1;
     expect(personPresent(raw)).toBe(false);
+  });
+});
+
+describe("stabilisePts", () => {
+  const one = (x: number, y: number) => {
+    const p = new Array(34).fill(HIDDEN);
+    p[0] = x;
+    p[1] = y;
+    return p;
+  };
+
+  it("passes the first detection straight through", () => {
+    const r = stabilisePts(EMPTY_POSE.pts, undefined, one(0.5, 0.2), 0, 1000);
+    expect(r.pts.slice(0, 2)).toEqual([0.5, 0.2]);
+    expect(r.seenAt[0]).toBe(1000);
+    expect(r.pts[2]).toBe(HIDDEN);
+  });
+
+  it("damps a one-frame jump but follows a sustained move", () => {
+    let s = stabilisePts(EMPTY_POSE.pts, undefined, one(0.5, 0.2), 0, 0);
+    const jumped = stabilisePts(s.pts, s.seenAt, one(0.6, 0.2), 33, 33);
+    expect(jumped.pts[0]!).toBeGreaterThan(0.5);
+    expect(jumped.pts[0]!).toBeLessThan(0.56);
+    s = jumped;
+    for (let t = 66; t <= 1000; t += 33) s = stabilisePts(s.pts, s.seenAt, one(0.6, 0.2), 33, t);
+    expect(s.pts[0]!).toBeCloseTo(0.6, 3);
+  });
+
+  it("holds a point that drops out briefly, then hides it", () => {
+    const s = stabilisePts(EMPTY_POSE.pts, undefined, one(0.5, 0.2), 0, 0);
+    const held = stabilisePts(s.pts, s.seenAt, EMPTY_POSE.pts, 33, POSE_HOLD_MS);
+    expect(held.pts.slice(0, 2)).toEqual([0.5, 0.2]);
+    const gone = stabilisePts(held.pts, held.seenAt, EMPTY_POSE.pts, 33, POSE_HOLD_MS + 1);
+    expect(gone.pts[0]).toBe(HIDDEN);
+  });
+
+  it("never invents a point that was not seen", () => {
+    const r = stabilisePts(EMPTY_POSE.pts, undefined, EMPTY_POSE.pts, 33, 33);
+    expect(r.pts.every((v) => v === HIDDEN)).toBe(true);
   });
 });

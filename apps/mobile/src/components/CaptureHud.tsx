@@ -59,6 +59,11 @@ export function PoseResultCard({
         Longest steady streak {stats.longestSteadySeconds.toFixed(1)} s
         {stats.framesAnalysed > 0 ? ` · ${stats.framesFiltered} of ${stats.framesAnalysed} checked frames filtered out` : ""}
       </Text>
+      {stats.meanRollDegrees !== null || (stats.meanPitchDegrees ?? null) !== null ? (
+        <Text style={styles.stat}>
+          {`Camera during the hold: side tilt ${stats.meanRollDegrees === null ? "–" : `${stats.meanRollDegrees.toFixed(1)}°`}, forward tilt ${stats.meanPitchDegrees == null ? "–" : `${stats.meanPitchDegrees.toFixed(1)}°`}`}
+        </Text>
+      ) : null}
       <Text style={styles.note}>
         Stars describe filming conditions only (framing, steadiness, level). They say nothing about the result. {PRECHECK_NOTE}
       </Text>

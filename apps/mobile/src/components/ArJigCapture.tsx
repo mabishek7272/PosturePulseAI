@@ -254,7 +254,10 @@ export function ArJigCapture({
             rendered as a dash, never coalesced to 0, or the HUD would show a
             reading that was never taken. */}
         <Text style={styles.readings}>
-          {`distance ${fmt(gate?.distance, 2, " m")}   tilt ${fmt(gate?.pitchDegrees, 1, "°")}   height ${fmt(gate?.cameraHeight, 2, " m")}`}
+          {`distance ${fmt(gate?.distance, 2, " m")} (2.3–3.0)   tilt ${fmt(gate?.pitchDegrees, 1, "°")}   side ${fmt(gate?.rollDegrees, 1, "°")}   height ${fmt(gate?.cameraHeight, 2, " m")}`}
+        </Text>
+        <Text style={styles.readings}>
+          {`hold steady ${gate ? Math.round(gate.stabilityProgress * 100) : 0}%   depth ${ARJigModule.hasLiDAR ? (gate?.nearestSurface === undefined ? "no reading" : `nearest ${gate.nearestSurface.toFixed(2)} m`) : "no LiDAR"}`}
         </Text>
 
         {ARJigModule.hasLiDAR ? null : (

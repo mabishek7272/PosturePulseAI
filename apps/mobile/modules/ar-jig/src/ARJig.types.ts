@@ -41,7 +41,7 @@ export interface ARJigGateEvent {
   isOpen: boolean;
   isRecording: boolean;
   matPlaced: boolean;
-  /** 0..1 progress through the stability hold. Resets to 0 on any violation. */
+  /** 0..1 progress through the stability hold. Pauses on a blip under 0.3 s; resets on a longer violation (ARJigStabiliser). */
   stabilityProgress: number;
   /** Frames dropped mid-take because their gravity could not be certified. */
   skippedFrames: number;

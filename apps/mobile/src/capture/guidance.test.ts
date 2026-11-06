@@ -1,7 +1,7 @@
 import { HIDDEN } from "./pose-overlay";
 import {
   DISTANCE_MAX, DISTANCE_MIN, MIN_KEY_SCORE, SAFE_ANKLE_Y_MAX, SAFE_HEAD_Y_MIN, SAFE_X_MAX, SAFE_X_MIN, checkFraming,
-  MotionTracker, ROLL_TOLERANCE_DEG, bodySpan, distanceReading, distanceState, PITCH_TOLERANCE_DEG, PITCH_MESSAGE, evaluateGuidance, unavailableGuidance } from "./guidance";
+  MotionTracker, ROLL_TOLERANCE_DEG, bodySpan, distanceReading, distanceState, PITCH_TOLERANCE_DEG, PITCH_MESSAGE, evaluateGuidance, unavailableGuidance, STEADY_RELEASE_FACTOR, STEADY_THRESHOLD } from "./guidance";
 
 /** Standing person facing the camera, centred, head y=top, ankles y=bottom. */
 function standing(top = 0.12, bottom = 0.84, cx = 0.5): number[] {
@@ -254,5 +254,35 @@ describe("distance meter reading", () => {
   it("evaluateGuidance exposes the same span", () => {
     expect(evaluateGuidance({ pts: standing(), ...ok }).span).toBeCloseTo(0.72);
     expect(unavailableGuidance().span).toBeNull();
+  });
+});
+
+describe("steadiness ignores breathing and does not flicker", () => {
+  it("shoulder and head rise from breathing do not count as movement", () => {
+    const m = new MotionTracker();
+    for (let i = 0; i < 10; i++) {
+      const p = standing();
+      const lift = i % 2 ? 0.02 : -0.02; // shoulders and nose move, hips do not
+      for (const k of [0, 5, 6]) p[2 * k + 1] = p[2 * k + 1]! + lift;
+      m.push(p, i * 100);
+    }
+    expect(m.motion()).toBeCloseTo(0, 6);
+  });
+  it("real hip sway still counts", () => {
+    const m = new MotionTracker();
+    for (let i = 0; i < 10; i++) {
+      const p = standing();
+      for (const k of [11, 12]) p[2 * k] = p[2 * k]! + (i % 2 ? 0.03 : -0.03);
+      m.push(p, i * 100);
+    }
+    expect(m.motion()!).toBeGreaterThan(STEADY_THRESHOLD);
+  });
+  it("once steady, stays steady up to the release factor, then lets go", () => {
+    const steady = (motion: number, wasSteady: boolean) =>
+      evaluateGuidance({ pts: standing(), ...ok, motion, wasSteady }).checks.find((c) => c.id === "steady")!.ok;
+    const between = STEADY_THRESHOLD * 1.15;
+    expect(steady(between, false)).toBe(false);
+    expect(steady(between, true)).toBe(true);
+    expect(steady(STEADY_THRESHOLD * STEADY_RELEASE_FACTOR * 1.01, true)).toBe(false);
   });
 });
