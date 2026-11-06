@@ -51,6 +51,8 @@ final class ARJigEngine: NSObject {
     // MARK: Gate
 
     private var stabilityAccumulated: TimeInterval = 0
+    /// EMA + hysteresis + grace for the gate (see ARJigStabiliser in ARJigCore).
+    private var stabiliser = ARJigStabiliser()
     private var lastFrameTimestamp: TimeInterval?
     private var gateIsOpen = false
     private var lastGateEmit: TimeInterval = 0
@@ -209,6 +211,7 @@ final class ARJigEngine: NSObject {
         matWorldPosition = nil
         floorY = nil
         stabilityAccumulated = 0
+        stabiliser.reset()
     }
 
     /// Auto-places the mat on the first plausible floor plane, so the operator
@@ -258,6 +261,7 @@ final class ARJigEngine: NSObject {
         floorY = position.y
         // Repositioning invalidates any accumulated stability.
         stabilityAccumulated = 0
+        stabiliser.reset()
     }
 
     /// The metric floor template: a translucent 60 x 40 cm mat, two heel pads
@@ -363,7 +367,7 @@ final class ARJigEngine: NSObject {
     }
 
     /// Evaluates every gate condition. Blockers come back in priority order.
-    private func evaluate(_ frame: ARFrame) -> ARJigGateState {
+    private func evaluate(_ frame: ARFrame, dt: TimeInterval) -> ARJigGateState {
         var state = ARJigGateState()
         state.blockers = []
         state.matPlaced = matWorldPosition != nil
@@ -389,12 +393,16 @@ final class ARJigEngine: NSObject {
             state.blockers.append(.trackingUnavailable)
             return state
         }
-        let pitch = ARJigMath.pitchDegrees(gravity)   // 0 = optical axis level
-        let roll = ARJigMath.rollDegrees(gravity)
+        // Smoothed for the gate and the HUD only; the sidecar keeps raw per-frame gravity.
+        let (pitch, roll) = stabiliser.smooth(
+            pitch: ARJigMath.pitchDegrees(gravity),   // 0 = optical axis level
+            roll: ARJigMath.rollDegrees(gravity),
+            dt: dt
+        )
         state.pitchDegrees = pitch
         state.rollDegrees = roll
 
-        if pitch > thresholds.maxPitchDegrees || abs(roll) > thresholds.maxRollDegrees {
+        if !stabiliser.isLevel(pitch: pitch, roll: roll, thresholds) {
             state.blockers.append(.cameraNotLevel(pitch: pitch, roll: roll))
         }
 
@@ -406,13 +414,15 @@ final class ARJigEngine: NSObject {
         let camPos = simd_make_float3(frame.camera.transform.columns.3)
         let height = Double(camPos.y - floorY)
         state.cameraHeight = height
-        if height < thresholds.minCameraHeight { state.blockers.append(.cameraTooLow(height)) }
-        if height > thresholds.maxCameraHeight { state.blockers.append(.cameraTooHigh(height)) }
+        let heightBand = stabiliser.heightCheck(height, thresholds)
+        if heightBand.tooLow { state.blockers.append(.cameraTooLow(height)) }
+        if heightBand.tooHigh { state.blockers.append(.cameraTooHigh(height)) }
 
         let distance = Double(simd_distance(camPos, matPosition))
         state.distance = distance
-        if distance < thresholds.minDistance { state.blockers.append(.tooClose(distance)) }
-        if distance > thresholds.maxDistance { state.blockers.append(.tooFar(distance)) }
+        let distanceBand = stabiliser.distanceCheck(distance, thresholds)
+        if distanceBand.tooClose { state.blockers.append(.tooClose(distance)) }
+        if distanceBand.tooFar { state.blockers.append(.tooFar(distance)) }
 
         if let foreground = sampleForeground(frame) {
             state.nearestSurface = foreground.nearest
@@ -427,20 +437,25 @@ final class ARJigEngine: NSObject {
     }
 
     private func updateGate(with frame: ARFrame) {
-        var state = evaluate(frame)
-
         let dt = lastFrameTimestamp.map { max(0, frame.timestamp - $0) } ?? 0
         lastFrameTimestamp = frame.timestamp
 
-        if state.blockers.isEmpty {
-            stabilityAccumulated = min(thresholds.stabilityHold, stabilityAccumulated + dt)
-        } else {
-            stabilityAccumulated = 0
-        }
+        var state = evaluate(frame, dt: dt)
+
+        // A blocker shorter than the grace window pauses the hold instead of
+        // resetting it (and keeps an open gate open); a longer one resets it.
+        let hold = stabiliser.advanceHold(
+            accumulated: stabilityAccumulated,
+            blocked: !state.blockers.isEmpty,
+            wasOpen: gateIsOpen,
+            dt: dt,
+            hold: thresholds.stabilityHold
+        )
+        stabilityAccumulated = hold.accumulated
         state.stabilityProgress = thresholds.stabilityHold > 0
             ? stabilityAccumulated / thresholds.stabilityHold
             : 1
-        state.isOpen = state.blockers.isEmpty && stabilityAccumulated >= thresholds.stabilityHold
+        state.isOpen = hold.isOpen
         state.isRecording = isRecording
         state.skippedFrames = skippedFrames
 

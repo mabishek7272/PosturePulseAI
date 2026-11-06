@@ -87,11 +87,13 @@ export default function SettingsScreen() {
           <Divider />
           <Row
             Icon={GuidanceIcon}
-            label="Guided setup (testing)"
+            label="Guided AR setup"
             caption={
-              arJigSupported
-                ? "Uses the iPad's floor and depth sensing to position the camera. Not yet tuned for clinic use."
-                : "This iPad does not support it"
+              !arJigSupported
+                ? "This iPad does not support it"
+                : ARJigModule.hasLiDAR
+                  ? "Places a floor mat in AR and holds the record button until the camera is level and at the right distance. Uses LiDAR depth."
+                  : "Places a floor mat in AR and holds the record button until the camera is level and at the right distance. This iPad has no LiDAR, so the floor is found by the camera alone."
             }
             value={arJigSupported ? arJig : false}
             onChange={arJigSupported ? setArJig : undefined}

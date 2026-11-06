@@ -146,30 +146,29 @@ export function useHapticFeedbackPref(): [boolean, (value: boolean) => void] {
 
 // ---- Guided (AR) capture: the ARKit spatial gate + LiDAR depth path ----
 //
-// DEFAULTS TO OFF, unlike every other preference here, and deliberately so.
+// DEFAULTS TO ON (changed 2026-11-06, after the first iPad test scan reported
+// "AR is missing": with the default off, nobody ever saw it).
 //
-// The guided path refuses to record until the iPad is inside a spatial gate
-// whose thresholds (distance 2.3-3.0 m, camera height 0.9-1.3 m, tilt, floor
-// clearance) are engineering defaults that have never been exercised on a real
-// iPad Pro in a real clinic room. A threshold that is too strict does not
-// mis-measure anything - it simply will not let the operator record, which with
-// a patient already standing in front of the camera is the worse failure. So the
-// path ships reachable and off, to be switched on for hardware testing and made
-// the default only once the gates have been tuned against a real room.
+// The gate thresholds (distance 2.3-3.0 m, camera height 0.9-1.3 m, tilt,
+// floor clearance) are still engineering defaults, not tuned in a real clinic
+// room. A too-strict threshold does not mis-measure anything - it delays the
+// record button - and the gate now smooths tilt and tolerates brief blips
+// (ARJigStabiliser), so the remaining risk is a slow setup, not a wrong value.
+// The switch in Settings still turns it off.
 //
-// It also has no effect on a device without ARKit world tracking: the capture
-// screen checks `ARJigModule.isSupported` as well, and falls back to the
-// standard camera path.
+// No effect on a device without ARKit world tracking: the capture screen checks
+// `ARJigModule.isSupported` too and falls back to the standard camera path. A
+// device without LiDAR still runs it; only the depth track is absent.
 
 const AR_JIG_KEY = "pp.pref.arJigCapture";
 const arJigListeners = new Set<Listener>();
 
-/** Read the persisted preference (default OFF - see above). Never throws. */
+/** Read the persisted preference (default ON - see above). Never throws. */
 export async function readArJigCapturePref(): Promise<boolean> {
   try {
-    return parseBoolPref(await SecureStore.getItemAsync(AR_JIG_KEY), false);
+    return parseBoolPref(await SecureStore.getItemAsync(AR_JIG_KEY), true);
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -183,9 +182,9 @@ export async function writeArJigCapturePref(value: boolean): Promise<void> {
 }
 
 /**
- * `[value, setValue]` for guided (AR) capture. Defaults to OFF, and stays OFF
- * until the stored value loads - so a slow SecureStore read can never flash the
- * untuned path in front of a patient.
+ * `[value, setValue]` for guided (AR) capture. Starts OFF until the stored
+ * value loads (then ON unless the clinician turned it off), so the screen never
+ * mounts the AR view and immediately swaps it out.
  */
 export function useArJigCapturePref(): [boolean, (value: boolean) => void] {
   const [value, setValue] = useState(false);

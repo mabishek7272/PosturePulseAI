@@ -127,6 +127,115 @@ public struct ARJigThresholds: Equatable {
     public init() {}
 }
 
+// MARK: - Gate stabiliser
+
+/// Keeps the gate from flickering on tremor and breathing.
+///
+/// Before this, every frame was judged on RAW pitch/roll against a hard line
+/// and a single out-of-range frame reset the 1.5 s stability hold to zero, so a
+/// hand on the stand or a breath turned the mat from green to red and back.
+/// Three things fix that, all of them conservative:
+///
+/// * **EMA** on pitch and roll (`tau` s, same idea as the app's `level.ts`).
+/// * **Hysteresis**: a condition becomes OK at its threshold but stops being OK
+///   only past threshold + margin. `pitchMargin` keeps the exit (3 + 1.5 = 4.5 deg)
+///   far below the server's 12 deg rejection limit, so a green gate is still a
+///   clip the server accepts.
+/// * **Grace**: blockers lasting less than `grace` s neither reset the hold nor
+///   close an already-open gate. Anything longer resets it as before.
+///
+/// It never changes WHAT is measured - the sidecar still carries the raw
+/// per-frame gravity - only when the record button is offered.
+public struct ARJigStabiliser: Equatable {
+    public var tau: TimeInterval = 0.15
+    public var pitchMargin: Double = 1.5
+    public var rollMargin: Double = 1.0
+    public var distanceMargin: Double = 0.10
+    public var heightMargin: Double = 0.05
+    public var grace: TimeInterval = 0.3
+
+    public private(set) var smoothedPitch: Double?
+    public private(set) var smoothedRoll: Double?
+    private var levelOK = false
+    private var distanceOK = false
+    private var heightOK = false
+    private var blockedFor: TimeInterval = 0
+
+    public init() {}
+
+    /// Forget all history (mat moved, session restarted).
+    public mutating func reset() { self = ARJigStabiliser(tau: tau, pitchMargin: pitchMargin, rollMargin: rollMargin, distanceMargin: distanceMargin, heightMargin: heightMargin, grace: grace) }
+
+    public init(tau: TimeInterval, pitchMargin: Double, rollMargin: Double, distanceMargin: Double, heightMargin: Double, grace: TimeInterval) {
+        self.tau = tau
+        self.pitchMargin = pitchMargin
+        self.rollMargin = rollMargin
+        self.distanceMargin = distanceMargin
+        self.heightMargin = heightMargin
+        self.grace = grace
+    }
+
+    /// Exponential moving average with a time constant, so the smoothing is the
+    /// same at 30 and 60 fps. The first sample passes through unchanged.
+    public mutating func smooth(pitch: Double, roll: Double, dt: TimeInterval) -> (pitch: Double, roll: Double) {
+        guard let p = smoothedPitch, let r = smoothedRoll, dt > 0, tau > 0 else {
+            smoothedPitch = pitch
+            smoothedRoll = roll
+            return (pitch, roll)
+        }
+        let alpha = 1 - exp(-dt / tau)
+        let np = p + alpha * (pitch - p)
+        let nr = r + alpha * (roll - r)
+        smoothedPitch = np
+        smoothedRoll = nr
+        return (np, nr)
+    }
+
+    /// Level check with hysteresis on the (smoothed) angles.
+    public mutating func isLevel(pitch: Double, roll: Double, _ t: ARJigThresholds) -> Bool {
+        let pitchLimit = t.maxPitchDegrees + (levelOK ? pitchMargin : 0)
+        let rollLimit = t.maxRollDegrees + (levelOK ? rollMargin : 0)
+        levelOK = pitch <= pitchLimit && abs(roll) <= rollLimit
+        return levelOK
+    }
+
+    /// Distance band with hysteresis. Returns which side is violated, if any.
+    public mutating func distanceCheck(_ d: Double, _ t: ARJigThresholds) -> (tooClose: Bool, tooFar: Bool) {
+        let m = distanceOK ? distanceMargin : 0
+        let close = d < t.minDistance - m
+        let far = d > t.maxDistance + m
+        distanceOK = !close && !far
+        return (close, far)
+    }
+
+    /// Camera height band with hysteresis.
+    public mutating func heightCheck(_ h: Double, _ t: ARJigThresholds) -> (tooLow: Bool, tooHigh: Bool) {
+        let m = heightOK ? heightMargin : 0
+        let low = h < t.minCameraHeight - m
+        let high = h > t.maxCameraHeight + m
+        heightOK = !low && !high
+        return (low, high)
+    }
+
+    /// Advances the stability hold. Returns the new accumulated time and whether
+    /// the gate is open. A blocked spell shorter than `grace` pauses the hold
+    /// instead of resetting it, and keeps an open gate open.
+    public mutating func advanceHold(
+        accumulated: TimeInterval, blocked: Bool, wasOpen: Bool, dt: TimeInterval, hold: TimeInterval
+    ) -> (accumulated: TimeInterval, isOpen: Bool) {
+        if !blocked {
+            blockedFor = 0
+            let acc = min(hold, accumulated + dt)
+            return (acc, acc >= hold)
+        }
+        blockedFor += dt
+        if blockedFor < grace {
+            return (accumulated, wasOpen && accumulated >= hold)
+        }
+        return (0, false)
+    }
+}
+
 /// Why the gate is closed, most blocking first. Fix the camera before the subject.
 public enum ARJigBlocker: Equatable {
     case trackingUnavailable

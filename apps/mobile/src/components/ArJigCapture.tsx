@@ -257,6 +257,12 @@ export function ArJigCapture({
           {`distance ${fmt(gate?.distance, 2, " m")}   tilt ${fmt(gate?.pitchDegrees, 1, "°")}   height ${fmt(gate?.cameraHeight, 2, " m")}`}
         </Text>
 
+        {ARJigModule.hasLiDAR ? null : (
+          <Text style={styles.readings}>
+            No LiDAR on this iPad: the floor is found by the camera alone, and no depth track is recorded.
+          </Text>
+        )}
+
         {isRecording ? (
           <Text style={styles.recording}>
             {`Recording ${Math.round(progress * pose.durationSeconds)}s / ${pose.durationSeconds}s`}
