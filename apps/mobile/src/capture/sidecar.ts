@@ -24,8 +24,23 @@ export class MissingGravityError extends Error {
  * clips.service.ts). Step ids contain dots ("static.anterior"), so they are
  * mapped to underscores; a raw `${sessionId}-${stepId}` is rejected with a 400.
  */
-export function clipIdFor(sessionId: string, stepId: string): string {
-  return `${sessionId}-${stepId.replace(/\./g, "_")}`;
+export function clipIdFor(sessionId: string, stepId: string, take?: string): string {
+  const base = `${sessionId}-${stepId.replace(/\./g, "_")}`;
+  return take ? `${base}-${take}` : base;
+}
+
+/**
+ * A short token that makes each recording's clipId unique. Rescanning a view
+ * uploads a NEW clip for the same step - the server keeps the newest analysed
+ * clip per step for the report - and it answers 409 when a clipId is reused
+ * for different bytes, so every take needs its own id. Four base-36 chars keep
+ * the longest id (uuid + "static.right_lateral" + token) at 62 of the 64 allowed.
+ * A network retry of the SAME upload reuses the same sidecar, so it still replays.
+ */
+export function newTakeId(): string {
+  let out = "";
+  for (let i = 0; i < 4; i += 1) out += Math.floor(Math.random() * 36).toString(36);
+  return out;
 }
 
 /** The sub-phases of a multi-block hold (assessment-battery.schema.json). */

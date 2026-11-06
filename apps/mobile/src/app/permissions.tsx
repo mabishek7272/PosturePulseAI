@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCameraPermission } from "react-native-vision-camera";
 import { MotionIcon, PermCameraIcon, PermMicIcon } from "../components/authIcons";
 import { PrimaryButton } from "../components/Buttons";
-import { DesignSwitch } from "../components/DesignSwitch";
 import { DriftingBlobs, type BlobSpec } from "../components/DriftingBlobs";
 import { FadeUp } from "../components/FadeUp";
 import { GlassCard } from "../components/GlassCard";
@@ -119,8 +118,10 @@ export default function PermissionsScreen() {
               muted
               icon={<PermMicIcon color={colors.textMuted} />}
               title="Microphone"
-              subtitle="Not used yet"
-              right={<DesignSwitch value={false} disabled accessibilityLabel="Microphone, not used yet" />}
+              subtitle="Not needed: no audio is recorded"
+              // A switch here looked broken: nothing records audio
+              // (enableAudio is false), so there is nothing to turn on.
+              right={<Text style={styles.notNeeded} accessibilityLabel="Microphone not needed">Not needed</Text>}
             />
           </View>
 
@@ -145,6 +146,7 @@ export default function PermissionsScreen() {
 }
 
 const styles = StyleSheet.create({
+  notNeeded: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
   root: { flex: 1, backgroundColor: colors.white, overflow: "hidden" },
   content: { flex: 1, paddingHorizontal: 28 },
   column: { flex: 1, width: "100%", maxWidth: 440, alignSelf: "center" },

@@ -11,6 +11,7 @@ import ARJigModule, {
 } from "../../modules/ar-jig";
 import { uploadClip } from "../api/clips";
 import { buildArJigSidecar } from "../capture/ar-jig-sidecar";
+import { newTakeId } from "../capture/sidecar";
 import { ERROR_TEXT, GATE_READY_TEXT, GATE_SETTLING_TEXT, primaryBlockerText } from "../capture/ar-jig-copy";
 import { useBatterySequence } from "../capture/use-battery-sequence";
 import { cadenceAt, windowsFor } from "../capture/sub-blocks";
@@ -51,6 +52,8 @@ export function ArJigCapture({
   const insets = useSafeAreaInsets();
   const view = useRef<ARJigViewRef>(null);
   const [poseIndex, setPoseIndex] = useState(0);
+  // Set after a clip uploads: the clinician chooses to rescan this view or move on.
+  const [saved, setSaved] = useState<{ last: boolean } | null>(null);
   const [gate, setGate] = useState<ARJigGateEvent | null>(null);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -115,6 +118,7 @@ export function ArJigCapture({
           stepId: pose.stepId,
           view: pose.view,
           clip,
+          take: newTakeId(),
         });
         // The module reports the real device model; `device` is passed through
         // from native so the sidecar's provenance names the hardware that
@@ -136,9 +140,7 @@ export function ArJigCapture({
           token: sessionToken,
         });
 
-        const last = poseIndex + 1 >= steps.length;
-        if (last) router.replace({ pathname: "/analysis", params: { sessionId } });
-        else setPoseIndex(poseIndex + 1);
+        setSaved({ last: poseIndex + 1 >= steps.length });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not save that clip.");
       } finally {
@@ -184,7 +186,16 @@ export function ArJigCapture({
   }
 
   const isRecording = gate?.isRecording ?? false;
-  const canRecord = (gate?.isOpen ?? false) && !isRecording && !uploading && !stopped;
+  const canRecord = (gate?.isOpen ?? false) && !isRecording && !uploading && !stopped && !saved;
+
+  const nextView = () => {
+    const last = saved?.last ?? false;
+    setSaved(null);
+    if (last) router.replace({ pathname: "/analysis", params: { sessionId } });
+    else setPoseIndex(poseIndex + 1);
+  };
+  // Same step again; the new clip replaces this one in the report (newest per step).
+  const rescanView = () => setSaved(null);
   const blocker = gate ? primaryBlockerText(gate.blockers, gate.primaryBlocker) : null;
   const status = blocker ?? (gate?.isOpen ? GATE_READY_TEXT : GATE_SETTLING_TEXT);
 
@@ -257,6 +268,25 @@ export function ArJigCapture({
         ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        {saved ? (
+          <View style={styles.savedRow}>
+            <Text style={styles.recording}>{`${pose.title} saved.`}</Text>
+            <View style={styles.savedButtons}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityHint="Records this view again; the views already saved are kept"
+                onPress={rescanView}
+                style={[styles.savedButton, styles.savedButtonSecondary]}
+              >
+                <Text style={styles.savedButtonTextSecondary}>Rescan this view</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={nextView} style={styles.savedButton}>
+                <Text style={styles.savedButtonText}>{saved.last ? "Continue to analysis" : "Next view"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={isRecording ? "Stop recording" : "Start recording"}
@@ -298,6 +328,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   step: { color: colors.textOnDark, fontSize: 15, fontWeight: "600" },
+  savedRow: { gap: 8, alignItems: "center" },
+  savedButtons: { flexDirection: "row", gap: 10, flexWrap: "wrap", justifyContent: "center" },
+  savedButton: { paddingVertical: 11, paddingHorizontal: 20, borderRadius: 14, backgroundColor: colors.accent600 },
+  savedButtonSecondary: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.accent400 },
+  savedButtonText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+  savedButtonTextSecondary: { color: colors.accent300, fontSize: 14, fontWeight: "600" },
   footer: {
     position: "absolute",
     left: 0,

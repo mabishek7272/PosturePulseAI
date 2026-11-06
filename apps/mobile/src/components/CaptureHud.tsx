@@ -41,8 +41,9 @@ export function RecordingHud({
 
 /** Brief per-pose card shown after a clip is uploaded. Never says anything about the clinical result. */
 export function PoseResultCard({
-  title, stats, last, onContinue,
-}: { title: string; stats: ClipStats; last: boolean; onContinue: () => void }) {
+  title, stats, last, onContinue, onRescan,
+}: { title: string; stats: ClipStats; last: boolean; onContinue: () => void; onRescan?: () => void }) {
+  const lowQuality = isLowQuality(stats);
   return (
     <View style={styles.result}>
       <Text style={styles.label}>{title.toUpperCase()} · SAVED</Text>
@@ -61,11 +62,37 @@ export function PoseResultCard({
       <Text style={styles.note}>
         Stars describe filming conditions only (framing, steadiness, level). They say nothing about the result. {PRECHECK_NOTE}
       </Text>
-      <Pressable accessibilityRole="button" onPress={onContinue} style={styles.cta}>
-        <Text style={styles.ctaText}>{last ? "Continue to analysis" : "Next view"}</Text>
-      </Pressable>
+      {lowQuality ? (
+        <Text style={styles.value}>Filming conditions were poor for this view. Rescanning it is recommended.</Text>
+      ) : null}
+      <View style={styles.ctaRow}>
+        {onRescan ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityHint="Records this view again; the views already saved are kept"
+            onPress={onRescan}
+            style={[styles.cta, lowQuality ? null : styles.ctaSecondary]}
+          >
+            <Text style={[styles.ctaText, lowQuality ? null : styles.ctaTextSecondary]}>Rescan this view</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          onPress={onContinue}
+          style={[styles.cta, lowQuality && onRescan ? styles.ctaSecondary : null]}
+        >
+          <Text style={[styles.ctaText, lowQuality && onRescan ? styles.ctaTextSecondary : null]}>
+            {last ? "Continue to analysis" : "Next view"}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
+}
+
+/** Two stars or fewer: filming conditions poor enough to suggest a rescan (display only). */
+export function isLowQuality(stats: Pick<ClipStats, "stars">): boolean {
+  return stats.stars !== null && stats.stars <= 2;
 }
 
 const styles = StyleSheet.create({
@@ -86,4 +113,7 @@ const styles = StyleSheet.create({
   result: { padding: 14, gap: 6, alignItems: "center" },
   cta: { marginTop: 6, paddingVertical: 11, paddingHorizontal: 22, borderRadius: 14, backgroundColor: colors.accent600 },
   ctaText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+  ctaRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
+  ctaSecondary: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.accent400 },
+  ctaTextSecondary: { color: colors.accent300 },
 });

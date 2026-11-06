@@ -34,13 +34,13 @@ import { CUES_BY_STEP } from "../capture/poses";
 import { cadenceAt, tagFrames, windowsFor } from "../capture/sub-blocks";
 import { useBatterySequence } from "../capture/use-battery-sequence";
 import { meanRollFromSamples, medianPitchFromSamples, recordClipStats, type ClipStats } from "../capture/session-stats";
-import { buildSidecar, clipIdFor } from "../capture/sidecar";
+import { buildSidecar, clipIdFor, newTakeId } from "../capture/sidecar";
 import { starsFor } from "../capture/sqi";
 import { useCaptureAnalysis } from "../capture/use-capture-analysis";
 import { readVideoInfoFromFile } from "../capture/video-info-file";
 import { ArTarget, CentreGuides, CloseGlyph, GuidanceChips, InfoButton, ScanLine, Shutter, SquareGlassButton, ViewProgress, CaptureGlass } from "../components/CaptureChrome";
 import { EdgeGlow, HoldToast, type ToastMessage } from "../components/HoldToast";
-import { PoseResultCard, RecordingHud } from "../components/CaptureHud";
+import { isLowQuality, PoseResultCard, RecordingHud } from "../components/CaptureHud";
 import { ScanRing } from "../components/ScanRing";
 import { BubbleLevel2D } from "../components/BubbleLevel2D";
 import { DistanceMeter } from "../components/DistanceMeter";
@@ -268,7 +268,7 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const resultTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [result, setResult] = useState<{ stats: ClipStats; title: string; last: boolean; advance: () => void } | null>(null);
+  const [result, setResult] = useState<{ stats: ClipStats; title: string; last: boolean; advance: () => void; rescan: () => void } | null>(null);
   // Bumped when a clip is abandoned so late recorder callbacks are ignored.
   const runId = useRef(0);
 
@@ -438,6 +438,17 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
     }
   }
 
+  /**
+   * Bottom-bar reset: step back one view to record it again (e.g. the front
+   * view looked wrong once the side view started). Only when idle; the views
+   * before it stay saved, and the new take replaces that step's old clip.
+   */
+  function redoPrevious() {
+    if (busy || stopped || result || poseIndex === 0) return;
+    setError(null);
+    setPoseIndex(poseIndex - 1);
+  }
+
   function abandon() {
     if (countdownTimer.current) {
       clearCountdown();
@@ -491,7 +502,8 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
               return;
             }
             const sidecar = buildSidecar({
-              clipId: clipIdFor(sessionId, currentPose.stepId),
+              // Unique per take: a rescan of this view is a new clip, not a replay.
+              clipId: clipIdFor(sessionId, currentPose.stepId, newTakeId()),
               sessionId,
               stepId: currentPose.stepId,
               view: currentPose.view,
@@ -522,8 +534,17 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
               if (!last) setPoseIndex(poseIndex + 1);
               else router.replace({ pathname: "/analysis", params: { sessionId } });
             };
-            setResult({ stats, title: currentPose.title, last, advance });
-            resultTimer.current = setTimeout(advance, RESULT_CARD_MS);
+            // Rescan keeps poseIndex: only this view is recorded again. The
+            // server reports the newest analysed clip per step, so the new take
+            // replaces this one and the views already saved are untouched.
+            const rescan = () => {
+              if (resultTimer.current) clearTimeout(resultTimer.current);
+              resultTimer.current = null;
+              setResult(null);
+            };
+            setResult({ stats, title: currentPose.title, last, advance, rescan });
+            // A poor take waits for the clinician's choice instead of moving on by itself.
+            if (!isLowQuality(stats)) resultTimer.current = setTimeout(advance, RESULT_CARD_MS);
           } catch (err) {
             setError(err instanceof Error ? err.message : "Could not save that clip.");
           }
@@ -731,7 +752,11 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
                   <CloseGlyph />
                 </SquareGlassButton>
               ) : (
-                <SquareGlassButton label="Reset (not available)" disabled>
+                <SquareGlassButton
+                  label={poseIndex > 0 ? "Redo the previous view" : "Redo the previous view (this is the first view)"}
+                  onPress={redoPrevious}
+                  disabled={poseIndex === 0 || stopped || !!countdownTimer.current}
+                >
                   <RefreshIcon size={20} color={colors.accent300} strokeWidth={1.8} />
                 </SquareGlassButton>
               )}
@@ -752,7 +777,7 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
       {result ? (
         <View style={styles.resultWrap} pointerEvents="box-none">
           <GlassCard tint="dark" fill={colors.captureCard} ring={colors.captureRingSoft} intensity={50} elevated={false} radius={18} style={styles.resultCard}>
-            <PoseResultCard title={result.title} stats={result.stats} last={result.last} onContinue={result.advance} />
+            <PoseResultCard title={result.title} stats={result.stats} last={result.last} onContinue={result.advance} onRescan={result.rescan} />
           </GlassCard>
         </View>
       ) : null}

@@ -28,6 +28,8 @@ export function buildArJigSidecar(input: {
   /** "anterior" | "posterior" | "left_lateral" | "right_lateral". */
   view: string;
   clip: ARJigRecordedClip;
+  /** Per-recording token (`newTakeId`), so a rescanned view gets its own clipId. */
+  take?: string;
 }): ClipCapture {
   const { clip } = input;
 
@@ -67,7 +69,7 @@ export function buildArJigSidecar(input: {
   const depth = depthBlock(clip);
 
   return {
-    clipId: clipIdFor(input.sessionId, input.stepId),
+    clipId: clipIdFor(input.sessionId, input.stepId, input.take),
     sessionId: input.sessionId,
     stepId: input.stepId,
     view: input.view,

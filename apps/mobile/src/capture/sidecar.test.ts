@@ -1,5 +1,5 @@
 import type { GravitySample } from "./gravity";
-import { buildSidecar, clipIdFor, InvalidFrameTimingError, MissingGravityError } from "./sidecar";
+import { buildSidecar, clipIdFor, InvalidFrameTimingError, MissingGravityError, newTakeId } from "./sidecar";
 
 const device = { model: "iPhone16,1", lens: "back_wide" as const, appVersion: "1.0.0" };
 
@@ -148,5 +148,17 @@ describe("clipIdFor", () => {
 
   it("is distinct per step so each pose stores its own clip", () => {
     expect(clipIdFor(sessionId, "static.anterior")).not.toBe(clipIdFor(sessionId, "static.posterior"));
+  });
+
+  it("gives each take of the same step its own id, still within the server's limit", () => {
+    const a = clipIdFor(sessionId, "static.right_lateral", newTakeId());
+    const b = clipIdFor(sessionId, "static.right_lateral", "zzzz");
+    expect(a).toMatch(SAFE_CLIP_ID);
+    expect(b).toMatch(SAFE_CLIP_ID);
+    expect(a).not.toBe(clipIdFor(sessionId, "static.right_lateral"));
+  });
+
+  it("makes four-character base-36 take tokens", () => {
+    for (let i = 0; i < 50; i += 1) expect(newTakeId()).toMatch(/^[0-9a-z]{4}$/);
   });
 });
