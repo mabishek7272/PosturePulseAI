@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import Animated, { Easing, useAnimatedProps, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, G, Line, Path } from "react-native-svg";
-import { listMetricResults, MetricResult } from "../api/events";
+import { listReportResults, MetricResult } from "../api/events";
 import { UnauthorizedError } from "../api/http";
 import { findPatientHistory, latestEarlierWithResults, type PatientHistory } from "../api/patientHistory";
 import type { PatientSession } from "../api/patients";
@@ -18,8 +18,8 @@ import { ShareIcon, SparkleIcon } from "../components/icons";
 import { GrowWidth, RingPulse } from "../components/Motion";
 import { MAX_CONTENT_WIDTH } from "../components/Screen";
 import {
-  barLayout, coverage, formatValueParts, heroSummary, metricLabel, formatResult, positionLabel,
-  referenceCaption, regionItems, resultKind, ringFraction, type PositionBucket,
+  barLayout, coverage, formatValueParts, hasReferenceComparison, heroSummary, metricLabel, formatResult,
+  NO_REFERENCE_CAPTION, positionLabel, referenceCaption, regionItems, resultKind, ringFraction, type PositionBucket,
 } from "../lib/results";
 import { colors, gradients } from "../theme/colors";
 import { radii } from "../theme/radii";
@@ -102,10 +102,14 @@ function MetricCard({ r }: { r: MetricResult }) {
             </>
           ) : null}
         </View>
-        <View style={styles.captionRow}>
-          <Text style={styles.captionText}>{positionLabel(r)}</Text>
-          <Text style={styles.captionText}>{referenceCaption(r)}</Text>
-        </View>
+        {hasReferenceComparison(r) ? (
+          <View style={styles.captionRow}>
+            <Text style={styles.captionText}>{positionLabel(r)}</Text>
+            <Text style={styles.captionText}>{referenceCaption(r)}</Text>
+          </View>
+        ) : (
+          <Text style={styles.captionText}>{NO_REFERENCE_CAPTION}</Text>
+        )}
       </View>
     </GlassCard>
   );
@@ -152,7 +156,7 @@ export default function ResultsScreen() {
       try {
         const token = await getClinicianToken();
         if (!token) return router.replace("/login");
-        const found = await listMetricResults(sessionId, token);
+        const found = await listReportResults(sessionId, token);
         if (!cancelled) setResults(found);
       } catch (err) {
         if (cancelled) return;

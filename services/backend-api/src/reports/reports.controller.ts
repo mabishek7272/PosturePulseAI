@@ -34,6 +34,16 @@ export class SessionReportsController {
     return this.reports.build(sessionId, req.user.sub);
   }
 
+  /** Rows a draft would contain right now; stores nothing (the capture app's results screen). */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("clinician")
+  @UseInterceptors(AuditLogInterceptor)
+  @AuditAction("preview_report")
+  @Get(":id/report-preview")
+  preview(@Param("id") sessionId: string) {
+    return this.reports.preview(sessionId);
+  }
+
   /** Subject token -> a long-lived token that can only read this session's released report. */
   @UseGuards(JwtAuthGuard, SessionOwnershipGuard)
   @Post(":id/report-access")

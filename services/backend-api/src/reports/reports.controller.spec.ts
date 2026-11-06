@@ -15,6 +15,7 @@ const clinicianReq = { user: { sub: "clin1", username: "dr", role: "clinician" }
 // eslint-disable-next-line @typescript-eslint/ban-types
 const CLINICIAN_ROUTES: Array<[string, Function, string, string]> = [
   ["POST /sessions/:id/report", SessionReportsController, "build", "build_report"],
+  ["GET /sessions/:id/report-preview", SessionReportsController, "preview", "preview_report"],
   ["GET /reports", ReportsController, "list", "list_reports"],
   ["GET /reports/:id", ReportsController, "get", "view_report"],
   ["POST /reports/:id/rows/exclude", ReportsController, "exclude", "exclude_report_row"],

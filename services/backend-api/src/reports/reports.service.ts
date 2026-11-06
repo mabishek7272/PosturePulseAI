@@ -100,6 +100,31 @@ export class ReportsService implements OnApplicationBootstrap {
   }
 
   async build(sessionId: string, _clinicianId: string): Promise<AssessmentReportBody> {
+    const { body, reportId, reportVersion } = await this.compose(sessionId);
+    try {
+      await this.prisma.assessmentReport.create({
+        data: { id: reportId, sessionId, reportVersion, status: "draft", body: body as unknown as object },
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === "P2002") {
+        throw new ConflictException("Another report version was built at the same time; try again.");
+      }
+      throw error;
+    }
+    return body;
+  }
+
+  /**
+   * The rows a draft built now would contain, without storing a report version.
+   * The capture app's results screen reads this: POST :id/report writes a new
+   * version on every call, so a screen that is opened repeatedly must not use it.
+   */
+  async preview(sessionId: string): Promise<AssessmentReportBody> {
+    return (await this.compose(sessionId)).body;
+  }
+
+  /** Builds and validates a report body for the session's current results. Writes nothing. */
+  private async compose(sessionId: string): Promise<{ body: AssessmentReportBody; reportId: string; reportVersion: number }> {
     const session = await this.prisma.session.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException(`Session ${sessionId} not found.`);
 
@@ -138,18 +163,7 @@ export class ReportsService implements OnApplicationBootstrap {
       throw error;
     }
     this.assertValid(body);
-
-    try {
-      await this.prisma.assessmentReport.create({
-        data: { id: reportId, sessionId, reportVersion, status: "draft", body: body as unknown as object },
-      });
-    } catch (error) {
-      if ((error as { code?: string }).code === "P2002") {
-        throw new ConflictException("Another report version was built at the same time; try again.");
-      }
-      throw error;
-    }
-    return body;
+    return { body, reportId, reportVersion };
   }
 
   async list(status?: string): Promise<ReportSummary[]> {

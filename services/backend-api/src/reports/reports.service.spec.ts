@@ -218,6 +218,30 @@ describe("ReportsService.build", () => {
   });
 });
 
+describe("ReportsService.preview", () => {
+  it("returns the rows a draft would contain and stores nothing", async () => {
+    const { service, store, prisma } = setup();
+    const body = await service.preview("s1");
+    expect(body.rows).toHaveLength(POSTERIOR.metricKeys.length);
+    expect(getValidator("assessment-report")(body)).toBe(true);
+    expect(store).toHaveLength(0);
+    expect(prisma.assessmentReport.create).not.toHaveBeenCalled();
+  });
+
+  it("can be called repeatedly without moving the report version", async () => {
+    const { service, store } = setup({ reports: [draftRow({ id: "rep-1", reportVersion: 1 })] });
+    await service.preview("s1");
+    const again = await service.preview("s1");
+    expect(again.reportVersion).toBe(2);
+    expect(store).toHaveLength(1);
+  });
+
+  it("is 409 when no clip has been analysed yet, like build", async () => {
+    const { service } = setup({ clips: [{ id: "c1", stepId: "static.posterior", status: "uploaded", createdAt: at(1) }], results: [] });
+    await expect(service.preview("s1")).rejects.toThrow(ConflictException);
+  });
+});
+
 describe("ReportsService.list and get", () => {
   it("lists summaries with the session's safety state", async () => {
     const { service } = setup({ reports: [draftRow()] });

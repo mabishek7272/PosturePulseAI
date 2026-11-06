@@ -6,7 +6,37 @@ import type { MetricResult } from "../api/events";
  */
 
 export function unitSuffix(unit?: string): string {
-  return unit === "deg" ? "°" : unit ? ` ${unit}` : "";
+  if (unit === "deg") return "°";
+  if (unit === "percent_stature") return "% of height";
+  return unit ? ` ${unit}` : "";
+}
+
+/**
+ * Plain-language wording per quality-gate reason. Mirrors the backend's
+ * REASON_WORDS (services/backend-api/src/reports/report-templates.ts) so the
+ * app and the report say the same thing; an unknown code is shown as-is.
+ */
+export const REASON_WORDS: Record<string, string> = {
+  insufficient_landmarks: "body landmarks were not detected well enough",
+  insufficient_scale: "no scale reference was available",
+  identity_uncertain: "the person could not be tracked reliably",
+  anchor_drift: "the camera reference drifted",
+  low_confidence: "landmark confidence was too low",
+  occlusion: "part of the body was hidden",
+  wrong_view: "the body was not facing the way this step needs",
+  out_of_frame: "part of the body was outside the picture",
+  camera_not_level: "the camera was not level",
+  insufficient_frame_rate: "the frame rate was too low",
+  insufficient_frames: "there were too few usable video frames",
+  subject_moving: "the person moved during the hold",
+  depth_unavailable: "the depth sensor recording was not available",
+  insufficient_depth_samples: "the depth sensor returned too few readings on the body",
+  depth_landmark_disagreement: "the depth readings at one body point were not consistent",
+  torso_plane_underdetermined: "the trunk landmarks were too close to a straight line to measure from",
+};
+
+export function reasonWords(reasons: string[]): string {
+  return reasons.map((r) => REASON_WORDS[r] ?? r).join("; ");
 }
 
 /** One-line text form. Unmeasured rows state their reason - never blank, never zero. */
@@ -16,7 +46,7 @@ export function formatResult(result: MetricResult): string {
     const sign = value >= 0 ? "+" : "";
     return `${sign}${value.toFixed(1)} ± ${uncertainty.toFixed(1)}${unitSuffix(result.unit)}`;
   }
-  if (result.unsupported) return `Not measured — ${result.unsupported.reasons.join(", ")}`;
+  if (result.unsupported) return `Not measured — ${reasonWords(result.unsupported.reasons)}`;
   if (result.notMeasurable) return `Not measurable — ${result.notMeasurable.reason}`;
   return "No result recorded";
 }
@@ -31,7 +61,8 @@ export function resultKind(r: MetricResult): ResultKind {
 }
 
 /** "static.shoulder_line_tilt" + "left" -> "Shoulder line tilt (left)". Descriptive only. */
-export function metricLabel(r: Pick<MetricResult, "metricKey" | "side">): string {
+export function metricLabel(r: Pick<MetricResult, "metricKey" | "side" | "label">): string {
+  if (r.label) return r.side ? `${r.label} (${r.side})` : r.label;
   const base = r.metricKey.includes(".") ? r.metricKey.slice(r.metricKey.indexOf(".") + 1) : r.metricKey;
   const words = base.replace(/[_-]+/g, " ").trim();
   const title = words ? words.charAt(0).toUpperCase() + words.slice(1) : r.metricKey;
@@ -103,7 +134,7 @@ export function heroSummary(c: Coverage): { title: string; sub: string } {
   if (c.total === 0) return { title: "No metrics returned", sub: "Nothing to show yet" };
   const parts: string[] = [];
   if (c.withReference > 0) parts.push(`${c.outside} outside reference`);
-  else parts.push("No reference data");
+  else parts.push("No reference comparisons");
   if (c.unmeasured > 0) parts.push(`${c.unmeasured} not measured`);
   return { title: `${c.measured} of ${c.total} measured`, sub: parts.join(" · ") };
 }
@@ -156,3 +187,11 @@ export function barLayout(r: MetricResult): BarLayout | null {
 export function referenceCaption(r: MetricResult): string {
   return r.reference?.label ? `Reference ${r.reference.label}` : "No reference available";
 }
+
+/** True when the row carries a real reference comparison worth two captions. */
+export function hasReferenceComparison(r: MetricResult): boolean {
+  return !!r.reference && (r.position === "below" || r.position === "within" || r.position === "above" || r.position === "indeterminate");
+}
+
+/** The single caption for a measured row with no reference: said once, not twice. */
+export const NO_REFERENCE_CAPTION = "No reference value is set for this measurement";

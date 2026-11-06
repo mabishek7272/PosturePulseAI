@@ -2,6 +2,7 @@ import type { MetricResult } from "../api/events";
 import {
   barLayout, coverage, formatResult, formatValueParts, heroSummary, metricLabel, positionBucket,
   positionLabel, referenceCaption, regionItems, resultKind, ringFraction,
+  hasReferenceComparison, reasonWords, unitSuffix,
 } from "./results";
 
 const est = (extra: Partial<MetricResult> = {}): MetricResult => ({
@@ -16,7 +17,7 @@ describe("formatResult (semantics unchanged)", () => {
     expect(formatResult(est({ estimate: { value: -2.04, uncertainty: 0.5 }, unit: "cm" }))).toBe("-2.0 ± 0.5 cm");
   });
   it("keeps unsupported and not-measurable explicit, never numeric", () => {
-    expect(formatResult(unsupported)).toBe("Not measured — low_confidence, out_of_frame");
+    expect(formatResult(unsupported)).toBe("Not measured — landmark confidence was too low; part of the body was outside the picture");
     expect(formatResult(notMeasurable)).toBe("Not measurable — needs a force plate");
     expect(formatResult({ metricKey: "x" })).toBe("No result recorded");
     expect(formatResult(unsupported)).not.toMatch(/\d/);
@@ -59,7 +60,7 @@ describe("coverage and hero", () => {
   });
   it("summarises", () => {
     expect(heroSummary(coverage(all))).toEqual({ title: "2 of 4 measured", sub: "1 outside reference · 2 not measured" });
-    expect(heroSummary(coverage([est()]))).toEqual({ title: "1 of 1 measured", sub: "No reference data" });
+    expect(heroSummary(coverage([est()]))).toEqual({ title: "1 of 1 measured", sub: "No reference comparisons" });
     expect(heroSummary(coverage([])).title).toBe("No metrics returned");
   });
 });
@@ -93,5 +94,23 @@ describe("barLayout", () => {
   it("captions", () => {
     expect(referenceCaption(est())).toBe("No reference available");
     expect(referenceCaption(est({ reference: { label: "0–5°", min: 0, max: 5 } }))).toBe("Reference 0–5°");
+  });
+});
+
+describe("report-row wording", () => {
+  it("states a missing reference once, and only real comparisons get two captions", () => {
+    expect(hasReferenceComparison(est())).toBe(false);
+    expect(hasReferenceComparison(est({ position: "no_reference", reference: null }))).toBe(false);
+    expect(hasReferenceComparison(est({ position: "within", reference: { label: "0°", value: 0 } }))).toBe(true);
+    expect(hasReferenceComparison(est({ position: "indeterminate", reference: { label: "0°", value: 0 } }))).toBe(true);
+  });
+  it("uses plain words for reasons and keeps an unknown code visible", () => {
+    expect(reasonWords(["subject_moving", "new_code"])).toBe("the person moved during the hold; new_code");
+  });
+  it("names the stature unit in words", () => {
+    expect(unitSuffix("percent_stature")).toBe("% of height");
+  });
+  it("prefers the catalog label on report rows", () => {
+    expect(metricLabel({ metricKey: "static.x", label: "Shoulder line tilt", side: "left" })).toBe("Shoulder line tilt (left)");
   });
 });
