@@ -29,4 +29,7 @@ CLIP_MODEL_VERSION = f"mediapipe-pose-full/{mediapipe.__version__}"
 # Version of the metric registry (app/metrics/static_metrics.py). Bump whenever
 # a definition, sign convention, quality threshold or the uncertainty model
 # changes, so results computed under different rules are never mixed silently.
-METRICS_VERSION = "metrics/v1"
+# v2 (2026-11-06): the stillness gate median-filters the hip track over 5
+# frames and measures the stillest contiguous part of the hold (at least the
+# minimum share of it) instead of failing the whole clip on one movement.
+METRICS_VERSION = "metrics/v2"

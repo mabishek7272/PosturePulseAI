@@ -9,6 +9,7 @@ or empirically derived; revisit with Study A data.
 """
 from __future__ import annotations
 
+import math
 import statistics
 from collections import Counter
 from dataclasses import dataclass, field
@@ -25,6 +26,13 @@ MIN_USABLE_FRAMES = 10
 MIN_USABLE_FRACTION = 0.5
 LATERAL_MAX_SHOULDER_WIDTH_RATIO = 0.35
 MAX_HIP_SD_FRACTION = 0.02
+# metrics/v2: the hip track is median-filtered over this many frames before
+# its spread is measured. A rolling median drops single-frame landmark jitter
+# spikes (the model, not the person) but keeps real movement: a 5-frame window
+# is 0.17 s at 30 fps, so a sway at 1.6 Hz keeps most of its amplitude. A
+# low-pass filter was rejected for this job because a cutoff low enough to
+# matter would also erase fast real movement.
+HIP_MEDIAN_FRAMES = 5
 # A frame-level reason is reported for the clip when it affected at least this
 # share of the hold's frames (the most frequent one is always reported).
 REPORT_FRAME_REASON_FRACTION = 0.10
@@ -134,6 +142,62 @@ def _measured_fps(observations: list[FrameObservation]) -> float | None:
     return (len(observations) - 1) / span
 
 
+def _spread(track: np.ndarray) -> float:
+    """Radial SD of a 2D track (pixels)."""
+    return float(np.sqrt(np.var(track[:, 0]) + np.var(track[:, 1])))
+
+
+def _rolling_median(track: np.ndarray, k: int) -> np.ndarray:
+    """Centred rolling median of an (N, 2) track; the window shrinks at the ends."""
+    if k <= 1 or len(track) < 3:
+        return track
+    half = k // 2
+    out = np.empty_like(track, dtype=float)
+    for i in range(len(track)):
+        lo, hi = max(0, i - half), min(len(track), i + half + 1)
+        out[i] = np.median(track[lo:hi], axis=0)
+    return out
+
+
+def still_window(track: np.ndarray, *, min_frames: int, limit: float) -> tuple[int, int] | None:
+    """The longest contiguous run of `track` whose spread is within `limit`.
+
+    Returns (start, stop) as slice bounds, (0, len) when the whole track is
+    still, or None when no run of at least `min_frames` is. Searched from the
+    stillest run of exactly `min_frames`, then grown one frame at a time on
+    whichever side keeps the spread lower, while it stays within `limit` and
+    the new frame lies within 2 x `limit` of the run's median position.
+    """
+    n = len(track)
+    if n < min_frames or min_frames <= 0:
+        return None
+    if _spread(track) <= limit:
+        return (0, n)
+    best_start, best = -1, math.inf
+    for start in range(0, n - min_frames + 1):
+        s = _spread(track[start : start + min_frames])
+        if s < best:
+            best_start, best = start, s
+    if best > limit:
+        return None
+    lo, hi = best_start, best_start + min_frames
+    while True:
+        # A frame joins only if it sits near where the person was standing
+        # (within 2 x limit of the window's median position). Without this, a
+        # few frames after a real step slip in: a handful of outliers among
+        # hundreds of still frames barely moves the SD.
+        centre = np.median(track[lo:hi], axis=0)
+        options = []
+        if lo > 0 and np.linalg.norm(track[lo - 1] - centre) <= 2 * limit:
+            options.append((_spread(track[lo - 1 : hi]), lo - 1, hi))
+        if hi < n and np.linalg.norm(track[hi] - centre) <= 2 * limit:
+            options.append((_spread(track[lo : hi + 1]), lo, hi + 1))
+        options = [o for o in options if o[0] <= limit]
+        if not options:
+            return (lo, hi)
+        _, lo, hi = min(options)
+
+
 def assess_clip(
     observations: list[FrameObservation],
     *,
@@ -199,9 +263,25 @@ def assess_clip(
                 for p in usable
             ]
         )
-        spread = float(np.sqrt(np.var(hips[:, 0]) + np.var(hips[:, 1])))
-        if spread > MAX_HIP_SD_FRACTION * body_height:
+        limit = MAX_HIP_SD_FRACTION * body_height
+        window = still_window(
+            _rolling_median(hips, HIP_MEDIAN_FRAMES),
+            min_frames=math.ceil(max(MIN_USABLE_FRAMES, MIN_USABLE_FRACTION * expected)),
+            limit=limit,
+        )
+        if window is None:
             reasons.append("subject_moving")
+        elif window != (0, len(usable)):
+            # Measure only the part of the hold where the person was still. The
+            # frames outside it are marked, not silently dropped (rule 3), and the
+            # window is still at least the minimum share of the hold.
+            start, stop = window
+            kept = set(usable[start:stop])
+            for pos in usable:
+                if pos not in kept:
+                    frames[pos] = FrameQuality(observations[pos].index, observations[pos].t, "unusable", ["subject_moving"])
+            usable = usable[start:stop]
+            body_height = float(np.median([_body_height_px(corrected[p], view) for p in usable]))
 
     return ClipQuality(
         view=view,

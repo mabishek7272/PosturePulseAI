@@ -173,3 +173,65 @@ def test_frame_details_are_reported_per_frame():
     assert q.frames[0].status == "skipped"
     assert q.frames[35].status == "usable"
     assert q.frames[35].reasons == []
+
+
+# --- metrics/v2 stillness gate: jitter-tolerant, keeps the still part -------
+
+
+def test_single_frame_jitter_spikes_do_not_fail_the_hold():
+    # Every 7th frame the hip landmarks jump 6% of body height for one frame:
+    # model jitter, not a person moving. v1's plain SD failed this clip.
+    base = anterior_pose()
+    hips = {"left_hip", "right_hip"}
+
+    def jittery(i):
+        dx = 0.06 * BASE_H if i % 7 == 0 else 0.0
+        return {name: ((x + dx) if name in hips else x, y) for name, (x, y) in base.items()}
+
+    q = _assess(make_frames(jittery, n=150))
+    assert q.clip_reasons == []
+
+
+def test_breathing_sized_sway_is_still():
+    base = anterior_pose()
+
+    def breathing(i):  # 0.25 Hz, 0.8% of body height
+        dy = 0.008 * BASE_H * math.sin(2 * math.pi * 0.25 * i / 30.0)
+        return {name: (x, y + dy) for name, (x, y) in base.items()}
+
+    assert _assess(make_frames(breathing, n=300)).clip_reasons == []
+
+
+def test_a_step_late_in_the_hold_keeps_the_still_part():
+    # Still for 8 s, then shifts 10% of body height sideways for the last 2 s.
+    base = anterior_pose()
+
+    def shifted(i):
+        dx = 0.10 * BASE_H if i >= 270 else 0.0
+        return {name: (x + dx, y) for name, (x, y) in base.items()}
+
+    q = _assess(make_frames(shifted, n=330))
+    assert q.clip_reasons == []
+    assert q.usable_indices[0] == 30
+    assert max(q.usable_indices) < 270 + 3  # the moved frames are not measured
+    moved = [f for f in q.frames if f.status == "unusable"]
+    assert moved and all(f.reasons == ["subject_moving"] for f in moved)
+    assert len(q.usable_indices) >= 0.5 * q.expected_frames
+
+
+def test_movement_through_most_of_the_hold_is_still_flagged():
+    base = anterior_pose()
+
+    def wandering(i):  # slow drift across 20% of body height over the whole hold
+        dx = 0.20 * BASE_H * i / 300.0
+        return {name: (x + dx, y) for name, (x, y) in base.items()}
+
+    assert _assess(make_frames(wandering, n=300)).clip_reasons == ["subject_moving"]
+
+
+def test_still_window_returns_whole_track_when_still():
+    from app.quality.clip_quality import still_window
+
+    track = np.zeros((40, 2))
+    assert still_window(track, min_frames=20, limit=1.0) == (0, 40)
+    assert still_window(track, min_frames=50, limit=1.0) is None

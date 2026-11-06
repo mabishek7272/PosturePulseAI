@@ -17,7 +17,7 @@ def test_catalog_lists_every_registry_metric_with_its_convention():
     resp = client.get("/internal/metrics/catalog")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["metricsVersion"] == METRICS_VERSION == "metrics/v1"
+    assert body["metricsVersion"] == METRICS_VERSION == "metrics/v2"
     by_key = {m["metricKey"]: m for m in body["metrics"]}
     assert set(by_key) == set(STATIC_METRICS) | set(DEPTH_METRIC_KEYS)
     for key, m in by_key.items():
