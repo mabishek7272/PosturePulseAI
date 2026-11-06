@@ -29,21 +29,25 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
+      <div className="login-brand">
+        <img className="login-brand__emblem" src={`${import.meta.env.BASE_URL}emblem.png`} alt="" width="300" height="259" />
+        <h2 className="login-brand__title">
+          PosturePulse <span>Pro</span>
+        </h2>
+        <p className="login-brand__line">Clinician-supervised posture measurement. Every value comes with its uncertainty, and the interpretation is yours.</p>
+      </div>
       <form className="login-form" onSubmit={handleSubmit}>
         <h1>Clinician login</h1>
-        <p className="page-caption">
-          Accounts are provisioned with services/backend-api/scripts/seed-clinician.ts - there is no
-          self-service signup this phase (docs/adr/010-clinician-authentication.md).
-        </p>
+        <p className="page-caption">Sign in with the account your clinic administrator created for you.</p>
         <label>
           Username
-          <input value={username} onChange={(event) => setUsername(event.target.value)} autoFocus />
+          <input value={username} onChange={(event) => setUsername(event.target.value)} autoFocus autoComplete="username" />
         </label>
         <label>
           Password
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
         </label>
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
         <button type="submit" disabled={submitting || !username || !password}>
           {submitting ? "Signing in..." : "Sign in"}
         </button>

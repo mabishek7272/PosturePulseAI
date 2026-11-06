@@ -11,18 +11,20 @@
   display: grid;
   grid-template-columns: 180px 160px 1fr;
   gap: 12px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: #f9fafb;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
   font-size: 0.85rem;
 }
 
 .event-timeline__item--attention {
-  background: #fef2f2;
+  background: var(--caution-bg);
+  border-color: #fed7aa;
 }
 
 .event-timeline__time {
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .event-timeline__type {
@@ -30,6 +32,6 @@
 }
 
 .event-timeline__empty {
-  color: #6b7280;
+  color: var(--muted);
   font-style: italic;
 }

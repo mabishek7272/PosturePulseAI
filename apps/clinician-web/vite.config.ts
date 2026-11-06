@@ -3,7 +3,10 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Served under /dashboard/ on the same host as the API (no CORS, no new DNS);
+  // `vite` in dev keeps "/".
+  base: command === "build" ? "/dashboard/" : "/",
   plugins: [react()],
   test: {
     // Explicit, so test discovery never depends on where vitest is launched
@@ -17,4 +20,4 @@ export default defineConfig({
     // depend on a developer's gitignored .env.local pointing at a real server.
     env: { VITE_BACKEND_API_URL: "http://localhost:3000" },
   },
-});
+}));
