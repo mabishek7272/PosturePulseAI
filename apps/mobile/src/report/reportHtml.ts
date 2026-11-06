@@ -21,11 +21,11 @@ export interface ReportPdfInput {
 /**
  * Footer wording. Mirrors docs/claims-and-scope.md: draft, not clinically
  * validated, describes visible geometry, and leaves interpretation to the
- * clinician. Never a diagnosis or a score.
+ * clinician. Checked against references/banned-phrases.json by the tests.
  */
 export const PDF_DISCLAIMER =
   "Draft. Not clinically validated. These values describe body-landmark geometry measured from video, each with its " +
-  "uncertainty. They are not a diagnosis and not a score. A clinician interprets them.";
+  "uncertainty. This report is not a diagnosis; a clinician interprets the values.";
 
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 

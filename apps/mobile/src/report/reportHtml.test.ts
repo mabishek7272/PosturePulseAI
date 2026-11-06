@@ -31,10 +31,17 @@ describe("buildReportHtml", () => {
     expect(html).toContain("% of height");
   });
 
-  it("embeds both signatures and the disclaimer, and makes no score or diagnosis claim", () => {
+  it("embeds both signatures and the disclaimer", () => {
     expect((html.match(/<svg class="sig"/g) ?? []).length).toBe(2);
     expect(html).toContain(escapeHtml(PDF_DISCLAIMER));
-    expect(html.toLowerCase()).not.toMatch(/\bscore:|diagnos(is|ed) of|normal range|abnormal/);
+  });
+
+  it("contains none of the shared banned report phrases (the disclaimer's own negation aside)", () => {
+    // The same list the backend's report templates are checked against.
+    const { patterns } = require("../../../../references/banned-phrases.json") as { patterns: string[] };
+    const text = html.replace(/<[^>]+>/g, " ").replace(/not a diagnosis/gi, "");
+    const hits = patterns.filter((p) => new RegExp(p, "i").test(text));
+    expect(hits).toEqual([]);
   });
 
   it("says plainly when a scan has no signatures", () => {
