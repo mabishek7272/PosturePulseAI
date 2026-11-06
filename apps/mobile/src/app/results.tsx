@@ -16,6 +16,7 @@ import { DriftingBlobs, LIGHT_BLOBS, type BlobSpec } from "../components/Driftin
 import { GlassCard } from "../components/GlassCard";
 import { ShareIcon, SparkleIcon } from "../components/icons";
 import { GrowWidth, RingPulse } from "../components/Motion";
+import { shareReportPdf } from "../report/sharePdf";
 import { MAX_CONTENT_WIDTH } from "../components/Screen";
 import {
   barLayout, coverage, formatValueParts, hasReferenceComparison, heroSummary, metricLabel, formatResult,
@@ -141,6 +142,26 @@ export default function ResultsScreen() {
     return () => { cancelled = true; };
   }, [sessionId]);
 
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const canShare = !!results && results.length > 0 && !sharing;
+
+  async function sharePdf() {
+    if (!results || sharing) return;
+    setSharing(true);
+    setShareError(null);
+    try {
+      const token = await getClinicianToken();
+      if (!token) return router.replace("/login");
+      await shareReportPdf({ sessionId, patientName: history?.patient.name ?? null, results, token });
+    } catch (err) {
+      if (err instanceof UnauthorizedError) return router.replace("/login");
+      setShareError(err instanceof Error ? err.message : "Could not create the PDF.");
+    } finally {
+      setSharing(false);
+    }
+  }
+
   function scanAgain() {
     if (!history) return;
     router.push({ pathname: "/consent", params: { patientId: history.patient.id, patientName: history.patient.name } });
@@ -182,17 +203,19 @@ export default function ResultsScreen() {
         <Text accessibilityRole="header" style={type.headerTitle}>Assessment</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Share (not available yet)"
-          accessibilityState={{ disabled: true }}
-          disabled
-          style={styles.share}
+          accessibilityLabel={sharing ? "Preparing the PDF" : "Share the report as a PDF"}
+          accessibilityState={{ disabled: !canShare, busy: sharing }}
+          disabled={!canShare}
+          onPress={sharePdf}
+          style={[styles.share, !canShare && { opacity: 0.45 }]}
         >
-          <ShareIcon size={18} color={colors.textSecondary} />
+          {sharing ? <ActivityIndicator size="small" color={colors.accent600} /> : <ShareIcon size={18} color={colors.accent700} />}
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
         {!results && !error ? <ActivityIndicator color={colors.accent600} style={styles.loading} /> : null}
 
         {results ? (
