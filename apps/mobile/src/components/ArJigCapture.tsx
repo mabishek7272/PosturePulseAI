@@ -15,6 +15,7 @@ import { newTakeId } from "../capture/sidecar";
 import { ERROR_TEXT, GATE_READY_TEXT, GATE_SETTLING_TEXT, primaryBlockerText } from "../capture/ar-jig-copy";
 import { useBatterySequence } from "../capture/use-battery-sequence";
 import { cadenceAt, windowsFor } from "../capture/sub-blocks";
+import { writeArJigCapturePref } from "../settings/prefs";
 import { colors } from "../theme/colors";
 import { radii } from "../theme/radii";
 import { BackButton } from "./ScreenHeader";
@@ -222,6 +223,20 @@ export function ArJigCapture({
         <Text style={styles.step}>
           {`Pose ${poseIndex + 1} of ${steps.length}`}
         </Text>
+        {/* Escape hatch: the guided screen will not record until the iPad has found the
+            floor and is in range, so a room it cannot map would leave the operator stuck.
+            Turning the preference off swaps in the standard camera capture at once. It
+            starts again from the first view in the same session; the report uses the newest
+            clip per view, so nothing already saved is lost. Not offered mid-recording. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Switch to the standard camera capture"
+          disabled={isRecording || uploading}
+          onPress={() => void writeArJigCapturePref(false)}
+          style={[styles.switchButton, (isRecording || uploading) && { opacity: 0.4 }]}
+        >
+          <Text style={styles.switchText}>Standard camera</Text>
+        </Pressable>
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
@@ -336,7 +351,12 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
   },
-  step: { color: colors.textOnDark, fontSize: 15, fontWeight: "600" },
+  step: { color: colors.textOnDark, fontSize: 15, fontWeight: "600", flex: 1 },
+  switchButton: {
+    paddingVertical: 8, paddingHorizontal: 14, borderRadius: radii.pill,
+    backgroundColor: colors.captureCard, borderWidth: 1, borderColor: colors.accent400,
+  },
+  switchText: { color: colors.accent300, fontSize: 13, fontWeight: "600" },
   savedRow: { gap: 8, alignItems: "center" },
   savedButtons: { flexDirection: "row", gap: 10, flexWrap: "wrap", justifyContent: "center" },
   savedButton: { paddingVertical: 11, paddingHorizontal: 20, borderRadius: 14, backgroundColor: colors.accent600 },
