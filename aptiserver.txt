@@ -1,0 +1,5 @@
+Host Apti-root apti-root
+  HostName 185.36.205.172
+  User root
+  ServerAliveInterval 60
+  ServerAliveCountMax 3

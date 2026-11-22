@@ -38,3 +38,6 @@ services/ml-service/.models/
 /*.zip
 !/logo.zip
 .superpowers/
+
+# ANUClaw / NexArch sub-project — excluded from PosturePulse repo
+anuclaw-medbuddy-main/

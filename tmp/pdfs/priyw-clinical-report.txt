@@ -1,0 +1,245 @@
+CLINICAL TECHNICAL REVIEW                                                                          Posture and thermal symmetry assessment
+
+
+
+
+ Clinical Technical Posture and Thermal Symmetry
+ Report
+ Three-page interpretive report | Non-SOAP format | Prepared from the supplied PosturePulse assessment and
+ supplemental metric summaries
+
+   Patient                    Acquisition                            Session       Data reviewed
+
+   Priyw                      19 Nov 2026, 22:19                     9339f15b      21/21 video-derived posture metrics; supplemental
+                                                                                   posture and bilateral thermal summaries
+
+
+
+  Clinical synthesis
+  The supplied measurements show small static alignment differences, most evident in sagittal trunk inclination and
+  side-specific landmark offsets. Several frontal-plane findings overlap their stated reference once measurement uncertainty is
+  considered. The bilateral trapezius and lumbar thermal differences are 0.0 C in the supplemental summary, indicating no
+  measured side-to-side thermal asymmetry at that capture. These data do not establish a structural disorder, pain generator,
+  neurologic deficit, vascular abnormality, or diagnosis.
+
+
+ Key findings
+  • Trunk position: left and right trunk inclination were -2.9 +/- 2.4 degrees and -4.0 +/- 2.3 degrees relative to the source
+    system's 0-degree reference. Their uncertainty intervals remain below 0 degrees, supporting a small measured inclination
+    during this recording.
+
+  • Lateral translation: lateral body shift was -1.2 +/- 1.0% of stature. This is small in magnitude, but its stated interval does
+    not cross the 0% reference.
+
+  • Frontal alignment: head tilt, shoulder-line tilt, hip-line tilt and trunk lateral lean each overlapped the source reference after
+    uncertainty was applied; no definite frontal-plane deviation can be inferred from those individual measures.
+
+  • Side-specific offsets: left ear, shoulder and hip offsets were greater than corresponding right-side values. These are
+    geometric observations without source reference ranges and require correlation with stance, camera position and
+    examination.
+
+  • Knees: knee extension overlapped 0 degrees bilaterally. Knee frontal alignment was explicitly labeled a proxy, carried wide
+    uncertainty, and had no source reference value.
+
+  • Thermal summary: trapezius Delta T and lumbar Delta T were both +0.0 C against the supplied <0.5 C comparison
+    criterion. This supports bilateral surface-temperature symmetry only under the conditions of that capture.
+
+ Data integrity and reconciliation
+ The primary PDF reports raw landmark geometry and uncertainty. The supplemental posture table reports transformed values
+ against a 90-degree 'ideal' (forward head 80.7 degrees, shoulder elevation 87.4 degrees, pelvic tilt 87.0 degrees, trunk lean
+ 85.5 degrees, and knee values 1.9/2.2 degrees). The definitions, processing version and uncertainty for those transformed
+ metrics are not provided. They should therefore be treated as a separate summary layer, not substituted for or averaged with
+ the primary PDF values.
+
+  Important qualification
+  The labels 'textbook perfect', 'optimal neurovascular symmetry' and 'excellent' exceed what these measurements can
+  establish. A 0.0 C side-to-side difference does not prove normal neurovascular function, and a single static posture value
+  does not determine pathology or clinical risk.
+
+
+
+
+Patient: Priyw | Source scan: 19 Nov 2026 | Technical interpretation only                                                       Page 1 of 3
+CLINICAL TECHNICAL REVIEW                                                                                           Posture and thermal symmetry assessment
+
+
+
+
+ Quantitative Measurement Review
+ Primary source values are shown with the uncertainty supplied by the acquisition system. Interpretation is limited to
+ the measurement model used in the report.
+
+ A. Frontal-plane and translation measures
+   Measure                             Recorded value                        Source reference       Technical interpretation
+
+   Head lateral tilt                   -0.7 +/- 8.9 deg                      0 deg                  Uncertainty overlaps reference; no definite tilt.
+
+   Shoulder-line tilt (proxy)          -0.6 +/- 3.5 deg                      0 deg                  Uncertainty overlaps reference; landmark geometry
+                                                                                                    only.
+
+   Hip-line tilt (proxy)               -0.6 +/- 7.0 deg                      0 deg                  Uncertainty overlaps reference; landmark geometry
+                                                                                                    only.
+
+   Trunk lateral lean                  -0.8 +/- 1.8 deg                      0 deg                  Uncertainty overlaps reference.
+
+   Lateral body shift                  -1.2 +/- 1.0% stature                 0% stature             Small negative translation; stated interval -2.2 to
+                                                                                                    -0.2%.
+
+   Knee frontal alignment L/R          +4.9 +/- 4.8 / +1.3 +/- 4.9 deg       No reference set       Wide uncertainty; asymmetry cannot be classified
+   (proxy)                                                                                          diagnostically.
+
+
+
+ B. Sagittal and side-specific measures
+   Measure                              Left                                Right                        Technical interpretation
+
+   Ear offset from ankle                +5.0 +/- 1.5% stature               +2.6 +/- 1.5% stature        Left-right difference 2.4% stature; no source reference.
+
+   Shoulder offset from ankle           +2.6 +/- 1.5% stature               -1.7 +/- 1.5% stature        Opposite signs; verify stance and camera calibration
+                                                                                                         before clinical attribution.
+
+   Hip offset from ankle                +4.2 +/- 1.5% stature               +0.7 +/- 1.5% stature        Left-right difference 3.5% stature; no source reference.
+
+   Knee offset from ankle               +1.8 +/- 1.5% stature               +0.1 +/- 1.6% stature        Small side difference; no source reference.
+
+   Head-shoulder angle (proxy)          +80.1 +/- 5.5 deg                   +73.6 +/- 5.5 deg            6.5-degree side difference, smaller than combined
+                                                                                                         uncertainty; proxy only.
+
+   Trunk inclination                    -2.9 +/- 2.4 deg                    -4.0 +/- 2.3 deg             Both stated intervals remain below the 0-degree
+                                                                                                         reference.
+
+   Knee extension                       +0.8 +/- 5.1 deg                    +1.4 +/- 5.1 deg             Both uncertainty intervals overlap 0 degrees.
+
+
+
+ C. Supplemental transformed posture and thermal summary
+   Metric                             Supplied value                  Supplied comparator           Bounded interpretation
+
+   Forward-head metric                80.7 deg                        90 deg                        9.3-degree difference within that system; not a universal
+                                                                                                    diagnostic cutoff.
+
+   Shoulder-elevation metric          87.4 deg                        90 deg                        2.6-degree difference; direction and side are not specified.
+
+   Pelvic-tilt metric                 87.0 deg                        90 deg                        3.0-degree difference; plane and anatomical definition are
+                                                                                                    not specified.
+
+   Knee valgus L/R                    1.9 / 2.2 deg                   0-5 deg                       Within supplied band; does not match the primary proxy
+                                                                                                    values and should not be merged.
+
+   Trunk-lean metric                  85.5 deg                        90 deg                        4.5-degree difference; qualitatively consistent with small
+                                                                                                    inclination, but definitions differ.
+
+   Trapezius / lumbar Delta T         +0.0 / +0.0 C                   <0.5 C                        No bilateral thermal asymmetry detected at capture; no
+                                                                                                    inference on tissue diagnosis.
+
+
+ Measurement uncertainty
+ An uncertainty-overlap result means the measured interval includes the reference and should not be called definitively
+ abnormal. For side-to-side differences, the source does not provide covariance or a validated minimum detectable change;
+ arithmetic differences are descriptive only.
+
+
+
+
+Patient: Priyw | Source scan: 19 Nov 2026 | Technical interpretation only                                                                             Page 2 of 3
+CLINICAL TECHNICAL REVIEW                                                                                            Posture and thermal symmetry assessment
+
+
+
+
+ Clinical Implications and Management Framework
+ This section translates the measured pattern into a safe clinical workflow. It is not a diagnosis or treatment
+ prescription.
+
+ Clinical significance
+ The overall pattern is best characterized as minor static postural asymmetry with small sagittal trunk inclination. The
+ measurements do not demonstrate a major frontal-plane deviation because the relevant uncertainty intervals overlap the
+ source reference. The side-specific offsets may reflect habitual stance, camera perspective, landmark localization, natural
+ asymmetry or a reproducible postural strategy. Their clinical relevance depends on symptoms and repeatability.
+
+ Thermal symmetry is neutral rather than diagnostic. Equal bilateral surface temperatures at the trapezius and lumbar regions
+ reduce concern for a gross side-to-side temperature difference during this capture, but they neither exclude inflammation nor
+ establish normal perfusion, nerve function or tissue health. Absolute temperatures, room conditions, acclimatization,
+ emissivity, region-of-interest placement and repeatability were not supplied.
+
+ Recommended clinical follow-up
+   Priority       Action                                               Purpose / decision rule
+
+   1              Correlate with symptoms and function                 Document pain location, duration, aggravating tasks, neurologic symptoms, work
+                                                                       exposure, activity tolerance and prior injury.
+
+   2              Perform focused physical examination                 Observe relaxed standing and gait; assess cervical and thoracolumbar motion, shoulder
+                                                                       height, pelvic landmarks, strength, sensation, reflexes and relevant provocation tests.
+
+   3              Repeat under standardized conditions                 Use the same camera distance/height, foot position, clothing, lighting and software version.
+                                                                       Obtain at least two trials and compare values with uncertainty.
+
+   4              Conservative ergonomic and movement plan             If screen exposure or stiffness is present, use regular position changes, monitor height
+                                                                       adjustment, supported sitting and graded mobility/strength work guided by tolerance.
+
+   5              Escalate when clinically indicated                   Seek prompt in-person assessment for progressive weakness or numbness, gait change,
+                                                                       bowel/bladder disturbance, saddle sensory change, severe unremitting/night pain, fever,
+                                                                       trauma or unexplained systemic symptoms.
+
+
+ Suggested reassessment outcomes
+  • Primary: change in symptoms and task tolerance, not achievement of a single 'ideal' angle.
+
+  • Secondary: repeatable change in trunk inclination and lateral shift exceeding expected measurement variability.
+
+  • Supporting: side-specific offset pattern, functional tests and thermal symmetry only when acquisition conditions are
+    standardized.
+
+ Technical limitations
+  • Single static video-derived observation; no direct assessment of bone alignment, joint pathology, muscle activation or
+    dynamic control.
+
+  • Several metrics are proxy measurements with no reference value; posture values cannot be interpreted as disease
+    thresholds.
+
+  • The primary report is marked draft and not clinically validated. No age, history, symptom profile, examination findings or
+    validated patient-reported outcomes were provided.
+
+  • The supplemental posture table uses a different metric convention and does not supply uncertainty or algorithm
+    provenance.
+
+  • Thermal data include bilateral differences only, without absolute temperature or acquisition protocol.
+
+ Evidence note
+ Photogrammetry can provide repeatable quantitative posture measurements when acquisition and landmarks are
+ standardized, but validity varies by method and metric. Thermal measurement reliability likewise depends on equipment and
+ protocol; symmetry alone is not a diagnosis.
+
+
+
+
+Patient: Priyw | Source scan: 19 Nov 2026 | Technical interpretation only                                                                              Page 3 of 3
+CLINICAL TECHNICAL REVIEW                                                                                      Posture and thermal symmetry assessment
+
+
+
+
+   Reference                                                                                          Relevance
+
+   Gadotti IC, Biasotto-Gonzalez DA. J Eval Clin Pract. 2010. PMID 20367826.                          Photogrammetry can detect less evident sagittal
+   https://pubmed.ncbi.nlm.nih.gov/20367826/                                                          head-posture differences better than visual
+                                                                                                      classification.
+
+   Mylonas K et al. J Phys Ther Sci. 2025. PMID 40171184. https://pubmed.ncbi.nlm.nih.gov/40171184/   Reliability of standardized photogrammetric measures;
+                                                                                                      does not validate every proprietary metric.
+
+   Calvo-Lobo C et al. Sensors. 2023. PMID 36919164. https://pubmed.ncbi.nlm.nih.gov/36919164/        Infrared skin-temperature reliability and minimum
+                                                                                                      detectable change depend on protocol and device.
+
+
+
+  Conclusion
+  The available evidence supports documenting a small, non-acute static alignment pattern and bilateral thermal symmetry at
+  one time point. It does not support a diagnosis, a claim of neurovascular normality, or a universal posture correction target.
+  Clinical decisions should be driven by symptoms, examination, function and standardized repeat measurement.
+
+
+
+
+Patient: Priyw | Source scan: 19 Nov 2026 | Technical interpretation only                                                                      Page 4 of 3
+

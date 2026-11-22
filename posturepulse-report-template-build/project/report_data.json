@@ -1,0 +1,406 @@
+{
+  "brand": "PosturePulse AI",
+  "tagline": "3D posture landmark intelligence for clinical review",
+  "title": "3D Posture Landmark Analysis",
+  "subtitle": "Four-view landmark geometry, bilateral symmetry, and clinical workflow",
+  "running_sub": "Clinical posture intelligence · Technical review",
+  "classification": "TECHNICAL REVIEW — NOT A DIAGNOSIS",
+  "meta": {
+    "patient": "Priya",
+    "source_record": "Priyw",
+    "scan_id": "9339f15b",
+    "acquired": "19 Nov 2026, 22:19",
+    "report_date": "19 Nov 2026",
+    "status": "Technical review - not a diagnosis"
+  },
+  "gov": {
+    "line1": "MEDICAL KNOWLEDGE CLINICALLY GOVERNED BY NEXARCH APPLIEDMIND INTELLIGENCE LABS",
+    "line2": "Clinical guard · Decision support · Not a diagnosis",
+    "conf": "CONFIDENTIAL — Prepared from supplied posture and thermal metric summaries",
+    "footer": "PosturePulse AI · Technical interpretation only · Governed by NexArch AppliedMind Intelligence Labs",
+    "powered": "Powered By NexArch AppliedMind Intelligence Labs"
+  },
+  "kpis": [
+    {
+      "label": "Metrics Evaluated",
+      "value": "21/21",
+      "sub": "video-derived posture metrics",
+      "tone": "ref"
+    },
+    {
+      "label": "Highlighted Review Points",
+      "value": "4",
+      "sub": "R1 – R4 · review the supplied measurement",
+      "tone": "r"
+    },
+    {
+      "label": "Bilateral Thermal Symmetry",
+      "value": "+0.0 / +0.0 C",
+      "sub": "Trapezius / lumbar · against <0.5 C criterion",
+      "tone": "g"
+    }
+  ],
+  "p2": {
+    "tag": "ACQUISITION & VISUALIZATION",
+    "sec": "§ 1",
+    "title": "Acquisition Session & Four-View Landmark Visualization",
+    "sub": "Generic four-view wireframe with deterministic landmark overlays; not a patient-specific reconstruction.",
+    "visualization": "Illustrative mapping",
+    "legend": [
+      {
+        "cls": "r",
+        "label": "RED: review point",
+        "text": "Review point — review the supplied measurement"
+      },
+      {
+        "cls": "g",
+        "label": "GREEN: comparator / symmetry",
+        "text": "Within supplied comparator / bilateral symmetry at capture"
+      },
+      {
+        "cls": "ref",
+        "label": "BLUE/WHITE: reference landmark",
+        "text": "Reference landmark / orientation chain"
+      }
+    ],
+    "regions": [
+      {
+        "cls": "r",
+        "code": "R1",
+        "region": "Head / ear",
+        "value": "80.7 deg vs 90 deg",
+        "status": "Review point",
+        "note": "System difference selected for review; not a universal cutoff."
+      },
+      {
+        "cls": "r",
+        "code": "R2",
+        "region": "Shoulders",
+        "value": "87.4 deg vs 90 deg",
+        "status": "Review point",
+        "note": "Direction and side were not supplied."
+      },
+      {
+        "cls": "r",
+        "code": "R3",
+        "region": "Pelvis",
+        "value": "87.0 deg vs 90 deg",
+        "status": "Review point",
+        "note": "Anatomical plane was not supplied."
+      },
+      {
+        "cls": "r",
+        "code": "R4",
+        "region": "Trunk",
+        "value": "85.5 deg vs 90 deg",
+        "status": "Review point",
+        "note": "Qualitatively consistent with small inclination; definitions differ."
+      },
+      {
+        "cls": "g",
+        "code": "G1",
+        "region": "Left / right knees",
+        "value": "1.9 / 2.2 deg",
+        "status": "Within comparator",
+        "note": "Within the supplied 0-5 deg comparison band only."
+      },
+      {
+        "cls": "g",
+        "code": "G2-G3",
+        "region": "Trapezius / lumbar",
+        "value": "+0.0 / +0.0 C",
+        "status": "Symmetry",
+        "note": "Bilateral thermal symmetry at capture; not a health clearance."
+      },
+      {
+        "cls": "ref",
+        "code": "REF",
+        "region": "Blue — Reference chain",
+        "value": "Reference chain",
+        "status": "Reference",
+        "note": "Landmark locations / orientation points only; no diagnostic classification."
+      }
+    ]
+  },
+  "p3": {
+    "tag": "INTERPRETATION",
+    "sec": "§ 2",
+    "title": "Clinical Synthesis & Key Findings",
+    "sub": "Non-SOAP format. Prepared from the supplied PosturePulse assessment and supplemental metric summaries.",
+    "reviewed": "21/21 video-derived posture metrics; supplemental posture and bilateral thermal summaries",
+    "synthesis": "The supplied measurements show small static alignment differences, most evident in sagittal trunk inclination and side-specific landmark offsets. Several frontal-plane findings overlap their stated reference once measurement uncertainty is considered. The bilateral trapezius and lumbar thermal differences are 0.0 C in the supplemental summary, indicating no measured side-to-side thermal asymmetry at that capture. These data do not establish a structural disorder, pain generator, neurologic deficit, vascular abnormality, or diagnosis.",
+    "findings": [
+      {
+        "label": "Trunk position",
+        "text": "left and right trunk inclination were -2.9 +/- 2.4 deg and -4.0 +/- 2.3 deg relative to the source system's 0-degree reference. Their uncertainty intervals remain below 0 degrees, supporting a small measured inclination during this recording."
+      },
+      {
+        "label": "Lateral translation",
+        "text": "lateral body shift was -1.2 +/- 1.0% of stature. Small in magnitude, but its stated interval does not cross the 0% reference."
+      },
+      {
+        "label": "Frontal alignment",
+        "text": "head tilt, shoulder-line tilt, hip-line tilt and trunk lateral lean each overlapped the source reference after uncertainty was applied; no definite frontal-plane deviation can be inferred."
+      },
+      {
+        "label": "Side-specific offsets",
+        "text": "left ear, shoulder and hip offsets were greater than corresponding right-side values. Geometric observations without source reference ranges; require correlation with stance, camera position and examination."
+      },
+      {
+        "label": "Knees",
+        "text": "knee extension overlapped 0 degrees bilaterally. Knee frontal alignment was explicitly labeled a proxy, carried wide uncertainty, and had no source reference value."
+      },
+      {
+        "label": "Thermal summary",
+        "text": "trapezius Delta T and lumbar Delta T were both +0.0 C against the supplied <0.5 C comparison criterion. Supports bilateral surface-temperature symmetry only under the conditions of that capture."
+      }
+    ],
+    "integrity": "The primary PDF reports raw landmark geometry and uncertainty. The supplemental posture table reports transformed values against a 90-degree 'ideal'. The definitions, processing version and uncertainty for those transformed metrics are not provided; treat as a separate summary layer, not substituted for or averaged with the primary PDF values.",
+    "qualification": "The labels 'textbook perfect', 'optimal neurovascular symmetry' and 'excellent' exceed what these measurements can establish. A 0.0 C side-to-side difference does not prove normal neurovascular function, and a single static posture value does not determine pathology or clinical risk."
+  },
+  "p4": {
+    "tag": "QUANTITATIVE",
+    "sec": "§ 3",
+    "title": "Quantitative Measurement Review",
+    "sub": "Primary source values are shown with the uncertainty supplied by the acquisition system.",
+    "table_a": [
+      {
+        "measure": "Head lateral tilt",
+        "value": "-0.7 +/- 8.9 deg",
+        "ref": "0 deg",
+        "note": "Uncertainty overlaps reference; no definite tilt.",
+        "series": [
+          {
+            "v": -0.7,
+            "u": 8.9
+          }
+        ]
+      },
+      {
+        "measure": "Shoulder-line tilt (proxy)",
+        "value": "-0.6 +/- 3.5 deg",
+        "ref": "0 deg",
+        "note": "Uncertainty overlaps reference; landmark geometry only.",
+        "series": [
+          {
+            "v": -0.6,
+            "u": 3.5
+          }
+        ]
+      },
+      {
+        "measure": "Hip-line tilt (proxy)",
+        "value": "-0.6 +/- 7.0 deg",
+        "ref": "0 deg",
+        "note": "Uncertainty overlaps reference; landmark geometry only.",
+        "series": [
+          {
+            "v": -0.6,
+            "u": 7
+          }
+        ]
+      },
+      {
+        "measure": "Trunk lateral lean",
+        "value": "-0.8 +/- 1.8 deg",
+        "ref": "0 deg",
+        "note": "Uncertainty overlaps reference.",
+        "series": [
+          {
+            "v": -0.8,
+            "u": 1.8
+          }
+        ]
+      },
+      {
+        "measure": "Lateral body shift",
+        "value": "-1.2 +/- 1.0% stature",
+        "ref": "0% stature",
+        "note": "Small negative translation; stated interval -2.2 to -0.2%.",
+        "series": [
+          {
+            "v": -1.2,
+            "u": 1
+          }
+        ]
+      },
+      {
+        "measure": "Knee frontal alignment L/R (proxy)",
+        "value": "+4.9 / +1.3 deg",
+        "ref": "No reference set",
+        "note": "Wide uncertainty; asymmetry cannot be classified diagnostically.",
+        "series": []
+      }
+    ],
+    "table_b": [
+      {
+        "measure": "Ear offset from ankle",
+        "left": "+5.0 +/- 1.5%",
+        "right": "+2.6 +/- 1.5%",
+        "note": "Left-right difference 2.4% stature; no source reference.",
+        "series": [
+          {
+            "v": 5,
+            "u": 1.5
+          },
+          {
+            "v": 2.6,
+            "u": 1.5
+          }
+        ]
+      },
+      {
+        "measure": "Shoulder offset from ankle",
+        "left": "+2.6 +/- 1.5%",
+        "right": "-1.7 +/- 1.5%",
+        "note": "Opposite signs; verify stance and camera calibration before clinical attribution.",
+        "series": [
+          {
+            "v": 2.6,
+            "u": 1.5
+          },
+          {
+            "v": -1.7,
+            "u": 1.5
+          }
+        ]
+      },
+      {
+        "measure": "Hip offset from ankle",
+        "left": "+4.2 +/- 1.5%",
+        "right": "+0.7 +/- 1.5%",
+        "note": "Left-right difference 3.5% stature; no source reference.",
+        "series": [
+          {
+            "v": 4.2,
+            "u": 1.5
+          },
+          {
+            "v": 0.7,
+            "u": 1.5
+          }
+        ]
+      },
+      {
+        "measure": "Knee offset from ankle",
+        "left": "+1.8 +/- 1.5%",
+        "right": "+0.1 +/- 1.6%",
+        "note": "Small side difference; no source reference.",
+        "series": [
+          {
+            "v": 1.8,
+            "u": 1.5
+          },
+          {
+            "v": 0.1,
+            "u": 1.6
+          }
+        ]
+      },
+      {
+        "measure": "Head-shoulder angle (proxy)",
+        "left": "+80.1 +/- 5.5 deg",
+        "right": "+73.6 +/- 5.5 deg",
+        "note": "6.5-degree side difference; smaller than combined uncertainty; proxy only.",
+        "series": [
+          {
+            "v": 80.1,
+            "u": 5.5
+          },
+          {
+            "v": 73.6,
+            "u": 5.5
+          }
+        ]
+      },
+      {
+        "measure": "Trunk inclination",
+        "left": "-2.9 +/- 2.4 deg",
+        "right": "-4.0 +/- 2.3 deg",
+        "note": "Both stated intervals remain below the 0-degree reference.",
+        "series": [
+          {
+            "v": -2.9,
+            "u": 2.4
+          },
+          {
+            "v": -4,
+            "u": 2.3
+          }
+        ]
+      },
+      {
+        "measure": "Knee extension",
+        "left": "+0.8 +/- 5.1 deg",
+        "right": "+1.4 +/- 5.1 deg",
+        "note": "Both uncertainty intervals overlap 0 degrees.",
+        "series": [
+          {
+            "v": 0.8,
+            "u": 5.1
+          },
+          {
+            "v": 1.4,
+            "u": 5.1
+          }
+        ]
+      }
+    ],
+    "uncertainty": "An uncertainty-overlap result means the measured interval includes the reference and should not be called definitively abnormal. For side-to-side differences, the source does not provide covariance or a validated minimum detectable change; arithmetic differences are descriptive only."
+  },
+  "p5": {
+    "tag": "IMPLICATIONS & PLAN",
+    "sec": "§ 4",
+    "title": "Clinical Implications & Management Framework",
+    "sub": "Translates the measured pattern into a safe clinical workflow. Not a diagnosis or treatment prescription.",
+    "significance": "The pattern is best characterized as minor static postural asymmetry with small sagittal trunk inclination. Relevant frontal-plane uncertainty intervals overlap the source reference. Side-specific offsets may reflect stance, camera perspective, landmark localization, natural asymmetry or a reproducible strategy; significance depends on symptoms and repeatability. Equal bilateral trapezius and lumbar surface temperatures are neutral rather than diagnostic.",
+    "steps": [
+      {
+        "num": "01",
+        "alert": false,
+        "action": "Correlate with symptoms and function",
+        "rule": "Record pain, aggravating tasks, neurologic symptoms, work exposure, tolerance and prior injury."
+      },
+      {
+        "num": "02",
+        "alert": false,
+        "action": "Perform focused physical examination",
+        "rule": "Assess relaxed stance/gait, regional motion, landmarks, strength, sensation, reflexes and relevant provocation."
+      },
+      {
+        "num": "03",
+        "alert": false,
+        "action": "Repeat under standardized conditions",
+        "rule": "Match camera setup, stance, clothing, lighting and software; obtain at least two trials."
+      },
+      {
+        "num": "04",
+        "alert": false,
+        "action": "Conservative movement plan",
+        "rule": "If symptomatic, use position changes, ergonomic adjustment and graded mobility/strength work."
+      },
+      {
+        "num": "05",
+        "alert": true,
+        "action": "Escalate when clinically indicated",
+        "rule": "Prompt assessment for progressive deficit, gait change, bowel/bladder or saddle symptoms, severe night pain, fever, trauma or systemic illness."
+      }
+    ],
+    "outcomes": "Prioritize symptoms and task tolerance. Secondary outcomes are repeatable changes in trunk inclination and lateral shift beyond expected variability, supported by functional tests and standardized side-offset or thermal measurements.",
+    "limitations": "Single static video-derived observation; no direct assessment of bone, joint pathology, muscle activation or dynamic control. Several values are unreferenced proxies, not disease thresholds. The source is marked draft and not clinically validated. The supplemental posture convention lacks uncertainty and algorithm provenance; thermal data lack absolute temperatures and acquisition protocol.",
+    "evidence": "Photogrammetry can provide repeatable quantitative posture measurements when acquisition and landmarks are standardized, but validity varies by method and metric. Thermal measurement reliability likewise depends on equipment and protocol; symmetry alone is not a diagnosis.",
+    "conclusion": "The available evidence supports documenting a small, non-acute static alignment pattern and bilateral thermal symmetry at one time point. It does not support a diagnosis, a claim of neurovascular normality, or a universal posture correction target. Clinical decisions should be driven by symptoms, examination, function and standardized repeat measurement."
+  },
+  "p6": {
+    "tag": "GOVERNANCE",
+    "sec": "§ 5",
+    "title": "Medical Knowledge & Clinical Guard",
+    "sub": "Clinical knowledge governance by NexArch AppliedMind Intelligence Labs.",
+    "scope_title": "What NexArch governs",
+    "scope": "The measurement conventions, landmark definitions, uncertainty reporting, interpretation boundaries, and the clinical-decision-support framing used throughout this document are clinically guarded by NexArch AppliedMind Intelligence Labs. The lab supplies the applied medical-knowledge governance and guardrails; PosturePulse AI is the application that renders and presents the analysis.",
+    "is": "A technical, interpretive review of supplied posture and bilateral thermal metric summaries. It is decision-support material intended for a licensed clinician. It is not a diagnosis, a treatment prescription, or a health clearance.",
+    "is_not": "A 0.0-degree side-to-side difference does not prove normal neurovascular function. A single static posture value does not determine pathology or clinical risk. Red markers mean 'review the supplied measurement', not 'disease'. Green markers mean 'within the supplied comparator or bilateral symmetry at capture', not 'clinically normal'.",
+    "colour": "White, black and blue form the report palette. Red marks a measurement selected for review; it does not mean disease. Green marks a value within a supplied comparator or bilateral symmetry at capture; it does not mean clinically normal. The body figures are generic placeholders — no sole effect or corrected 'after' state is shown.",
+    "seal_line": "PosturePulse AI · Governed by NexArch AppliedMind Intelligence Labs"
+  }
+}

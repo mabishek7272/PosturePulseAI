@@ -1,0 +1,155 @@
+               beAIve                                                                 Vitals Health Report
+
+
+Patient Information                                Organization Information
+Name: Abishek Murugan                              Name: Reainmaker
+Email: ammedtech.solution@gmail.com                License: BEAIVEMOB001
+Phone: 9884197299
+
+
+ Scan Summary
+ Date: Oct 17, 2026, 12:00 AM; UTC      Time: 05:51 AM                               Method: Face Scan (60s)
+
+ Indicator                     Result   Desired           Explanation
+
+ Risks
+
+                                                          Indicates if BP exceeds preset values.
+ High Blood Pressure Risk      Low      Low
+
+
+                                                          Indicates if HbA1c exceeds preset threshold.
+ High Hemoglobin A1c Risk      Low      Low
+
+
+                                                          Indicates if glucose exceeds threshold after fasting.
+ High Fasting Glucose Risk     Low      Low
+
+
+                                                          Indicates if cholesterol exceeds threshold.
+ High Total Cholesterol Risk   Low      Low
+
+
+                                                          Indicates if Hemoglobin drops below threshold.
+ Low Hemoglobin Risk           High     Low
+
+
+                                                          10-year risk of atherosclerotic events.
+ ASCVD Risk (%)                1%       Low
+
+
+                                                          Estimated biological age of the heart.
+ Heart Age (years)             20       Lower is better
+
+
+ Basic Vital Signs
+
+                                                          Predicted cardiovascular risk score.
+ Wellness Score                6        >6
+
+
+                                                          Overall Wellness Level.
+ Wellness Level                2        Normal
+
+
+                                                          Force of blood on artery walls (Systolic/Diastolic).
+ Blood Pressure (mmHg)         124/84   < 129/90
+
+
+                                                          Number of heart beats per minute.
+ Heart Rate (BPM)              113      60-100
+
+
+                                                          Number of breaths per minute at rest.
+ Breathing Rate (RPM)          20       12-20
+
+
+                                                          Oxygen levels in red blood cells.
+ Oxygen Saturation (%)         95%      > 95
+
+
+                                                          Efficiency of heart and lung coordination.
+ PRQ                           5.5      ~5
+ Indicator                                Result                 Desired                Explanation
+
+ Bloodless Blood Tests
+
+                                                                                        Average blood sugar over 2-3 months.
+ Hemoglobin A1c (%)                       5.75%                  < 5.7
+
+
+                                                                                        Oxygen transport capacity in blood.
+ Hemoglobin (g/dL)                        11.6                   M:14-18, F:12-16
+
+
+ Stress
+
+                                                                                        Body’s handling of physiological challenges.
+ Stress Level                             Normal                 Low/Normal
+
+
+                                                                                        Baevsky Stress Index.
+ Stress Index                             118                    < 150
+
+
+                                                                                        Scaled stress index (0-100).
+ Normalized Stress Index (%)              24%                    < 40
+
+
+ Advanced HRV
+
+                                                                                        Parasympathetic "rest and digest" activity.
+ PNS Zone (Recovery)                      Low                    Normal
+
+
+                                                                                        Parasympathetic Nervous System Index.
+ PNS Index                                -1.3                   —
+
+
+                                                                                        Sympathetic "fight or flight" activity.
+ SNS Zone (Stress Response)               High                   Normal
+
+
+                                                                                        Sympathetic Nervous System Index.
+ SNS Index                                2.8                    —
+
+
+                                                                                        Mean RR Interval (ms).
+ Mean RRI                                 532                    —
+
+
+                                                                                        Root Mean Square of Successive Differences (ms).
+ RMSSD                                    50                     —
+
+
+                                                                                        Standard Deviation of NN intervals (ms).
+ SDNN                                     63                     —
+
+
+                                                                                        Poincare plot standard deviation perpendicular to the line of identity
+ SD1                                      27                     —
+                                                                                        (ms).
+
+
+                                                                                        Poincare plot standard deviation along the line of identity (ms).
+ SD2                                      85                     —
+
+
+                                                                                        Ratio of Low Frequency to High Frequency power.
+ LF/HF Ratio                              0.735                  —
+
+
+
+
+Notes:
+1. The measured health indicators are for general wellness and fitness purposes only, not for medical diagnosis.
+2. Confidence levels indicate the probability of measurement accuracy. Not all vitals have confidence levels yet.
+3. Incomplete data may result in missing measurements. Follow instructions for proper face measurement or PPG sensor use.
+**Disclaimer: These indicators are still under research.
+
+
+
+
+       © 2026 beAIve. All rights reserved. If you did not request this report, please ignore this email or contact support at support@beaive.com.
+                                                                     www.beaive.com
+

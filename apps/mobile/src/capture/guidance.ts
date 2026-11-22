@@ -126,7 +126,7 @@ const CHECK_LABELS: Record<CheckId, string> = {
 };
 const ORDER: CheckId[] = ["person", "frame", "distance", "centred", "level", "steady"];
 
-export const PITCH_MESSAGE = "Stand the iPad upright. It is tilted forward or back";
+export const PITCH_MESSAGE = "Stand the device upright. It is tilted forward or back";
 export const UNAVAILABLE_MESSAGE = "Pose guide unavailable. You can still record.";
 
 export function isLateral(view: string): boolean {

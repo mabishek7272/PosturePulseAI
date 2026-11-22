@@ -223,7 +223,7 @@ export function ArJigCapture({
         <Text style={styles.step}>
           {`Pose ${poseIndex + 1} of ${steps.length}`}
         </Text>
-        {/* Escape hatch: the guided screen will not record until the iPad has found the
+        {/* Escape hatch: the guided screen will not record until the device has found the
             floor and is in range, so a room it cannot map would leave the operator stuck.
             Turning the preference off swaps in the standard camera capture at once. It
             starts again from the first view in the same session; the report uses the newest
@@ -277,7 +277,7 @@ export function ArJigCapture({
 
         {ARJigModule.hasLiDAR ? null : (
           <Text style={styles.readings}>
-            No LiDAR on this iPad: the floor is found by the camera alone, and no depth track is recorded.
+            No LiDAR on this device: the floor is found by the camera alone, and no depth track is recorded.
           </Text>
         )}
 

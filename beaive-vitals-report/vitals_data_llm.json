@@ -1,0 +1,299 @@
+{
+  "brand": "beAIve",
+  "title": "Vitals Health Report",
+  "patient": {
+    "name": "Abishek Murugan",
+    "email": "ammedtech.solution@gmail.com",
+    "phone": "9884197299"
+  },
+  "organization": {
+    "name": "Reainmaker",
+    "license": "BEAIVEMOB001"
+  },
+  "scan": {
+    "date": "Aug 20, 2026, 12:00 AM; UTC",
+    "time": "08:31 AM",
+    "method": "Face Scan (60s)"
+  },
+  "sections": [
+    {
+      "title": "Risks",
+      "rows": [
+        {
+          "indicator": "High Blood Pressure Risk",
+          "result": "High",
+          "desired": "Low",
+          "tone": "red",
+          "explanation": "Indicates if BP exceeds preset values."
+        },
+        {
+          "indicator": "High Hemoglobin A1c Risk",
+          "result": "High",
+          "desired": "Low",
+          "tone": "red",
+          "explanation": "Indicates if HbA1c exceeds preset threshold.",
+          "research": true
+        },
+        {
+          "indicator": "High Fasting Glucose Risk",
+          "result": "High",
+          "desired": "Low",
+          "tone": "red",
+          "explanation": "Indicates if glucose exceeds threshold after fasting.",
+          "research": true
+        },
+        {
+          "indicator": "High Total Cholesterol Risk",
+          "result": "Normal",
+          "desired": "Low",
+          "tone": "green",
+          "explanation": "Indicates if cholesterol exceeds threshold.",
+          "research": true
+        },
+        {
+          "indicator": "Low Hemoglobin Risk",
+          "result": "Low",
+          "desired": "Low",
+          "tone": "blue",
+          "explanation": "Indicates if Hemoglobin drops below threshold.",
+          "research": true
+        },
+        {
+          "indicator": "ASCVD Risk (%)",
+          "result": "2%",
+          "desired": "Low",
+          "tone": "neutral",
+          "explanation": "10-year risk of atherosclerotic events (Framingham CVD model)."
+        },
+        {
+          "indicator": "Heart Age (years)",
+          "result": "30",
+          "desired": "Lower is better",
+          "tone": "neutral",
+          "explanation": "Estimated biological age of the heart (Framingham Heart Age model)."
+        }
+      ]
+    },
+    {
+      "title": "Basic Vital Signs",
+      "rows": [
+        {
+          "indicator": "Wellness Score",
+          "result": "5",
+          "desired": "> 6",
+          "tone": "red",
+          "explanation": "Predicted cardiovascular risk score for the next 5-10 years, based only on measured vitals."
+        },
+        {
+          "indicator": "Wellness Level",
+          "result": "2",
+          "desired": "Normal",
+          "tone": "neutral",
+          "explanation": "Overall Wellness Level."
+        },
+        {
+          "indicator": "Blood Pressure (mmHg)",
+          "result": "154/94",
+          "desired": "< 129/90",
+          "tone": "red",
+          "explanation": "Force of blood on artery walls (Systolic/Diastolic)."
+        },
+        {
+          "indicator": "Heart Rate (BPM)",
+          "result": "107",
+          "desired": "60-100",
+          "tone": "red",
+          "explanation": "Number of heart beats per minute."
+        },
+        {
+          "indicator": "Breathing Rate (RPM)",
+          "result": "16",
+          "desired": "12-20",
+          "tone": "green",
+          "explanation": "Number of breaths per minute at rest."
+        },
+        {
+          "indicator": "Oxygen Saturation (%)",
+          "result": "99%",
+          "desired": "> 95",
+          "tone": "green",
+          "explanation": "Oxygen levels in red blood cells."
+        },
+        {
+          "indicator": "PRQ (Pulse-Respiration Quotient)",
+          "result": "6.5",
+          "desired": "~ 5",
+          "tone": "neutral",
+          "explanation": "Efficiency of heart and lung coordination."
+        }
+      ]
+    },
+    {
+      "title": "Bloodless Blood Tests",
+      "rows": [
+        {
+          "indicator": "Hemoglobin A1c (%)",
+          "result": "6.89%",
+          "desired": "< 5.7",
+          "tone": "red",
+          "explanation": "Average blood sugar over 2-3 months.",
+          "research": true
+        },
+        {
+          "indicator": "Hemoglobin (g/dL)",
+          "result": "14.4",
+          "desired": "M:14-18, F:12-16",
+          "tone": "green",
+          "explanation": "Oxygen transport capacity in blood.",
+          "research": true
+        }
+      ]
+    },
+    {
+      "title": "Stress",
+      "rows": [
+        {
+          "indicator": "Stress Level",
+          "result": "Normal",
+          "desired": "Low/Normal",
+          "tone": "green",
+          "explanation": "Body's handling of physiological challenges (Baevsky Index)."
+        },
+        {
+          "indicator": "Stress Index",
+          "result": "120",
+          "desired": "< 150",
+          "tone": "green",
+          "explanation": "Baevsky Stress Index."
+        },
+        {
+          "indicator": "Normalized Stress Index (%)",
+          "result": "24%",
+          "desired": "< 40",
+          "tone": "green",
+          "explanation": "Scaled stress index (0-100)."
+        }
+      ]
+    },
+    {
+      "title": "Advanced Heart Rate Variability",
+      "rows": [
+        {
+          "indicator": "PNS Zone (Recovery)",
+          "result": "Low",
+          "desired": "Normal",
+          "tone": "blue",
+          "explanation": "Parasympathetic \u2018rest and digest\u2019 activity."
+        },
+        {
+          "indicator": "PNS Index",
+          "result": "-1.5",
+          "desired": "\u2014",
+          "tone": "neutral",
+          "explanation": "Parasympathetic Nervous System Index."
+        },
+        {
+          "indicator": "SNS Zone (Stress Response)",
+          "result": "High",
+          "desired": "Normal",
+          "tone": "red",
+          "explanation": "Sympathetic \u2018fight or flight\u2019 activity."
+        },
+        {
+          "indicator": "SNS Index",
+          "result": "2.6",
+          "desired": "\u2014",
+          "tone": "neutral",
+          "explanation": "Sympathetic Nervous System Index."
+        },
+        {
+          "indicator": "Mean RRI (ms)",
+          "result": "559",
+          "desired": "\u2014",
+          "tone": "neutral",
+          "explanation": "Mean RR Interval."
+        },
+        {
+          "indicator": "RMSSD (ms)",
+          "result": "43",
+          "desired": "\u2014",
+          "tone": "neutral",
+          "explanation": "Root Mean Square of Successive Differences."
+        },
+        {
+          "indicator": "SDNN (ms)",
+          "result": "64",
+          "desired": "\u2014",
+          "tone": "neutral",
+          "explanation": "Standard Deviation of NN intervals."
+        },
+        {
+          "indicator": "SD1 (ms)",
+          "result": "24",
+          "desired": "\u2014",
+          "tone": "neutral",
+          "explanation": "Poincare plot standard deviation perpendicular to the line of identity."
+        },
+        {
+          "indicator": "SD2 (ms)",
+          "result": "88",
+          "desired": "\u2014",
+          "tone": "neutral",
+          "explanation": "Poincare plot standard deviation along the line of identity."
+        },
+        {
+          "indicator": "LF/HF Ratio",
+          "result": "3.271",
+          "desired": "\u2014",
+          "tone": "neutral",
+          "explanation": "Ratio of Low Frequency to High Frequency power."
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "The measured health indicators are for general wellness and fitness purposes only, not for medical diagnosis.",
+    "Confidence levels indicate the probability of measurement accuracy. Not all vitals have confidence levels yet.",
+    "Incomplete data may result in missing measurements. Follow instructions for proper face measurement or PPG sensor use."
+  ],
+  "research_disclaimer": "These indicators are still under research.",
+  "footer": "\u00a9 2026 beAIve. All rights reserved. If you did not request this report, please ignore this email or contact support at support@beaive.com.",
+  "gov": {
+    "line1": "WELLNESS DATA KNOWLEDGE GOVERNED BY NEXARCH APPLIEDMIND INTELLIGENCE LABS",
+    "line2": "Clinical guard \u00b7 Decision support \u00b7 Not a diagnosis",
+    "footer": "beAIve \u00b7 Wellness interpretation only \u00b7 Governed by NexArch AppliedMind Intelligence Labs"
+  },
+  "ai": {
+    "synthesis": "This face-scan wellness estimate shows multiple values outside the app's preset wellness thresholds across cardiovascular, autonomic, and experimental blood-related indicators, including Blood Pressure, Heart Rate, Wellness Score, High Blood Pressure Risk, PNS Zone (Recovery), and SNS Zone (Stress Response). Experimental estimates for Hemoglobin A1c, High Hemoglobin A1c Risk, and High Fasting Glucose Risk also exceed the app's preset thresholds, whereas Breathing Rate, Oxygen Saturation, Stress indices, and experimental estimates for Hemoglobin and High Total Cholesterol Risk remain within preset ranges. Because these values come from a consumer optical scan rather than validated clinical or laboratory instruments, they describe only how this single estimate compares to the app's built-in thresholds.",
+    "findings": [
+      {
+        "label": "Risks",
+        "text": "High Blood Pressure Risk is flagged High, exceeding the app's preset Low threshold, while High Hemoglobin A1c Risk and High Fasting Glucose Risk are experimental estimates flagged High that also exceed the app's preset Low threshold. High Total Cholesterol Risk and Low Hemoglobin Risk are experimental estimates within the app's preset Low threshold (with ASCVD Risk at 2% and Heart Age at 30 years)."
+      },
+      {
+        "label": "Basic Vital Signs",
+        "text": "Blood Pressure (154/94 mmHg) and Heart Rate (107 BPM) are flagged High because they exceed the app's preset wellness thresholds (< 129/90 mmHg and 60-100 BPM), and Wellness Score (5) falls outside the app's preset threshold (> 6). Breathing Rate (16 RPM) and Oxygen Saturation (99%) fall within the app's preset wellness ranges (with Wellness Level at 2 and PRQ at 6.5)."
+      },
+      {
+        "label": "Bloodless Blood Tests",
+        "text": "Hemoglobin A1c (6.89%) is an experimental estimate flagged High that exceeds the app's preset wellness threshold (< 5.7%), while Hemoglobin (14.4 g/dL) is an experimental estimate within the app's preset range. These experimental estimates are still under research and are not equivalent to laboratory blood tests."
+      },
+      {
+        "label": "Stress",
+        "text": "Stress Level, Stress Index (120), and Normalized Stress Index (24%) all fall within the app's preset wellness thresholds."
+      },
+      {
+        "label": "Advanced Heart Rate Variability",
+        "text": "PNS Zone (Recovery) is flagged Low, falling outside the app's preset wellness threshold, and SNS Zone (Stress Response) is flagged High, exceeding the app's preset wellness threshold. Additional recorded HRV metrics include PNS Index (-1.5), SNS Index (2.6), Mean RRI (559 ms), RMSSD (43 ms), SDNN (64 ms), SD1 (24 ms), SD2 (88 ms), and LF/HF Ratio (3.271)."
+      }
+    ],
+    "next_steps": [
+      "Schedule a visit with a licensed clinician to review the flagged Blood Pressure, Heart Rate, and experimental glucose/A1c estimates using validated clinical equipment and laboratory testing.",
+      "Check Blood Pressure and Heart Rate with a validated cuff or pulse oximeter while seated quietly at rest to see whether those values remain outside target ranges.",
+      "Repeat the face scan under standardized conditions\u2014resting quietly for several minutes in even lighting without talking or moving\u2014to compare consistency across readings.",
+      "Do not start, stop, or adjust any medications or treatment plans based on this app estimate alone."
+    ],
+    "limitations": "A single rPPG face-scan provides only a brief, non-clinical wellness snapshot that can be affected by lighting, motion, posture, or recent activity and cannot establish a medical status or substitute for laboratory blood work. This is a wellness estimate, not a diagnosis, and any flagged value should be confirmed with validated clinical equipment or a licensed clinician.",
+    "model": "google/gemini-4-hydrogen"
+  }
+}

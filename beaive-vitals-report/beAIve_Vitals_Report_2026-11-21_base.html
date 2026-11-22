@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>beAIve Vitals Health Report</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #172033; font-size: 10.5px; }
+  .page { width: 210mm; min-height: 297mm; padding: 14mm 16mm; position: relative; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #E7E2FB; padding-bottom: 10px; margin-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand img { width: 34px; height: 34px; }
+  .brand .word { font-size: 20px; font-weight: 700; color: #6D4CE0; }
+  .header .doctitle { font-size: 16px; color: #5E6A7D; font-weight: 400; }
+
+  .info-grid { display: flex; gap: 24px; margin-bottom: 14px; }
+  .info-col { flex: 1; }
+  .info-col h3 { margin: 0 0 4px; font-size: 11.5px; color: #172033; }
+  .info-col div { font-size: 10px; color: #3B4556; line-height: 1.5; }
+
+  .scan-summary { background: #F7F6FE; border: 1px solid #E7E2FB; border-radius: 6px; padding: 9px 12px; margin-bottom: 16px; display: flex; gap: 30px; font-size: 10px; }
+  .scan-summary b { color: #172033; }
+
+  table.vitals { width: 100%; border-collapse: collapse; margin-bottom: 14px; break-inside: avoid; page-break-inside: avoid; }
+  table.vitals th { background: #7652E8; color: #fff; text-align: left; font-size: 9.5px; padding: 6px 8px; }
+  table.vitals td { padding: 6px 8px; font-size: 9.3px; border-bottom: 1px solid #ECEAF8; vertical-align: top; }
+  table.vitals tr:nth-child(even) td { background: #FAFAFE; }
+  .section-head td { background: #EDE7FB !important; color: #4B2FA8; font-weight: 700; font-size: 9.8px; padding: 5px 8px; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 9.3px; }
+  .badge.red { background: #FDEAEA; color: #A92727; }
+  .badge.green { background: #E6F6EC; color: #1F7A42; }
+  .badge.blue { background: #E8EEFC; color: #1D4ED8; }
+  .badge.neutral { color: #172033; font-weight: 700; }
+
+  .research-mark { color: #9A6700; font-weight: 700; }
+
+  .notes { font-size: 8.8px; color: #5E6A7D; margin-top: 10px; line-height: 1.6; }
+  .research-disclaimer { font-size: 8.8px; color: #9A6700; font-weight: 700; margin-top: 4px; }
+  .footer { margin-top: 18px; padding-top: 10px; border-top: 1px solid #ECEAF8; font-size: 8.3px; color: #8891A0; text-align: center; }
+
+  .gov-box { background: #F4F4F6; border: 1px solid #DCDEE4; border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; }
+  .gov-box .line1 { font-size: 8.6px; font-weight: 700; color: #172033; letter-spacing: .02em; }
+  .gov-box .line2 { font-size: 8.3px; color: #5E6A7D; margin-top: 2px; }
+
+  .ai-box { border: 1px solid #F3D9A8; background: #FFF8EC; border-radius: 7px; padding: 12px 14px; margin: 14px 0; }
+  .ai-box .ai-label { font-size: 9px; font-weight: 700; letter-spacing: .05em; color: #9A6700; margin-bottom: 6px; }
+  .ai-box h4 { margin: 10px 0 4px; font-size: 10.8px; color: #172033; }
+  .ai-box p, .ai-box li { font-size: 9.6px; line-height: 1.55; color: #3B4556; margin: 3px 0; }
+  .ai-box ul { margin: 4px 0; padding-left: 16px; }
+  .ai-box .ai-model { font-size: 8.3px; color: #9A6700; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="brand">
+      <img src="assets/logo_candidate-000.png" alt="">
+      <span class="word">beAIve</span>
+    </div>
+    <div class="doctitle">Vitals Health Report</div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-col">
+      <h3>Patient Information</h3>
+      <div>Name: Abishek Murugan</div>
+      <div>Email: ammedtech.solution@gmail.com</div>
+      <div>Phone: 9884197299</div>
+    </div>
+    <div class="info-col">
+      <h3>Organization Information</h3>
+      <div>Name: Reainmaker</div>
+      <div>License: BEAIVEMOB001</div>
+    </div>
+  </div>
+
+  <div class="scan-summary">
+    <div><b>Date:</b> Nov 21, 2026, 12:00 AM; UTC</div>
+    <div><b>Time:</b> 06:13 AM</div>
+    <div><b>Method:</b> Face Scan (60s)</div>
+  </div>
+
+  <div class="gov-box">
+    <div class="line1">WELLNESS DATA KNOWLEDGE GOVERNED BY NEXARCH APPLIEDMIND INTELLIGENCE LABS</div>
+    <div class="line2">Clinical guard · Decision support · Not a diagnosis</div>
+  </div>
+
+  
+  <table class="vitals">
+    <tr class="section-head"><td colspan="4">Risks</td></tr>
+    <tr><th style="width:34%">Indicator</th><th style="width:16%">Result</th><th style="width:16%">Desired</th><th style="width:34%">Explanation</th></tr>
+    
+    <tr>
+      <td>High Blood Pressure Risk</td>
+      <td><span class="badge blue">Low</span></td>
+      <td>Low</td>
+      <td>Indicates if BP exceeds preset values.</td>
+    </tr>
+    
+    <tr>
+      <td>High Hemoglobin A1c Risk<span class="research-mark">**</span></td>
+      <td><span class="badge blue">Low</span></td>
+      <td>Low</td>
+      <td>Indicates if HbA1c exceeds preset threshold.</td>
+    </tr>
+    
+    <tr>
+      <td>High Fasting Glucose Risk<span class="research-mark">**</span></td>
+      <td><span class="badge blue">Low</span></td>
+      <td>Low</td>
+      <td>Indicates if glucose exceeds threshold after fasting.</td>
+    </tr>
+    
+    <tr>
+      <td>High Total Cholesterol Risk<span class="research-mark">**</span></td>
+      <td><span class="badge red">High</span></td>
+      <td>Low</td>
+      <td>Indicates if cholesterol exceeds threshold.</td>
+    </tr>
+    
+    <tr>
+      <td>Low Hemoglobin Risk<span class="research-mark">**</span></td>
+      <td><span class="badge blue">Low</span></td>
+      <td>Low</td>
+      <td>Indicates if Hemoglobin drops below threshold.</td>
+    </tr>
+    
+    <tr>
+      <td>ASCVD Risk (%)</td>
+      <td><span class="badge neutral">1%</span></td>
+      <td>Low</td>
+      <td>10-year risk of atherosclerotic events (Framingham CVD model).</td>
+    </tr>
+    
+    <tr>
+      <td>Heart Age (years)</td>
+      <td><span class="badge neutral">22</span></td>
+      <td>Lower is better</td>
+      <td>Estimated biological age of the heart (Framingham Heart Age model).</td>
+    </tr>
+    
+  </table>
+  
+  <table class="vitals">
+    <tr class="section-head"><td colspan="4">Basic Vital Signs</td></tr>
+    <tr><th style="width:34%">Indicator</th><th style="width:16%">Result</th><th style="width:16%">Desired</th><th style="width:34%">Explanation</th></tr>
+    
+    <tr>
+      <td>Wellness Score</td>
+      <td><span class="badge red">6</span></td>
+      <td>&gt; 6</td>
+      <td>Predicted cardiovascular risk score for the next 5-10 years, based only on measured vitals.</td>
+    </tr>
+    
+    <tr>
+      <td>Wellness Level</td>
+      <td><span class="badge neutral">2</span></td>
+      <td>Normal</td>
+      <td>Overall Wellness Level.</td>
+    </tr>
+    
+    <tr>
+      <td>Blood Pressure (mmHg)</td>
+      <td><span class="badge green">121/80</span></td>
+      <td>&lt; 129/90</td>
+      <td>Force of blood on artery walls (Systolic/Diastolic).</td>
+    </tr>
+    
+    <tr>
+      <td>Heart Rate (BPM)</td>
+      <td><span class="badge red">102</span></td>
+      <td>60-100</td>
+      <td>Number of heart beats per minute.</td>
+    </tr>
+    
+    <tr>
+      <td>Breathing Rate (RPM)</td>
+      <td><span class="badge green">14</span></td>
+      <td>12-20</td>
+      <td>Number of breaths per minute at rest.</td>
+    </tr>
+    
+    <tr>
+      <td>Oxygen Saturation (%)</td>
+      <td><span class="badge green">98%</span></td>
+      <td>&gt; 95</td>
+      <td>Oxygen levels in red blood cells.</td>
+    </tr>
+    
+    <tr>
+      <td>PRQ (Pulse-Respiration Quotient)</td>
+      <td><span class="badge neutral">7.1</span></td>
+      <td>~ 5</td>
+      <td>Efficiency of heart and lung coordination.</td>
+    </tr>
+    
+  </table>
+  
+  <table class="vitals">
+    <tr class="section-head"><td colspan="4">Bloodless Blood Tests</td></tr>
+    <tr><th style="width:34%">Indicator</th><th style="width:16%">Result</th><th style="width:16%">Desired</th><th style="width:34%">Explanation</th></tr>
+    
+    <tr>
+      <td>Hemoglobin A1c (%)<span class="research-mark">**</span></td>
+      <td><span class="badge green">5.62%</span></td>
+      <td>&lt; 5.7</td>
+      <td>Average blood sugar over 2-3 months.</td>
+    </tr>
+    
+    <tr>
+      <td>Hemoglobin (g/dL)<span class="research-mark">**</span></td>
+      <td><span class="badge green">14.2</span></td>
+      <td>M:14-18, F:12-16</td>
+      <td>Oxygen transport capacity in blood.</td>
+    </tr>
+    
+  </table>
+  
+  <table class="vitals">
+    <tr class="section-head"><td colspan="4">Stress</td></tr>
+    <tr><th style="width:34%">Indicator</th><th style="width:16%">Result</th><th style="width:16%">Desired</th><th style="width:34%">Explanation</th></tr>
+    
+    <tr>
+      <td>Stress Level</td>
+      <td><span class="badge green">Normal</span></td>
+      <td>Low/Normal</td>
+      <td>Body&#39;s handling of physiological challenges (Baevsky Index).</td>
+    </tr>
+    
+    <tr>
+      <td>Stress Index</td>
+      <td><span class="badge green">139</span></td>
+      <td>&lt; 150</td>
+      <td>Baevsky Stress Index.</td>
+    </tr>
+    
+    <tr>
+      <td>Normalized Stress Index (%)</td>
+      <td><span class="badge green">27%</span></td>
+      <td>&lt; 40</td>
+      <td>Scaled stress index (0-100).</td>
+    </tr>
+    
+  </table>
+  
+  <table class="vitals">
+    <tr class="section-head"><td colspan="4">Advanced Heart Rate Variability</td></tr>
+    <tr><th style="width:34%">Indicator</th><th style="width:16%">Result</th><th style="width:16%">Desired</th><th style="width:34%">Explanation</th></tr>
+    
+    <tr>
+      <td>PNS Zone (Recovery)</td>
+      <td><span class="badge blue">Low</span></td>
+      <td>Normal</td>
+      <td>Parasympathetic ‘rest and digest’ activity.</td>
+    </tr>
+    
+    <tr>
+      <td>PNS Index</td>
+      <td><span class="badge neutral">-1.4</span></td>
+      <td>—</td>
+      <td>Parasympathetic Nervous System Index.</td>
+    </tr>
+    
+    <tr>
+      <td>SNS Zone (Stress Response)</td>
+      <td><span class="badge red">High</span></td>
+      <td>Normal</td>
+      <td>Sympathetic ‘fight or flight’ activity.</td>
+    </tr>
+    
+    <tr>
+      <td>SNS Index</td>
+      <td><span class="badge neutral">2.5</span></td>
+      <td>—</td>
+      <td>Sympathetic Nervous System Index.</td>
+    </tr>
+    
+    <tr>
+      <td>Mean RRI (ms)</td>
+      <td><span class="badge neutral">571</span></td>
+      <td>—</td>
+      <td>Mean RR Interval.</td>
+    </tr>
+    
+    <tr>
+      <td>RMSSD (ms)</td>
+      <td><span class="badge neutral">42</span></td>
+      <td>—</td>
+      <td>Root Mean Square of Successive Differences.</td>
+    </tr>
+    
+    <tr>
+      <td>SDNN (ms)</td>
+      <td><span class="badge neutral">56</span></td>
+      <td>—</td>
+      <td>Standard Deviation of NN intervals.</td>
+    </tr>
+    
+    <tr>
+      <td>SD1 (ms)</td>
+      <td><span class="badge neutral">24</span></td>
+      <td>—</td>
+      <td>Poincare plot standard deviation perpendicular to the line of identity.</td>
+    </tr>
+    
+    <tr>
+      <td>SD2 (ms)</td>
+      <td><span class="badge neutral">75</span></td>
+      <td>—</td>
+      <td>Poincare plot standard deviation along the line of identity.</td>
+    </tr>
+    
+    <tr>
+      <td>LF/HF Ratio</td>
+      <td><span class="badge neutral">1.275</span></td>
+      <td>—</td>
+      <td>Ratio of Low Frequency to High Frequency power.</td>
+    </tr>
+    
+  </table>
+  
+
+  
+
+  <div class="notes">
+    1. The measured health indicators are for general wellness and fitness purposes only, not for medical diagnosis.<br>2. Confidence levels indicate the probability of measurement accuracy. Not all vitals have confidence levels yet.<br>3. Incomplete data may result in missing measurements. Follow instructions for proper face measurement or PPG sensor use.<br>
+  </div>
+  <div class="research-disclaimer">**Disclaimer: These indicators are still under research.</div>
+
+  <div class="footer">© 2026 beAIve. All rights reserved. If you did not request this report, please ignore this email or contact support at support@beaive.com.<br>beAIve · Wellness interpretation only · Governed by NexArch AppliedMind Intelligence Labs</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,267 @@
+     Indicator           Result   Desired Result                                       Explanation
+                                                   The High Blood Pressure Risk result indicates whether your blood pressure
+High Blood                                         exceeds preset systolic/diastolic values. Possible results: Low, Medium, or
+                     Low          Low
+Pressure Risk                                      High. Higher results indicate that your blood pressure is above the preset
+                                                   thresholds.
+                                                   The High Hemoglobin A1c Risk (HbA1c) result indicates whether your
+High Hemoglobin                                    Hemoglobin A1c level exceeds a preset threshold. Possible results: Low,
+                     Low          Low
+A1c Risk**                                         Medium, or High. Higher results indicate that Hemoglobin A1c levels are above
+                                                   the preset threshold.
+                                                   If you did not fast for 8-12 hours before taking a measurement, please
+                                                   disregard these results. The High Fasting Glucose Risk result indicates
+High Fasting
+                     Low          Low              whether your glucose level exceeds a preset threshold after at least 8 hours of
+Glucose Risk**
+                                                   fasting. Possible results: Low or High. A high result indicates that your fasting
+                                                   glucose level is above the preset threshold.
+                                                   The High Total Cholesterol Risk result indicates whether your cholesterol level
+High Total
+                     Low          Low              exceeds a preset threshold. Possible results: Low, Medium, or High. A higher
+Cholesterol Risk**
+                                                   result indicates that your total cholesterol level is above the preset thresholds.
+                                                   The Low Hemoglobin Risk result indicates whether the Hemoglobin level drops
+Low Hemoglobin
+                     3            Low              below a preset threshold. Possible results: Low or High. High result indicates
+Risk**
+                                                   that Hemoglobin falls below the preset threshold.
+                                  Based on
+                                                   ASCVD (Atherosclerotic Cardiovascular Disease) Risk estimates the likelihood
+ASCVD Risk (%)       1%           Framingham
+                                                   of experiencing an atherosclerotic cardiovascular event within 10 years.
+                                  CVD model
+                                  Based on
+                                  Framingham       The Framingham Heart Age estimates the biological age of the heart based on
+Heart Age (years)    20 years
+                                  Heart Age        risk factors and comparing it to an ideal healthy profile.
+                                  model
+Basic Vital Signs
+                                                   The beAIve Wellness Score is meant to predict your cardiovascular risk for the
+Wellness Score       6            More than 6
+                                                   next 5 to 10 years, based only on the measured vitals.
+Wellness Level       2            Normal           Overall Wellness Level.
+                                                   Blood Pressure is the force of blood on artery walls. The first number (Systolic)
+Blood Pressure       124/84
+                                  <129/90          measures the pressure when your heart beats. The second (Diastolic) indicates
+(mmHg)               mmHg
+                                                   the pressure when your heart rests between beats.
+Heart Rate                                         Normal resting heart rate is between 60-100 bpm. Heart rate is the number of
+                     113 bpm      60-100
+(Beats/Minute)                                     times your heart beats per minute. This number fluctuates throughout the day.
+Breathing Rate       20
+                                 12-20             Adults normal breathing rate at rest ranges between 12-20 breaths per minute.
+(Breaths/Minute)     breaths/min
+                                                   Oxygen Saturation (SpO2) measures how much oxygen the red blood cells
+Oxygen Saturation
+                  95%             >95              carry from the lungs to the rest of the body. Normal SpO2 for healthy lungs
+(%)
+                                                   ranges between 95%-100%.
+PRQ (Pulse-
+                                                   The PRQ reflects the efficiency with which the heart and lungs are working
+Respiration         5.5 ratio     ~5
+                                                   together.
+Quotient)
+Bloodless Blood Tests
+Hemoglobin A1c                                     Hemoglobin A1c shows your average blood sugar for 2-3 months. It helps
+                    5.75%         <5.7
+(%)**                                              detect pre-diabetes and diabetes.
+Hemoglobin                        Male:14-18,      Hemoglobin distributes the oxygen you breathe to muscles and tissues
+                    11.6 g/dL
+(g/dL)**                          Female:12-16     throughout your body.
+Stress
+                                  Low and
+Stress Level         Normal                        Your stress level (Baevsky Index) reflects how your body handles challenges.
+                                  Normal
+                                                   A non-negative number reflecting how your body handles challenges based on
+Stress Index         118          <150
+                                                   Baevsky Stress Index.
+Normalized Stress                                  The Normalized Stress Level is calculated from the Stress Index and scaled to
+                  24            <40
+Index (%)                                          a range of 0 to 100. A high value indicates high stress.
+Advanced Heart Rate Variability
+                                                   The Recovery Ability that is also known as “rest and digest'' response refers to
+                                                   the body’s ability to recover, accumulate energy, and regulate bodily functions
+PNS Zone -                                         after stressful occurrences. This is part of the autonomic system that consists
+                     Low          Normal
+Recovery Ability                                   of two sub-systems, the sympathetic (Stress Response) system and the
+                                                   parasympathetic (Recovery Ability) system. Your Heart Rate Variability is
+                                                   reflected in the balance between these two sub-systems.
+PNS Index          -1.3           —                Parasympathetic Nervous System Index.
+SNS Zone - Stress High            Normal           The Stress Response, which is also known as “fight or flight” response, refers
+Response (Fight or                                 to a physiological reaction to imminent danger that occurs when we are scared,
+Flight)                                            anxious, stressed, attacked, or threatened. Essentially, it prepares our body to
+      Indicator          Result     Desired Result                                        Explanation
+                                                     either deal with a threat or to run for safety. This is part of the autonomic
+                                                     system that consists of two sub-systems, the sympathetic (Stress Response)
+                                                     system and the parasympathetic (recovery ability) system. Your Heart Rate
+                                                     Variability is reflected in the balance between those two sub-systems.
+  SNS Index           2.8           —                Sympathetic Nervous System Index.
+  Mean RRI            532 ms        —                Mean RR Interval.
+  RMSSD               50 ms         —                Root Mean Square of Successive Differences.
+  SDNN                63 ms         —                Standard Deviation of NN intervals.
+  SD1                 27 ms         —                Poincare plot standard deviation perpendicular to the line of identity.
+  SD2                 85 ms         —                Poincare plot standard deviation along the line of identity.
+  LF/HF Ratio         0.735 ratio   —                Ratio of Low Frequency to High Frequency power.
+
+ Notes:
+
+     1. The measured health indicators are for general wellness and fitness purposes only, not for medical diagnosis.
+     2. Confidence levels indicate the probability of measurement accuracy. Not all vitals have confidence levels yet.
+     3. Incomplete data may result in missing measurements. Follow instructions for proper face measurement or PPG sensor use.
+
+ **Disclaimer: These indicators are still under research.
+
+ Best regards,
+
+ The beAIve Team
+
+ © 2026 beAIve. All rights reserved.
+
+ If you did not request this report, please ignore this email or contact support at support@beaive.com.
+
+
+     Vitals_Report_426987ab-fd9c-4cee-9d7c-a6e1aa0ef88f.pdf
+     32K
+
+
+no-reply@beaive.com <no-reply@beaive.com>                                                                 Sat, Oct 17, 2026 at 11:23 AM
+To: ammedtech.solution@gmail.com
+                                                                                                                               beAIve
+
+
+
+
+Hello Abishek Murugan,
+Here is your latest vitals report:
+
+Scan Details
+
+Completed on: Oct 17, 2026, 5:53 AM; UTC
+Measured By: Face
+Measurement Duration: 60 seconds
+
+     Indicator            Result     Desired Result                                    Explanation
+Risks
+                                                      The High Blood Pressure Risk result indicates whether your blood pressure
+High Blood                                            exceeds preset systolic/diastolic values. Possible results: Low, Medium, or
+                       High          Low
+Pressure Risk                                         High. Higher results indicate that your blood pressure is above the preset
+                                                      thresholds.
+                                                      The High Hemoglobin A1c Risk (HbA1c) result indicates whether your
+High Hemoglobin                                       Hemoglobin A1c level exceeds a preset threshold. Possible results: Low,
+                       High          Low
+A1c Risk**                                            Medium, or High. Higher results indicate that Hemoglobin A1c levels are above
+                                                      the preset threshold.
+High Fasting           High          Low              If you did not fast for 8-12 hours before taking a measurement, please
+Glucose Risk**                                        disregard these results. The High Fasting Glucose Risk result indicates
+                                                      whether your glucose level exceeds a preset threshold after at least 8 hours of
+     Indicator           Result   Desired Result                                       Explanation
+                                                   fasting. Possible results: Low or High. A high result indicates that your fasting
+                                                   glucose level is above the preset threshold.
+                                                   The High Total Cholesterol Risk result indicates whether your cholesterol level
+High Total
+                     Normal       Low              exceeds a preset threshold. Possible results: Low, Medium, or High. A higher
+Cholesterol Risk**
+                                                   result indicates that your total cholesterol level is above the preset thresholds.
+                                                   The Low Hemoglobin Risk result indicates whether the Hemoglobin level drops
+Low Hemoglobin
+                     1            Low              below a preset threshold. Possible results: Low or High. High result indicates
+Risk**
+                                                   that Hemoglobin falls below the preset threshold.
+                                  Based on
+                                                   ASCVD (Atherosclerotic Cardiovascular Disease) Risk estimates the likelihood
+ASCVD Risk (%)       1%           Framingham
+                                                   of experiencing an atherosclerotic cardiovascular event within 10 years.
+                                  CVD model
+                                  Based on
+                                  Framingham       The Framingham Heart Age estimates the biological age of the heart based on
+Heart Age (years)    23 years
+                                  Heart Age        risk factors and comparing it to an ideal healthy profile.
+                                  model
+Basic Vital Signs
+                                                   The beAIve Wellness Score is meant to predict your cardiovascular risk for the
+Wellness Score       5            More than 6
+                                                   next 5 to 10 years, based only on the measured vitals.
+Wellness Level       2            Normal           Overall Wellness Level.
+                                                   Blood Pressure is the force of blood on artery walls. The first number (Systolic)
+Blood Pressure       150/94
+                                  <129/90          measures the pressure when your heart beats. The second (Diastolic) indicates
+(mmHg)               mmHg
+                                                   the pressure when your heart rests between beats.
+Heart Rate                                         Normal resting heart rate is between 60-100 bpm. Heart rate is the number of
+                     105 bpm      60-100
+(Beats/Minute)                                     times your heart beats per minute. This number fluctuates throughout the day.
+Breathing Rate       29
+                                 12-20             Adults normal breathing rate at rest ranges between 12-20 breaths per minute.
+(Breaths/Minute)     breaths/min
+                                                   Oxygen Saturation (SpO2) measures how much oxygen the red blood cells
+Oxygen Saturation
+                  97%             >95              carry from the lungs to the rest of the body. Normal SpO2 for healthy lungs
+(%)
+                                                   ranges between 95%-100%.
+PRQ (Pulse-
+                                                   The PRQ reflects the efficiency with which the heart and lungs are working
+Respiration         3.7 ratio     ~5
+                                                   together.
+Quotient)
+Bloodless Blood Tests
+Hemoglobin A1c                                     Hemoglobin A1c shows your average blood sugar for 2-3 months. It helps
+                    6.53%         <5.7
+(%)**                                              detect pre-diabetes and diabetes.
+Hemoglobin                        Male:14-18,      Hemoglobin distributes the oxygen you breathe to muscles and tissues
+                    14 g/dL
+(g/dL)**                          Female:12-16     throughout your body.
+Stress
+                                  Low and
+Stress Level         -                             Your stress level (Baevsky Index) reflects how your body handles challenges.
+                                  Normal
+                                                   A non-negative number reflecting how your body handles challenges based on
+Stress Index         —            <150
+                                                   Baevsky Stress Index.
+Normalized Stress                                  The Normalized Stress Level is calculated from the Stress Index and scaled to
+                  —             <40
+Index (%)                                          a range of 0 to 100. A high value indicates high stress.
+Advanced Heart Rate Variability
+                                                   The Recovery Ability that is also known as “rest and digest'' response refers to
+                                                   the body’s ability to recover, accumulate energy, and regulate bodily functions
+PNS Zone -                                         after stressful occurrences. This is part of the autonomic system that consists
+                     -            Normal
+Recovery Ability                                   of two sub-systems, the sympathetic (Stress Response) system and the
+                                                   parasympathetic (Recovery Ability) system. Your Heart Rate Variability is
+                                                   reflected in the balance between these two sub-systems.
+PNS Index            —            —                Parasympathetic Nervous System Index.
+                                                   The Stress Response, which is also known as “fight or flight” response, refers
+                                                   to a physiological reaction to imminent danger that occurs when we are scared,
+SNS Zone - Stress                                  anxious, stressed, attacked, or threatened. Essentially, it prepares our body to
+Response (Fight or -              Normal           either deal with a threat or to run for safety. This is part of the autonomic
+Flight)                                            system that consists of two sub-systems, the sympathetic (Stress Response)
+                                                   system and the parasympathetic (recovery ability) system. Your Heart Rate
+                                                   Variability is reflected in the balance between those two sub-systems.
+SNS Index            —            —                Sympathetic Nervous System Index.
+Mean RRI             — ms         —                Mean RR Interval.
+RMSSD                — ms         —                Root Mean Square of Successive Differences.
+SDNN                 — ms         —                Standard Deviation of NN intervals.
+SD1                  — ms         —                Poincare plot standard deviation perpendicular to the line of identity.
+SD2                  — ms         —                Poincare plot standard deviation along the line of identity.
+    Indicator            Result   Desired Result                                 Explanation
+LF/HF Ratio            — ratio    —              Ratio of Low Frequency to High Frequency power.
+
+Notes:
+
+     1. The measured health indicators are for general wellness and fitness purposes only, not for medical diagnosis.
+     2. Confidence levels indicate the probability of measurement accuracy. Not all vitals have confidence levels yet.
+     3. Incomplete data may result in missing measurements. Follow instructions for proper face measurement or PPG sensor use.
+
+**Disclaimer: These indicators are still under research.
+
+Best regards,
+
+The beAIve Team
+
+[Quoted text hidden]
+
+
+      Vitals_Report_c9c87001-32fb-4042-8bfe-b86926e78952.pdf
+      32K
+

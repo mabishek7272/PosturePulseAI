@@ -18,19 +18,19 @@ import type { ARJigBlockerCode, ARJigErrorCode } from "../../modules/ar-jig";
  *   any consequence for the result beyond "the clip was not kept".
  */
 export const BLOCKER_TEXT: Record<ARJigBlockerCode, string> = {
-  tracking_unavailable: "Hold the iPad still for a moment while it finds the room.",
-  tracking_limited: "Move the iPad slowly - it is still mapping the room.",
-  no_floor_plane: "Point the iPad at the floor for a moment so it can find it.",
-  camera_not_level: "Tilt the iPad until it is upright.",
-  camera_too_low: "Raise the iPad a little.",
-  camera_too_high: "Lower the iPad a little.",
-  too_close: "Move the iPad further back.",
-  too_far: "Move the iPad closer.",
+  tracking_unavailable: "Hold the device still for a moment while it finds the room.",
+  tracking_limited: "Move the device slowly - it is still mapping the room.",
+  no_floor_plane: "Point the device at the floor for a moment so it can find it.",
+  camera_not_level: "Tilt the device until it is upright.",
+  camera_too_low: "Raise the device a little.",
+  camera_too_high: "Lower the device a little.",
+  too_close: "Move the device further back.",
+  too_far: "Move the device closer.",
   foreground_obstruction: "Something is close to the camera - clear the space in front of it.",
 };
 
 /** Shown when the gate is open and the hold has completed. */
-export const GATE_READY_TEXT = "Ready - the iPad is in position.";
+export const GATE_READY_TEXT = "Ready - the device is in position.";
 
 /** Shown while the stability hold is counting, before the gate opens. */
 export const GATE_SETTLING_TEXT = "Hold steady...";
@@ -43,7 +43,7 @@ export const GATE_SETTLING_TEXT = "Hold steady...";
 export const ERROR_TEXT: Record<ARJigErrorCode, string> = {
   unsupported_device: "This iPad cannot run the guided setup. The standard camera capture is used instead.",
   session_not_ready: "The camera is not ready yet. Try again in a moment.",
-  gate_closed: "Get the iPad into position first - the prompt above says what to adjust.",
+  gate_closed: "Get the device into position first - the prompt above says what to adjust.",
   writer_failed: "The recording could not be saved. Nothing was kept; please try again.",
   insufficient_frame_rate:
     "The recording dropped too many frames to be used, so it was not kept. Please record it again.",

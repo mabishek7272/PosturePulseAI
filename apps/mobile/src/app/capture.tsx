@@ -738,7 +738,7 @@ function VisionCameraCapture({ sequence }: { sequence: ResolvedSequence }) {
                         {`${sequence.reason ?? ""} Using the app's default ${CLIP_SECONDS}s holds, not this clinic's protocol.`}
                       </Text>
                     ) : null}
-                    {guidanceOn && guidance.available ? null : <Text style={styles.mountHint}>For a usable measurement, mount the iPad upright and keep it still (a stand works best).</Text>}
+                    {guidanceOn && guidance.available ? null : <Text style={styles.mountHint}>For a usable measurement, mount the device upright and keep it still (a stand works best).</Text>}
                   </View>
                 </GlassCard>
               ) : guidanceOn && !guidance.aligned ? (

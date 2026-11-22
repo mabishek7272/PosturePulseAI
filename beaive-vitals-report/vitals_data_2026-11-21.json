@@ -1,0 +1,267 @@
+{
+  "brand": "beAIve",
+  "title": "Vitals Health Report",
+  "patient": {
+    "name": "Abishek Murugan",
+    "email": "ammedtech.solution@gmail.com",
+    "phone": "9884197299"
+  },
+  "organization": {
+    "name": "Reainmaker",
+    "license": "BEAIVEMOB001"
+  },
+  "scan": {
+    "date": "Nov 21, 2026, 12:00 AM; UTC",
+    "time": "06:13 AM",
+    "method": "Face Scan (60s)"
+  },
+  "sections": [
+    {
+      "title": "Risks",
+      "rows": [
+        {
+          "indicator": "High Blood Pressure Risk",
+          "result": "Low",
+          "desired": "Low",
+          "tone": "blue",
+          "explanation": "Indicates if BP exceeds preset values."
+        },
+        {
+          "indicator": "High Hemoglobin A1c Risk",
+          "result": "Low",
+          "desired": "Low",
+          "tone": "blue",
+          "explanation": "Indicates if HbA1c exceeds preset threshold.",
+          "research": true
+        },
+        {
+          "indicator": "High Fasting Glucose Risk",
+          "result": "Low",
+          "desired": "Low",
+          "tone": "blue",
+          "explanation": "Indicates if glucose exceeds threshold after fasting.",
+          "research": true
+        },
+        {
+          "indicator": "High Total Cholesterol Risk",
+          "result": "High",
+          "desired": "Low",
+          "tone": "red",
+          "explanation": "Indicates if cholesterol exceeds threshold.",
+          "research": true
+        },
+        {
+          "indicator": "Low Hemoglobin Risk",
+          "result": "Low",
+          "desired": "Low",
+          "tone": "blue",
+          "explanation": "Indicates if Hemoglobin drops below threshold.",
+          "research": true
+        },
+        {
+          "indicator": "ASCVD Risk (%)",
+          "result": "1%",
+          "desired": "Low",
+          "tone": "neutral",
+          "explanation": "10-year risk of atherosclerotic events (Framingham CVD model)."
+        },
+        {
+          "indicator": "Heart Age (years)",
+          "result": "22",
+          "desired": "Lower is better",
+          "tone": "neutral",
+          "explanation": "Estimated biological age of the heart (Framingham Heart Age model)."
+        }
+      ]
+    },
+    {
+      "title": "Basic Vital Signs",
+      "rows": [
+        {
+          "indicator": "Wellness Score",
+          "result": "6",
+          "desired": "> 6",
+          "tone": "red",
+          "explanation": "Predicted cardiovascular risk score for the next 5-10 years, based only on measured vitals."
+        },
+        {
+          "indicator": "Wellness Level",
+          "result": "2",
+          "desired": "Normal",
+          "tone": "neutral",
+          "explanation": "Overall Wellness Level."
+        },
+        {
+          "indicator": "Blood Pressure (mmHg)",
+          "result": "121/80",
+          "desired": "< 129/90",
+          "tone": "green",
+          "explanation": "Force of blood on artery walls (Systolic/Diastolic)."
+        },
+        {
+          "indicator": "Heart Rate (BPM)",
+          "result": "102",
+          "desired": "60-100",
+          "tone": "red",
+          "explanation": "Number of heart beats per minute."
+        },
+        {
+          "indicator": "Breathing Rate (RPM)",
+          "result": "14",
+          "desired": "12-20",
+          "tone": "green",
+          "explanation": "Number of breaths per minute at rest."
+        },
+        {
+          "indicator": "Oxygen Saturation (%)",
+          "result": "98%",
+          "desired": "> 95",
+          "tone": "green",
+          "explanation": "Oxygen levels in red blood cells."
+        },
+        {
+          "indicator": "PRQ (Pulse-Respiration Quotient)",
+          "result": "7.1",
+          "desired": "~ 5",
+          "tone": "neutral",
+          "explanation": "Efficiency of heart and lung coordination."
+        }
+      ]
+    },
+    {
+      "title": "Bloodless Blood Tests",
+      "rows": [
+        {
+          "indicator": "Hemoglobin A1c (%)",
+          "result": "5.62%",
+          "desired": "< 5.7",
+          "tone": "green",
+          "explanation": "Average blood sugar over 2-3 months.",
+          "research": true
+        },
+        {
+          "indicator": "Hemoglobin (g/dL)",
+          "result": "14.2",
+          "desired": "M:14-18, F:12-16",
+          "tone": "green",
+          "explanation": "Oxygen transport capacity in blood.",
+          "research": true
+        }
+      ]
+    },
+    {
+      "title": "Stress",
+      "rows": [
+        {
+          "indicator": "Stress Level",
+          "result": "Normal",
+          "desired": "Low/Normal",
+          "tone": "green",
+          "explanation": "Body's handling of physiological challenges (Baevsky Index)."
+        },
+        {
+          "indicator": "Stress Index",
+          "result": "139",
+          "desired": "< 150",
+          "tone": "green",
+          "explanation": "Baevsky Stress Index."
+        },
+        {
+          "indicator": "Normalized Stress Index (%)",
+          "result": "27%",
+          "desired": "< 40",
+          "tone": "green",
+          "explanation": "Scaled stress index (0-100)."
+        }
+      ]
+    },
+    {
+      "title": "Advanced Heart Rate Variability",
+      "rows": [
+        {
+          "indicator": "PNS Zone (Recovery)",
+          "result": "Low",
+          "desired": "Normal",
+          "tone": "blue",
+          "explanation": "Parasympathetic ‘rest and digest’ activity."
+        },
+        {
+          "indicator": "PNS Index",
+          "result": "-1.4",
+          "desired": "—",
+          "tone": "neutral",
+          "explanation": "Parasympathetic Nervous System Index."
+        },
+        {
+          "indicator": "SNS Zone (Stress Response)",
+          "result": "High",
+          "desired": "Normal",
+          "tone": "red",
+          "explanation": "Sympathetic ‘fight or flight’ activity."
+        },
+        {
+          "indicator": "SNS Index",
+          "result": "2.5",
+          "desired": "—",
+          "tone": "neutral",
+          "explanation": "Sympathetic Nervous System Index."
+        },
+        {
+          "indicator": "Mean RRI (ms)",
+          "result": "571",
+          "desired": "—",
+          "tone": "neutral",
+          "explanation": "Mean RR Interval."
+        },
+        {
+          "indicator": "RMSSD (ms)",
+          "result": "42",
+          "desired": "—",
+          "tone": "neutral",
+          "explanation": "Root Mean Square of Successive Differences."
+        },
+        {
+          "indicator": "SDNN (ms)",
+          "result": "56",
+          "desired": "—",
+          "tone": "neutral",
+          "explanation": "Standard Deviation of NN intervals."
+        },
+        {
+          "indicator": "SD1 (ms)",
+          "result": "24",
+          "desired": "—",
+          "tone": "neutral",
+          "explanation": "Poincare plot standard deviation perpendicular to the line of identity."
+        },
+        {
+          "indicator": "SD2 (ms)",
+          "result": "75",
+          "desired": "—",
+          "tone": "neutral",
+          "explanation": "Poincare plot standard deviation along the line of identity."
+        },
+        {
+          "indicator": "LF/HF Ratio",
+          "result": "1.275",
+          "desired": "—",
+          "tone": "neutral",
+          "explanation": "Ratio of Low Frequency to High Frequency power."
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "The measured health indicators are for general wellness and fitness purposes only, not for medical diagnosis.",
+    "Confidence levels indicate the probability of measurement accuracy. Not all vitals have confidence levels yet.",
+    "Incomplete data may result in missing measurements. Follow instructions for proper face measurement or PPG sensor use."
+  ],
+  "research_disclaimer": "These indicators are still under research.",
+  "footer": "© 2026 beAIve. All rights reserved. If you did not request this report, please ignore this email or contact support at support@beaive.com.",
+  "gov": {
+    "line1": "WELLNESS DATA KNOWLEDGE GOVERNED BY NEXARCH APPLIEDMIND INTELLIGENCE LABS",
+    "line2": "Clinical guard · Decision support · Not a diagnosis",
+    "footer": "beAIve · Wellness interpretation only · Governed by NexArch AppliedMind Intelligence Labs"
+  },
+  "ai": null
+}

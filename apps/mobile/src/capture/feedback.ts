@@ -48,8 +48,8 @@ export const ISSUE_TEXT: Record<Issue, string> = {
   centred: "Move to the centre",
   inFrame: "Move into the frame",
   distance: "Adjust your distance",
-  level: "Level the iPad",
-  tilt: "Stand the iPad upright",
+  level: "Level the device",
+  tilt: "Stand the device upright",
   personLost: "Step into view",
 };
 

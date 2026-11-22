@@ -146,8 +146,10 @@ export function useHapticFeedbackPref(): [boolean, (value: boolean) => void] {
 
 // ---- Guided (AR) capture: the ARKit spatial gate + LiDAR depth path ----
 //
-// DEFAULTS TO ON (changed 2026-11-06, after the first iPad test scan reported
-// "AR is missing": with the default off, nobody ever saw it).
+// DEFAULTS TO OFF (changed back 2026-11-18). It was ON from 2026-11-06, but on
+// real devices (iPad Pro, iPhone 13 Pro) the hand-held tilt/clearance gate left
+// Record locked and testers could not scan. The standard camera works on every
+// device; AR stays available in Settings -> Guided AR setup.
 //
 // The gate thresholds (distance 2.3-3.0 m, camera height 0.9-1.3 m, tilt,
 // floor clearance) are still engineering defaults, not tuned in a real clinic
@@ -163,12 +165,12 @@ export function useHapticFeedbackPref(): [boolean, (value: boolean) => void] {
 const AR_JIG_KEY = "pp.pref.arJigCapture";
 const arJigListeners = new Set<Listener>();
 
-/** Read the persisted preference (default ON - see above). Never throws. */
+/** Read the persisted preference (default OFF - see above). Never throws. */
 export async function readArJigCapturePref(): Promise<boolean> {
   try {
-    return parseBoolPref(await SecureStore.getItemAsync(AR_JIG_KEY), true);
+    return parseBoolPref(await SecureStore.getItemAsync(AR_JIG_KEY), false);
   } catch {
-    return true;
+    return false;
   }
 }
 
