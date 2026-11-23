@@ -21,3 +21,14 @@ apps/mobile/dist/
 /*.pdf
 /*.png
 /*.html
+# Large local-only folders and files at the repo root that no build needs. Anchored with a
+# leading slash so they cannot match app folders such as apps/mobile/assets/models.
+/output/
+/tmp/
+/beaive-vitals-report/
+/posturepulse-report-template-build/
+/anuclaw/
+/dataset/
+/models/
+/*.pdf
+/*.zip

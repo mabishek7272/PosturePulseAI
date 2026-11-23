@@ -2353,7 +2353,7 @@ Expected: no `out_of_frame` quality flags. If there are, the preview is showing 
 Then confirm the **recorded aspect ratio** matches what the sidecar declares. The app reports `TARGET_RESOLUTION` (1080x1920) rather than the resolution the pipeline actually selected, which is safe only because vision-camera prioritises the target's aspect ratio over its pixel count — and ml-service feeds those dimensions into `analyze_observations`. Verify it rather than trusting the documentation: on the server, inspect an uploaded clip.
 
 ```bash
-ssh -p 18755 ubuntu@103.118.158.129
+ssh -p 18755 ubuntu@103.118.158.92
 # then, against the stored clip for this session:
 ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 <clip-path>
 ```

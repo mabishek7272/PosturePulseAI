@@ -4,7 +4,7 @@
 Accepted. Supersedes the Caddy setup used on the previous, now-retired, server.
 
 ## Context
-The backend moved to a shared Ubuntu 24.04 host (103.118.158.129, SSH on a
+The backend moved to a shared Ubuntu 24.04 host (103.118.158.92, SSH on a
 non-standard port) that already serves many unrelated projects. A host nginx
 owns ports 80/443 and manages certificates with certbot; ports 3000, 5432,
 6379 and 8000 are already taken by other projects. The previous server ran

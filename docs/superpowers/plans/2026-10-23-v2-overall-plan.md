@@ -19,7 +19,7 @@ It cannot produce a centimetre plumb line or 60 fps gait. The user wants one app
   event log, audit log and schemas. The measurement pipeline is rewritten.
 - Patient identity (name, date of birth) lives **on the server**, in a clinician-only, encrypted register.
 - Analysis sentences use fixed, reviewed templates. MedBuddy is a later milestone (more than 25 minutes of work).
-- **Host:** new shared server 103.118.158.129 (ssh :18755, user ubuntu), with existing host nginx and certbot and
+- **Host:** new shared server 103.118.158.92 (ssh :18755, user ubuntu), with existing host nginx and certbot and
   many other projects. The old server is gone, so the database starts empty.
 
 **How this design was chosen:** a design panel compared three designs (on-device-first, server-centric,

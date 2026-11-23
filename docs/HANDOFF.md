@@ -326,7 +326,7 @@ one plan per milestone:
 ## 6. Environment facts
 
 ### 6.1 Server (shared, production-ish)
-* Host `103.118.158.129`, Ubuntu 24.04, 8 CPU, 15 GB RAM, **no GPU**. SSH: `ssh -p 18755 ubuntu@103.118.158.129`
+* Host `103.118.158.92`, Ubuntu 24.04, 8 CPU, 15 GB RAM, **no GPU**. SSH: `ssh -p 18755 ubuntu@103.118.158.92`
   (key auth installed from the owner's Mac; `sudo` needs the owner's password — not stored anywhere in the repo).
 * UFW open: 22, 80, 443, 3000, 4000, 18755. Keep it that way; our backend is only on `127.0.0.1:3100`.
 * Our stack: `~/posturepulse` · compose project `posturepulse` · containers `posturepulse-{backend-api,ml-service,postgres}-1`
@@ -334,7 +334,7 @@ one plan per milestone:
   Compose: `docker compose -f infra/docker-compose.yml -f infra/docker-compose.server.yml --env-file infra/.env <up -d --build|ps|logs>`.
 * nginx: `/etc/nginx/sites-available/posture.beaive.com` (symlinked in `sites-enabled`), cert via
   `certbot --nginx` (auto-renew). Other sites there use the same pattern.
-* DNS (BigRock): `posture.beaive.com` and `medbuddy.beaive.com` → `103.118.158.129` **only**. The old A record
+* DNS (BigRock): `posture.beaive.com` and `medbuddy.beaive.com` → `103.118.158.92` **only**. The old A record
   `124.243.134.74` (dead server) was removed in the panel; BigRock's four nameservers were still converging at handoff
   (TTL 4 h). Check: `for ns in $(dig +short NS beaive.com); do dig +short A posture.beaive.com @$ns; done`.
 * **Do not touch:** containers `ai-smm_*`, `atrail_*`, `amgi_*`, `beaive_api` (127.0.0.1:8010), `beaive_mongo`,
@@ -354,7 +354,7 @@ simulator runtime, simulator "iPhone 17 Pro" id `55079423-C12B-40F0-979D-A182A2B
 
 ### 6.4 Baseline check for the shared server (run before and after any nginx/compose change)
 ```bash
-ssh -p 18755 ubuntu@103.118.158.129 'for h in api.3rdi.in api.atrail.in application.irairf.com atrail.in bramha.net corp.beaive.com dev.atrail.in e-kalavya.com hcm.alamcap.com simplicitytrap.com; do printf "%s %s\n" $h $(curl -s -o /dev/null -m 10 -w "%{http_code}" --resolve $h:443:127.0.0.1 https://$h/); done'
+ssh -p 18755 ubuntu@103.118.158.92 'for h in api.3rdi.in api.atrail.in application.irairf.com atrail.in bramha.net corp.beaive.com dev.atrail.in e-kalavya.com hcm.alamcap.com simplicitytrap.com; do printf "%s %s\n" $h $(curl -s -o /dev/null -m 10 -w "%{http_code}" --resolve $h:443:127.0.0.1 https://$h/); done'
 ```
 Baseline on 2026-10-23: `api.3rdi.in 000 · api.atrail.in 404 · application.irairf.com 301 · atrail.in 200 · bramha.net 502 ·
 corp.beaive.com 200 · dev.atrail.in 200 · e-kalavya.com 200 · hcm.alamcap.com 200 · simplicitytrap.com 000`
