@@ -139,6 +139,33 @@ describe("ReportReviewPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("shows who signed: name, specialty, licence and the drawn signature", async () => {
+    const signed = released();
+    signed.signOff = {
+      ...signed.signOff!,
+      signerSnapshot: {
+        fullName: "Dr Mei Chen",
+        specialty: "Physiotherapy",
+        licenceNumber: "PT-12345",
+        clinic: "City Clinic",
+        signature: { width: 300, height: 120, paths: ["M 10 10 L 50 60"] },
+        signatureSha256: "b".repeat(64),
+      },
+    };
+    vi.spyOn(client, "getReport").mockResolvedValue(signed);
+    renderPage();
+    expect(await screen.findByText(/Dr Mei Chen, Physiotherapy/)).toBeInTheDocument();
+    expect(screen.getByText(/Licence PT-12345/)).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Signature of the signing clinician" })).toBeInTheDocument();
+  });
+
+  it("still renders a report released before signer details existed", async () => {
+    vi.spyOn(client, "getReport").mockResolvedValue(released());
+    renderPage();
+    expect(await screen.findByText(/clin-1/)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Signature of the signing clinician" })).not.toBeInTheDocument();
+  });
+
   it("shows a failed sign-off once, inside the dialog only", async () => {
     vi.spyOn(client, "getReport").mockResolvedValue(sampleBody());
     vi.spyOn(client, "signOffReport").mockRejectedValue(new Error("Sign-off not accepted: check your password."));

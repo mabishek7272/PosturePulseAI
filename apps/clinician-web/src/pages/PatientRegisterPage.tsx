@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { createPatient, erasePatient, listPatientSessions, searchPatients } from "../api/client";
-import type { NewPatient, PatientRecord, SessionRecord } from "../api/types";
+import type { GenderIdentity, NewPatient, PatientRecord, SessionRecord, SexAtBirth } from "../api/types";
 import { SafetyStateBadge } from "../components/SafetyStateBadge";
 import "./patients.css";
 
@@ -120,15 +120,26 @@ export function PatientRegisterPage() {
 }
 
 function NewPatientForm({ onCreated }: { onCreated: (patient: PatientRecord) => void }) {
-  const ids = { name: useId(), dob: useId(), contact: useId(), heading: useId() };
+  const ids = {
+    name: useId(), dob: useId(), contact: useId(), heading: useId(),
+    nationality: useId(), sex: useId(), gender: useId(), smoking: useId(), alcohol: useId(),
+  };
   const [name, setName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [contact, setContact] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [sexAtBirth, setSexAtBirth] = useState("");
+  const [genderIdentity, setGenderIdentity] = useState("");
+  const [smoking, setSmoking] = useState("");
+  const [alcohol, setAlcohol] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
 
-  const canSubmit = name.trim() !== "" && dateOfBirth !== "" && !saving;
+  // The server refuses a registration without these answers; the form asks for them up front.
+  const answered = nationality.trim() !== "" && sexAtBirth !== "" && genderIdentity !== "" && smoking !== "" && alcohol !== "";
+  const today = new Date().toISOString().slice(0, 10);
+  const canSubmit = name.trim() !== "" && dateOfBirth !== "" && answered && !saving;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -136,13 +147,28 @@ function NewPatientForm({ onCreated }: { onCreated: (patient: PatientRecord) => 
     inFlight.current = true;
     setSaving(true);
     setError(null);
-    const input: NewPatient = { name: name.trim(), dateOfBirth };
+    const input: NewPatient = {
+      name: name.trim(),
+      dateOfBirth,
+      intake: {
+        nationality: nationality.trim(),
+        sexAtBirth: sexAtBirth as SexAtBirth,
+        genderIdentity: genderIdentity as GenderIdentity,
+        smoking: smoking as "never" | "former" | "current",
+        alcohol: alcohol as "never" | "occasional" | "regular",
+      },
+    };
     if (contact.trim()) input.contact = contact.trim();
     try {
       const created = await createPatient(input);
       setName("");
       setDateOfBirth("");
       setContact("");
+      setNationality("");
+      setSexAtBirth("");
+      setGenderIdentity("");
+      setSmoking("");
+      setAlcohol("");
       onCreated(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -169,10 +195,51 @@ function NewPatientForm({ onCreated }: { onCreated: (patient: PatientRecord) => 
         id={ids.dob}
         className="patients-input"
         type="date"
+        max={today}
         value={dateOfBirth}
         onChange={(e) => setDateOfBirth(e.target.value)}
         required
       />
+      <label htmlFor={ids.nationality}>Nationality</label>
+      <input
+        id={ids.nationality}
+        className="patients-input"
+        value={nationality}
+        onChange={(e) => setNationality(e.target.value)}
+        autoComplete="off"
+        required
+      />
+      <label htmlFor={ids.sex}>Sex at birth</label>
+      <select id={ids.sex} className="patients-input" value={sexAtBirth} onChange={(e) => setSexAtBirth(e.target.value)} required>
+        <option value="">Select...</option>
+        <option value="female">Female</option>
+        <option value="male">Male</option>
+        <option value="intersex">Intersex</option>
+        <option value="prefer_not_to_say">Prefer not to say</option>
+      </select>
+      <label htmlFor={ids.gender}>Gender identity</label>
+      <select id={ids.gender} className="patients-input" value={genderIdentity} onChange={(e) => setGenderIdentity(e.target.value)} required>
+        <option value="">Select...</option>
+        <option value="woman">Woman</option>
+        <option value="man">Man</option>
+        <option value="non_binary">Non-binary</option>
+        <option value="other">Other</option>
+        <option value="prefer_not_to_say">Prefer not to say</option>
+      </select>
+      <label htmlFor={ids.smoking}>Smoking</label>
+      <select id={ids.smoking} className="patients-input" value={smoking} onChange={(e) => setSmoking(e.target.value)} required>
+        <option value="">Select...</option>
+        <option value="never">Never</option>
+        <option value="former">Former</option>
+        <option value="current">Current</option>
+      </select>
+      <label htmlFor={ids.alcohol}>Alcohol</label>
+      <select id={ids.alcohol} className="patients-input" value={alcohol} onChange={(e) => setAlcohol(e.target.value)} required>
+        <option value="">Select...</option>
+        <option value="never">Never</option>
+        <option value="occasional">Occasional</option>
+        <option value="regular">Regular</option>
+      </select>
       <label htmlFor={ids.contact}>Contact (optional)</label>
       <input
         id={ids.contact}

@@ -4,13 +4,17 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, Vi
 import {
   Alcohol,
   createPatient,
+  GenderIdentity,
   PatientIntake,
   PatientRecord,
   PhysicalActivityLevel,
   searchPatients,
+  SexAtBirth,
   Smoking,
 } from "../api/patients";
+import { ApiError } from "../api/http";
 import { getClinicianToken } from "../auth/tokenStore";
+import { DatePickerField } from "../components/DatePickerField";
 import { BottomTabBar } from "../components/BottomTabBar";
 import { Avatar } from "../components/Avatar";
 import { PrimaryButton } from "../components/Buttons";
@@ -19,6 +23,7 @@ import { GlassCard } from "../components/GlassCard";
 import { ChevronRightIcon, PlusIcon, SearchIcon } from "../components/icons";
 import { BackButton } from "../components/ScreenHeader";
 import { initialsOf, patientMeta } from "../lib/homeData";
+import { requiredAnswersMessage } from "../lib/patientIntake";
 import { effectiveQuery, patientListView, sortRecentFirst } from "../lib/patientList";
 import { colors } from "../theme/colors";
 
@@ -94,6 +99,13 @@ export default function PatientPickerScreen() {
       const patient = await createPatient({ name, dateOfBirth, intake }, token);
       choose(patient);
     } catch (err) {
+      // 409 = the doctor's own profile (licence number, signature) is incomplete: registration
+      // stamps it on the patient, so send them to finish it.
+      if (err instanceof ApiError && err.status === 409) {
+        setError("Complete your doctor profile (licence number and signature) before registering patients.");
+        router.push("/doctor-profile");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Could not create the patient.");
     } finally {
       setCreating(false);
@@ -222,7 +234,12 @@ function NewPatientForm({
   const [dob, setDob] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Clinical intake - every field optional, documentary context only. Shown
+  // Required answers: registration is refused without them (an explicit "prefer not to say" counts).
+  const [nationality, setNationality] = useState("");
+  const [sexAtBirth, setSexAtBirth] = useState<SexAtBirth | undefined>();
+  const [genderIdentity, setGenderIdentity] = useState<GenderIdentity | undefined>();
+
+  // The rest of the clinical intake is optional, documentary context only. Shown
   // as part of the same form rather than a separate step, since it is asked
   // once at patient creation, not re-asked per visit.
   const [showIntake, setShowIntake] = useState(false);
@@ -237,6 +254,9 @@ function NewPatientForm({
 
   function buildIntake(): PatientIntake | undefined {
     const intake: PatientIntake = {};
+    if (nationality.trim()) intake.nationality = nationality.trim();
+    if (sexAtBirth) intake.sexAtBirth = sexAtBirth;
+    if (genderIdentity) intake.genderIdentity = genderIdentity;
     const height = Number(heightCm);
     const weight = Number(weightKg);
     if (heightCm.trim() && Number.isFinite(height)) intake.heightCm = height;
@@ -261,11 +281,17 @@ function NewPatientForm({
     // Checked client-side so the clinician sees the problem immediately; the
     // server enforces the same rule and is the final authority on it.
     if (!ISO_DATE.test(dob)) {
-      setLocalError("Date of birth must be in YYYY-MM-DD format.");
+      setLocalError("Choose the date of birth from the calendar.");
+      return;
+    }
+    const intake = buildIntake();
+    const missing = requiredAnswersMessage(intake);
+    if (missing) {
+      setLocalError(missing);
       return;
     }
     setLocalError(null);
-    onCreate(trimmedName, dob, buildIntake());
+    onCreate(trimmedName, dob, intake);
   }
 
   return (
@@ -279,22 +305,72 @@ function NewPatientForm({
         value={name}
         onChangeText={setName}
       />
+      <DatePickerField value={dob} onChange={setDob} disabled={busy} />
+
+      <Text style={styles.requiredLabel}>Required</Text>
       <TextInput
         style={styles.input}
-        placeholder="Date of birth (YYYY-MM-DD)"
+        placeholder="Nationality"
         placeholderTextColor={colors.textFaint}
-        keyboardType="numbers-and-punctuation"
-        value={dob}
-        onChangeText={setDob}
+        autoCapitalize="words"
+        value={nationality}
+        onChangeText={setNationality}
+      />
+
+      <Text style={styles.fieldLabel}>Sex at birth</Text>
+      <ChipRow<SexAtBirth>
+        options={[
+          { value: "female", label: "Female" },
+          { value: "male", label: "Male" },
+          { value: "intersex", label: "Intersex" },
+          { value: "prefer_not_to_say", label: "Prefer not to say" },
+        ]}
+        value={sexAtBirth}
+        onChange={setSexAtBirth}
+      />
+
+      <Text style={styles.fieldLabel}>Gender identity</Text>
+      <ChipRow<GenderIdentity>
+        options={[
+          { value: "woman", label: "Woman" },
+          { value: "man", label: "Man" },
+          { value: "non_binary", label: "Non-binary" },
+          { value: "other", label: "Other" },
+          { value: "prefer_not_to_say", label: "Prefer not to say" },
+        ]}
+        value={genderIdentity}
+        onChange={setGenderIdentity}
+      />
+
+      <Text style={styles.fieldLabel}>Smoking</Text>
+      <ChipRow<Smoking>
+        options={[
+          { value: "never", label: "Never" },
+          { value: "former", label: "Former" },
+          { value: "current", label: "Current" },
+        ]}
+        value={smoking}
+        onChange={setSmoking}
+      />
+
+      <Text style={styles.fieldLabel}>Alcohol</Text>
+      <ChipRow<Alcohol>
+        options={[
+          { value: "never", label: "Never" },
+          { value: "occasional", label: "Occasional" },
+          { value: "regular", label: "Regular" },
+        ]}
+        value={alcohol}
+        onChange={setAlcohol}
       />
 
       {!showIntake ? (
         <Pressable onPress={() => setShowIntake(true)} hitSlop={8} style={styles.intakeToggle}>
-          <Text style={styles.intakeToggleText}>+ Add clinical intake (optional)</Text>
+          <Text style={styles.intakeToggleText}>+ Add more clinical details (optional)</Text>
         </Pressable>
       ) : (
         <View style={styles.intakeSection}>
-          <Text style={styles.intakeLabel}>Clinical intake (optional)</Text>
+          <Text style={styles.intakeLabel}>More clinical details (optional)</Text>
 
           <View style={styles.row2}>
             <TextInput
@@ -314,28 +390,6 @@ function NewPatientForm({
               onChangeText={setWeightKg}
             />
           </View>
-
-          <Text style={styles.fieldLabel}>Smoking</Text>
-          <ChipRow<Smoking>
-            options={[
-              { value: "never", label: "Never" },
-              { value: "former", label: "Former" },
-              { value: "current", label: "Current" },
-            ]}
-            value={smoking}
-            onChange={setSmoking}
-          />
-
-          <Text style={styles.fieldLabel}>Alcohol</Text>
-          <ChipRow<Alcohol>
-            options={[
-              { value: "never", label: "Never" },
-              { value: "occasional", label: "Occasional" },
-              { value: "regular", label: "Regular" },
-            ]}
-            value={alcohol}
-            onChange={setAlcohol}
-          />
 
           <Text style={styles.fieldLabel}>Physical activity</Text>
           <ChipRow<PhysicalActivityLevel>
@@ -472,6 +526,7 @@ const styles = StyleSheet.create({
   intakeToggleText: { color: colors.accent600, fontSize: 13, fontWeight: "600" },
   intakeSection: { borderTopWidth: 1, borderTopColor: colors.hairline, marginTop: 4, marginBottom: 14, paddingTop: 14 },
   intakeLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "600", letterSpacing: 1.32, marginBottom: 10 },
+  requiredLabel: { color: colors.accent700, fontSize: 11, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 6, marginTop: 2 },
   fieldLabel: { color: colors.text, fontSize: 13, fontWeight: "600", marginBottom: 8, marginTop: 2 },
   row2: { flexDirection: "row", gap: 10 },
   half: { flex: 1 },

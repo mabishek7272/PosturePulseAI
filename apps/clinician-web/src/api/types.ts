@@ -238,7 +238,22 @@ export interface AssessmentReportBody {
   rows: ReportRow[];
   notMeasurable: NotMeasurableItem[];
   clinicianAssessment: { text: string; clinicianId: string } | null;
-  signOff: { clinicianId: string; signedAt: string; contentSha256: string } | null;
+  signOff: {
+    clinicianId: string;
+    signedAt: string;
+    contentSha256: string;
+    /** Frozen at sign-off. Absent on reports released before it existed. */
+    signerSnapshot?: {
+      fullName: string;
+      specialty: string;
+      licenceNumber: string;
+      qualifications?: string;
+      licensingAuthority?: string;
+      clinic?: string;
+      signature: { width: number; height: number; paths: string[] };
+      signatureSha256: string;
+    };
+  } | null;
   provenance: Provenance;
 }
 
@@ -283,11 +298,27 @@ export interface PatientRecord {
   name: string;
   dateOfBirth: string;
   contact?: string | null;
+  intake?: PatientIntake | null;
+  /** The registering clinician, stamped by the server from their profile. */
+  registeredBy?: { fullName: string; licenceNumber: string; registeredAt: string } | null;
   createdAt?: string;
+}
+
+export type SexAtBirth = "female" | "male" | "intersex" | "prefer_not_to_say";
+export type GenderIdentity = "woman" | "man" | "non_binary" | "other" | "prefer_not_to_say";
+
+/** Mirrors services/backend-api PatientIntake. The first five are required when registering. */
+export interface PatientIntake {
+  nationality?: string;
+  sexAtBirth?: SexAtBirth;
+  genderIdentity?: GenderIdentity;
+  smoking?: "never" | "former" | "current";
+  alcohol?: "never" | "occasional" | "regular";
 }
 
 export interface NewPatient {
   name: string;
   dateOfBirth: string;
   contact?: string;
+  intake: PatientIntake;
 }

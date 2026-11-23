@@ -161,10 +161,15 @@ describe("api client - patient register", () => {
     expect(fetch).toHaveBeenCalledWith("http://localhost:3000/patients?q=ann%20lee", { headers: {} });
   });
 
-  it("createPatient posts name, dateOfBirth and contact", async () => {
+  it("createPatient posts name, dateOfBirth, contact and the intake answers", async () => {
     setToken("the.jwt.token");
     mockFetchOnce({ id: "p1" });
-    const input = { name: "Ann Lee", dateOfBirth: "1980-02-03", contact: "ann@example.org" };
+    const input = {
+      name: "Ann Lee",
+      dateOfBirth: "1980-02-03",
+      contact: "ann@example.org",
+      intake: { nationality: "Indian", sexAtBirth: "female" as const, genderIdentity: "woman" as const, smoking: "never" as const, alcohol: "never" as const },
+    };
     await createPatient(input);
     expect(fetch).toHaveBeenCalledWith("http://localhost:3000/patients", postInit(input));
   });

@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import { clearClinicianToken, getClinicianToken, saveClinicianToken } from "./tokenStore";
+import { clearClinicianToken, getClinicianToken, getRefreshToken, saveClinicianToken, saveRefreshToken } from "./tokenStore";
 
 jest.mock("expo-secure-store");
 
@@ -21,8 +21,21 @@ describe("tokenStore", () => {
     await expect(getClinicianToken()).resolves.toBeNull();
   });
 
-  it("clears the token on logout", async () => {
+  it("clears BOTH tokens on logout", async () => {
     await clearClinicianToken();
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("beaive.clinicianToken");
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("beaive.clinicianRefreshToken");
+  });
+
+  it("keeps the refresh token under its own Keychain key", async () => {
+    await saveRefreshToken("r-abc");
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("beaive.clinicianRefreshToken", "r-abc");
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue("r-abc");
+    await expect(getRefreshToken()).resolves.toBe("r-abc");
+  });
+
+  it("reads no refresh token, rather than throwing, when the keychain is unavailable", async () => {
+    (SecureStore.getItemAsync as jest.Mock).mockRejectedValue(new Error("keychain locked"));
+    await expect(getRefreshToken()).resolves.toBeNull();
   });
 });

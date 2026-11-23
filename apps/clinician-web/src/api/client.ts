@@ -1,4 +1,4 @@
-import { clearToken, getToken } from "../auth/tokenStore";
+import { clearToken, getRefreshToken, getToken, setSession } from "../auth/tokenStore";
 import { BACKEND_API_URL } from "./config";
 import type {
   AdverseEventRecord,
@@ -21,11 +21,49 @@ class UnauthorizedError extends Error {
   }
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const token = getToken();
-  const response = await fetch(`${BACKEND_API_URL}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+let refreshInFlight: Promise<string | null> | null = null;
+
+/**
+ * Renews the access token with the stored refresh token (which rotates). One renewal at a time,
+ * so concurrent 401s share it - a second use of a spent refresh token looks like theft to the
+ * server. Null means the session is over; a network failure rejects and signs nobody out.
+ */
+function refreshAccessToken(staleToken: string): Promise<string | null> {
+  const current = getToken();
+  if (current && current !== staleToken) return Promise.resolve(current);
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return null;
+    const response = await fetch(`${BACKEND_API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (response.status === 401) return null;
+    if (!response.ok) throw new Error(`Session refresh failed: ${response.status}`);
+    const session = (await response.json()) as { accessToken: string; refreshToken: string };
+    setSession(session.accessToken, session.refreshToken);
+    return session.accessToken;
+  })().finally(() => {
+    refreshInFlight = null;
   });
+  return refreshInFlight;
+}
+
+/** Sends the request; on a 401 renews the access token once and sends it again. */
+async function sendWithRefresh(send: (token: string | null) => Promise<Response>): Promise<Response> {
+  const token = getToken();
+  const response = await send(token);
+  if (response.status !== 401 || !token) return response;
+  const fresh = await refreshAccessToken(token);
+  return fresh ? send(fresh) : response;
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  const response = await sendWithRefresh((token) =>
+    fetch(`${BACKEND_API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  );
 
   if (response.status === 401) {
     // The token is missing/expired/invalid - clear it so AuthContext's
@@ -66,13 +104,10 @@ interface PostOptions {
 
 /** Authenticated JSON POST, used by the report-review and patient-register mutations. */
 async function postJson<T>(path: string, body: unknown, options: PostOptions = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = { "content-type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${BACKEND_API_URL}${path}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
+  const response = await sendWithRefresh((token) => {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetch(`${BACKEND_API_URL}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
   });
 
   if (response.status === 401) {
@@ -97,7 +132,7 @@ async function postJson<T>(path: string, body: unknown, options: PostOptions = {
 }
 
 /** POST /auth/login (services/backend-api/src/auth/auth.controller.ts) - the only unauthenticated call this client makes. */
-export async function login(username: string, password: string): Promise<{ accessToken: string }> {
+export async function login(username: string, password: string): Promise<{ accessToken: string; refreshToken: string }> {
   const response = await fetch(`${BACKEND_API_URL}/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -106,7 +141,22 @@ export async function login(username: string, password: string): Promise<{ acces
   if (!response.ok) {
     throw new Error(response.status === 401 ? "Invalid username or password" : `Login failed: ${response.status}`);
   }
-  return (await response.json()) as { accessToken: string };
+  return (await response.json()) as { accessToken: string; refreshToken: string };
+}
+
+/** POST /auth/logout - revokes the session server-side. Best effort: signing out never waits on or fails because of it. */
+export async function logoutRequest(): Promise<void> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return;
+  try {
+    await fetch(`${BACKEND_API_URL}/auth/logout`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Offline: the token still expires on its own and is forgotten below.
+  }
 }
 
 /** GET /sessions - the review queue (services/backend-api/src/sessions/sessions.controller.ts). Clinician-only. */
@@ -229,13 +279,14 @@ export interface ErasureResult {
 
 /** PERMANENT. The server also requires `confirmName` to equal the patient's name. */
 export async function erasePatient(patientId: string, confirmName: string): Promise<ErasureResult> {
-  const token = getToken();
-  const headers: Record<string, string> = { "content-type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch(`${BACKEND_API_URL}/patients/${encodeURIComponent(patientId)}`, {
-    method: "DELETE",
-    headers,
-    body: JSON.stringify({ confirmName }),
+  const response = await sendWithRefresh((token) => {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetch(`${BACKEND_API_URL}/patients/${encodeURIComponent(patientId)}`, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify({ confirmName }),
+    });
   });
   if (response.status === 401) {
     clearToken();

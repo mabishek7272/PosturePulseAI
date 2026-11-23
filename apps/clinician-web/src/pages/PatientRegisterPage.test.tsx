@@ -34,6 +34,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const ANSWERS = { nationality: "Indian", sexAtBirth: "female", genderIdentity: "woman", smoking: "never", alcohol: "never" };
+
+async function answerRequired(form: HTMLElement) {
+  await userEvent.type(within(form).getByLabelText("Nationality"), "Indian");
+  await userEvent.selectOptions(within(form).getByLabelText("Sex at birth"), "female");
+  await userEvent.selectOptions(within(form).getByLabelText("Gender identity"), "woman");
+  await userEvent.selectOptions(within(form).getByLabelText("Smoking"), "never");
+  await userEvent.selectOptions(within(form).getByLabelText("Alcohol"), "never");
+}
+
 describe("PatientRegisterPage", () => {
   it("lists the register on load and searches by the typed text", async () => {
     const search = vi.spyOn(client, "searchPatients").mockResolvedValueOnce([ann, bo]).mockResolvedValueOnce([bo]);
@@ -60,7 +70,7 @@ describe("PatientRegisterPage", () => {
     expect(await screen.findByText(/Could not load patients: .*503/)).toBeInTheDocument();
   });
 
-  it("creates a patient with name and date of birth, contact optional", async () => {
+  it("creates a patient once the required answers are given, contact optional", async () => {
     vi.spyOn(client, "searchPatients").mockResolvedValue([]);
     const create = vi.spyOn(client, "createPatient").mockResolvedValue(bo);
     vi.spyOn(client, "listPatientSessions").mockResolvedValue([]);
@@ -73,12 +83,40 @@ describe("PatientRegisterPage", () => {
     await userEvent.type(within(form).getByLabelText("Name"), "Bo Park");
     expect(submit).toBeDisabled();
     await userEvent.type(within(form).getByLabelText("Date of birth"), "1975-07-21");
+    // Name and date alone are not enough: the required answers gate the button.
+    expect(submit).toBeDisabled();
+    await answerRequired(form);
     expect(submit).toBeEnabled();
     await userEvent.click(submit);
 
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
-    expect(create).toHaveBeenCalledWith({ name: "Bo Park", dateOfBirth: "1975-07-21" });
+    expect(create).toHaveBeenCalledWith({ name: "Bo Park", dateOfBirth: "1975-07-21", intake: ANSWERS });
     expect(await screen.findByRole("heading", { name: "Bo Park" })).toBeInTheDocument();
+  });
+
+  it("keeps the button disabled while any one required answer is missing", async () => {
+    vi.spyOn(client, "searchPatients").mockResolvedValue([]);
+    renderPage();
+    await screen.findByText("No patients match this search.");
+    const form = screen.getByRole("form", { name: "Add a patient" });
+    await userEvent.type(within(form).getByLabelText("Name"), "Cy Dee");
+    await userEvent.type(within(form).getByLabelText("Date of birth"), "1990-01-01");
+    await userEvent.type(within(form).getByLabelText("Nationality"), "Indian");
+    await userEvent.selectOptions(within(form).getByLabelText("Sex at birth"), "female");
+    await userEvent.selectOptions(within(form).getByLabelText("Gender identity"), "woman");
+    await userEvent.selectOptions(within(form).getByLabelText("Smoking"), "never");
+    // Alcohol still unanswered.
+    expect(within(form).getByRole("button", { name: "Add patient" })).toBeDisabled();
+    await userEvent.selectOptions(within(form).getByLabelText("Alcohol"), "never");
+    expect(within(form).getByRole("button", { name: "Add patient" })).toBeEnabled();
+  });
+
+  it("does not offer a birth date in the future", async () => {
+    vi.spyOn(client, "searchPatients").mockResolvedValue([]);
+    renderPage();
+    await screen.findByText("No patients match this search.");
+    const dob = screen.getByLabelText("Date of birth") as HTMLInputElement;
+    expect(dob.max).toBe(new Date().toISOString().slice(0, 10));
   });
 
   it("sends the contact when given and shows a create error", async () => {
@@ -90,11 +128,12 @@ describe("PatientRegisterPage", () => {
     const form = screen.getByRole("form", { name: "Add a patient" });
     await userEvent.type(within(form).getByLabelText("Name"), "Ann Lee");
     await userEvent.type(within(form).getByLabelText("Date of birth"), "1980-02-03");
+    await answerRequired(form);
     await userEvent.type(within(form).getByLabelText("Contact (optional)"), "ann@example.org");
     await userEvent.click(within(form).getByRole("button", { name: "Add patient" }));
 
     await waitFor(() =>
-      expect(create).toHaveBeenCalledWith({ name: "Ann Lee", dateOfBirth: "1980-02-03", contact: "ann@example.org" })
+      expect(create).toHaveBeenCalledWith({ name: "Ann Lee", dateOfBirth: "1980-02-03", contact: "ann@example.org", intake: ANSWERS })
     );
     expect(await screen.findByText(/Could not add the patient: .*400/)).toBeInTheDocument();
   });

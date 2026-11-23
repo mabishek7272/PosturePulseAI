@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { login as loginRequest } from "../api/client";
-import { clearToken, getToken, setToken, subscribeToken } from "./tokenStore";
+import { login as loginRequest, logoutRequest } from "../api/client";
+import { clearToken, getToken, setSession, subscribeToken } from "./tokenStore";
 
 interface AuthContextValue {
   /** null means logged out - see tokenStore for where this actually lives. */
@@ -19,10 +19,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     token,
     login: async (username, password) => {
-      const { accessToken } = await loginRequest(username, password);
-      setToken(accessToken);
+      const { accessToken, refreshToken } = await loginRequest(username, password);
+      setSession(accessToken, refreshToken);
     },
-    logout: () => clearToken(),
+    logout: () => {
+      // Revoke on the server, then forget locally - the request reads the refresh token before it is cleared.
+      void logoutRequest();
+      clearToken();
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

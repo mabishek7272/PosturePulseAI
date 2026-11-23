@@ -3,7 +3,8 @@ import { router } from "expo-router";
 import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { clearClinicianToken, getClinicianToken } from "../auth/tokenStore";
+import { endSession } from "../auth/session";
+import { getClinicianToken } from "../auth/tokenStore";
 import { Avatar } from "../components/Avatar";
 import { BottomTabBar } from "../components/BottomTabBar";
 import { DesignSwitch } from "../components/DesignSwitch";
@@ -27,7 +28,7 @@ type Tone = "plain" | "lavender";
 
 /** Sign out on this device: clears the stored token and returns to login. */
 async function lockDevice() {
-  await clearClinicianToken();
+  await endSession();
   router.replace("/login");
 }
 
@@ -111,9 +112,10 @@ export default function SettingsScreen() {
 
         <Text style={styles.section}>ACCOUNT</Text>
         <Group>
+          <Row Icon={PrivacyIcon} label="Doctor profile" caption="Name, licence number and signature" onPress={() => router.push("/doctor-profile")} chevron />
           <Row Icon={PrivacyIcon} label="Privacy & data retention" caption="Coming soon" disabled chevron />
           <Divider />
-          <Row Icon={LockDeviceIcon} label="Lock device" caption="Signs out of this device" onPress={lockDevice} chevron />
+          <Row Icon={LockDeviceIcon} label="Lock device" caption="Signs out and ends this session" onPress={lockDevice} chevron />
         </Group>
 
         <Text style={styles.footer}>

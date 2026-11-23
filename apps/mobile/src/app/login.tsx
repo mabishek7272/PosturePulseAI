@@ -10,7 +10,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { login } from "../api/auth";
-import { saveClinicianToken } from "../auth/tokenStore";
+import { getClinicianProfile } from "../api/clinician";
+import { saveSession } from "../auth/session";
+import { resolvePostLoginRoute } from "../lib/postLogin";
 import { BadgeShieldIcon, FieldLockIcon, FieldMailIcon, InfoCircleIcon } from "../components/authIcons";
 import { PrimaryButton, SecondaryButton } from "../components/Buttons";
 import { DriftingBlobs, type BlobSpec } from "../components/DriftingBlobs";
@@ -87,8 +89,11 @@ export default function LoginScreen() {
     setBusy(true);
     setError(null);
     try {
-      await saveClinicianToken(await login(username, password));
-      router.replace("/permissions");
+      const session = await login(username, password);
+      await saveSession(session);
+      // First sign-in: the doctor profile (name, specialty, licence, signature) is collected once;
+      // a profile that cannot be read never blocks sign-in.
+      router.replace(await resolvePostLoginRoute(() => getClinicianProfile(session.accessToken)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in.");
       card.shake();

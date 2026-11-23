@@ -24,10 +24,24 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   unauthorizedHandler = handler;
 }
 
+/**
+ * Asked for a fresh access token when a call with `staleToken` got a 401. Resolves a new token,
+ * or null when the session cannot be renewed (refresh token expired or revoked). Rejects on a
+ * network failure, which must NOT sign the clinician out.
+ */
+type RefreshHandler = (staleToken: string) => Promise<string | null>;
+let refreshHandler: RefreshHandler | null = null;
+
+export function setRefreshHandler(handler: RefreshHandler | null): void {
+  refreshHandler = handler;
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
   token?: string;
+  /** For the refresh call itself: a 401 there is an answer, not a reason to lock the app a second time. */
+  skipUnauthorizedHandler?: boolean;
 }
 
 async function serverMessage(response: Response): Promise<string> {
@@ -42,17 +56,27 @@ async function serverMessage(response: Response): Promise<string> {
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = {};
-  if (options.body !== undefined) headers["content-type"] = "application/json";
-  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  const send = (token: string | undefined) => {
+    const headers: Record<string, string> = {};
+    if (options.body !== undefined) headers["content-type"] = "application/json";
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return fetch(`${BACKEND_URL}${path}`, {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+  };
 
-  const response = await fetch(`${BACKEND_URL}${path}`, {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  let response = await send(options.token);
 
-  await assertOk(response);
+  // An expired access token is renewed once and the call retried, so a clinician is not
+  // sent to the login screen while their 30-day refresh token is still good.
+  if (response.status === 401 && options.token && refreshHandler) {
+    const fresh = await refreshHandler(options.token);
+    if (fresh) response = await send(fresh);
+  }
+
+  await assertOk(response, options.skipUnauthorizedHandler);
   return (await response.json()) as T;
 }
 
@@ -60,9 +84,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
  * Shared failure handling for every call, including the multipart clip upload
  * which cannot go through `request()` because it sends FormData.
  */
-export async function assertOk(response: Response): Promise<void> {
+export async function assertOk(response: Response, skipUnauthorizedHandler = false): Promise<void> {
   if (response.status === 401) {
-    unauthorizedHandler?.();
+    if (!skipUnauthorizedHandler) unauthorizedHandler?.();
     throw new UnauthorizedError();
   }
   if (!response.ok) {

@@ -1,8 +1,8 @@
 import { Stack, router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { AppState, View } from "react-native";
-import { setUnauthorizedHandler } from "../api/http";
-import { clearClinicianToken } from "../auth/tokenStore";
+import { setRefreshHandler, setUnauthorizedHandler } from "../api/http";
+import { endSession, refreshAccessToken } from "../auth/session";
 import { isIdle, recordActivity } from "../auth/idleLock";
 import { colors } from "../theme/colors";
 
@@ -16,10 +16,12 @@ export default function RootLayout() {
     // The idle-lock check below reuses this exact path, so there is one
     // lock-and-redirect code path, not two.
     const lock = () => {
-      void clearClinicianToken();
+      void endSession();
       router.replace("/login");
     };
     setUnauthorizedHandler(lock);
+    // An expired access token is renewed with the 30-day refresh token before it ever reaches `lock`.
+    setRefreshHandler(refreshAccessToken);
 
     function checkIdle() {
       if (isIdle()) lock();
@@ -35,6 +37,7 @@ export default function RootLayout() {
 
     return () => {
       setUnauthorizedHandler(null);
+      setRefreshHandler(null);
       if (checkTimer.current) clearInterval(checkTimer.current);
       appStateSub.remove();
     };

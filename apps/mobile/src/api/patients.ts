@@ -1,5 +1,7 @@
 import { request } from "./http";
 
+export type SexAtBirth = "female" | "male" | "intersex" | "prefer_not_to_say";
+export type GenderIdentity = "woman" | "man" | "non_binary" | "other" | "prefer_not_to_say";
 export type Smoking = "never" | "former" | "current";
 export type Alcohol = "never" | "occasional" | "regular";
 export type PhysicalActivityLevel = "sedentary" | "light" | "moderate" | "active";
@@ -13,6 +15,10 @@ export type PhysicalActivityLevel = "sedentary" | "light" | "moderate" | "active
  * clinical claims without clinical-lead sign-off).
  */
 export interface PatientIntake {
+  /** Required when registering a new patient (older records may lack it). */
+  nationality?: string;
+  sexAtBirth?: SexAtBirth;
+  genderIdentity?: GenderIdentity;
   heightCm?: number;
   weightKg?: number;
   smoking?: Smoking;
@@ -34,6 +40,8 @@ export interface PatientRecord {
   dateOfBirth: string;
   contact?: string | null;
   intake?: PatientIntake | null;
+  /** The registering clinician, stamped by the server from their profile. */
+  registeredBy?: { fullName: string; licenceNumber: string; registeredAt: string } | null;
   createdAt?: string;
 }
 

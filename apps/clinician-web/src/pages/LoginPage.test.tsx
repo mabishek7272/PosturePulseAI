@@ -27,7 +27,7 @@ afterEach(() => {
 
 describe("LoginPage", () => {
   it("logs in and stores the token on success", async () => {
-    vi.spyOn(client, "login").mockResolvedValue({ accessToken: "a.jwt.token" });
+    vi.spyOn(client, "login").mockResolvedValue({ accessToken: "a.jwt.token", refreshToken: "r-1" });
     renderLoginPage();
 
     await userEvent.type(screen.getByLabelText("Username"), "drchen");

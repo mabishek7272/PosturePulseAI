@@ -181,8 +181,32 @@ export function ReportReviewPage() {
           <>
             <dt>Signed off</dt>
             <dd>
-              {body.signOff.clinicianId}, {new Date(body.signOff.signedAt).toLocaleString()}
+              {body.signOff.signerSnapshot ? body.signOff.signerSnapshot.fullName : body.signOff.clinicianId},{" "}
+              {new Date(body.signOff.signedAt).toLocaleString()}
             </dd>
+            {body.signOff.signerSnapshot && (
+              <>
+                <dt>Signed by</dt>
+                <dd>
+                  {body.signOff.signerSnapshot.fullName}, {body.signOff.signerSnapshot.specialty}
+                  {body.signOff.signerSnapshot.qualifications ? ` (${body.signOff.signerSnapshot.qualifications})` : ""}
+                  <br />
+                  Licence {body.signOff.signerSnapshot.licenceNumber}
+                  {body.signOff.signerSnapshot.licensingAuthority ? `, ${body.signOff.signerSnapshot.licensingAuthority}` : ""}
+                  {body.signOff.signerSnapshot.clinic ? ` · ${body.signOff.signerSnapshot.clinic}` : ""}
+                  <svg
+                    role="img"
+                    aria-label="Signature of the signing clinician"
+                    viewBox={`0 0 ${body.signOff.signerSnapshot.signature.width} ${body.signOff.signerSnapshot.signature.height}`}
+                    style={{ display: "block", width: 220, maxWidth: "100%", marginTop: 6 }}
+                  >
+                    {body.signOff.signerSnapshot.signature.paths.map((d, i) => (
+                      <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                    ))}
+                  </svg>
+                </dd>
+              </>
+            )}
             <dt>Content SHA-256</dt>
             <dd>
               <code>{body.signOff.contentSha256}</code>

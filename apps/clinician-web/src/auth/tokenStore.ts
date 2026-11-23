@@ -5,6 +5,7 @@
 // sessionStorage, not localStorage, so a token doesn't outlive the tab.
 
 const STORAGE_KEY = "clinician-web:token";
+const REFRESH_KEY = "clinician-web:refresh-token";
 type Listener = (token: string | null) => void;
 
 function readFromStorage(): string | null {
@@ -33,10 +34,36 @@ export function setToken(token: string): void {
   listeners.forEach((listener) => listener(token));
 }
 
+/** The rotating refresh token, kept beside the access token (same tab-scoped storage). */
+let currentRefreshToken: string | null = (() => {
+  try {
+    return sessionStorage.getItem(REFRESH_KEY);
+  } catch {
+    return null;
+  }
+})();
+
+export function getRefreshToken(): string | null {
+  return currentRefreshToken;
+}
+
+/** Stores a freshly issued pair. Listeners (the route guard) see the new access token. */
+export function setSession(accessToken: string, refreshToken: string): void {
+  currentRefreshToken = refreshToken;
+  try {
+    sessionStorage.setItem(REFRESH_KEY, refreshToken);
+  } catch {
+    // See setToken - non-fatal.
+  }
+  setToken(accessToken);
+}
+
 export function clearToken(): void {
   currentToken = null;
+  currentRefreshToken = null;
   try {
     sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(REFRESH_KEY);
   } catch {
     // See setToken - non-fatal.
   }
