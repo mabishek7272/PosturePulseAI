@@ -10,6 +10,8 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PositiveFloat,
+    RootModel,
     confloat,
     conint,
     constr,
@@ -229,10 +231,46 @@ class ClinicianAssessment(BaseModel):
     clinicianId: str
 
 
+class Path(RootModel[constr(pattern=r'^[ML0-9.\- ]+$')]):
+    root: constr(pattern=r'^[ML0-9.\- ]+$')
+
+
+class Signature(BaseModel):
+    """
+    The drawn signature as SVG move/line path data in a width x height box.
+    """
+
+    width: PositiveFloat
+    height: PositiveFloat
+    paths: list[Path] = Field(..., min_length=1)
+
+
+class SignerSnapshot(BaseModel):
+    """
+    The signing clinician's professional details and drawn signature as they were at sign-off, frozen into the signed (hashed) body so a later profile edit cannot change who signed. Optional so reports released before this field existed stay valid.
+    """
+
+    fullName: constr(min_length=1)
+    specialty: constr(min_length=1)
+    licenceNumber: constr(min_length=1)
+    qualifications: str | None = None
+    licensingAuthority: str | None = None
+    clinic: str | None = None
+    signature: Signature = Field(
+        ...,
+        description='The drawn signature as SVG move/line path data in a width x height box.',
+    )
+    signatureSha256: constr(pattern=r'^[0-9a-f]{64}$')
+
+
 class SignOff(BaseModel):
     clinicianId: str
     signedAt: AwareDatetime
     contentSha256: constr(pattern=r'^[0-9a-f]{64}$')
+    signerSnapshot: SignerSnapshot | None = Field(
+        None,
+        description="The signing clinician's professional details and drawn signature as they were at sign-off, frozen into the signed (hashed) body so a later profile edit cannot change who signed. Optional so reports released before this field existed stay valid.",
+    )
 
 
 class MeasurementMethod(Enum):

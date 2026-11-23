@@ -136,6 +136,29 @@ export interface AssessmentReport {
     clinicianId: string;
     signedAt: string;
     contentSha256: string;
+    /**
+     * The signing clinician's professional details and drawn signature as they were at sign-off, frozen into the signed (hashed) body so a later profile edit cannot change who signed. Optional so reports released before this field existed stay valid.
+     */
+    signerSnapshot?: {
+      fullName: string;
+      specialty: string;
+      licenceNumber: string;
+      qualifications?: string;
+      licensingAuthority?: string;
+      clinic?: string;
+      /**
+       * The drawn signature as SVG move/line path data in a width x height box.
+       */
+      signature: {
+        width: number;
+        height: number;
+        /**
+         * @minItems 1
+         */
+        paths: [string, ...string[]];
+      };
+      signatureSha256: string;
+    };
   } | null;
   /**
    * Per-record provenance so every event self-reports the versions that produced it (TRD traceability requirement).

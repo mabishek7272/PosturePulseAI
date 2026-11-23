@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CliniciansModule } from "../clinicians/clinicians.module";
 import { BatteryModule } from "../battery/battery.module";
 import { PrismaService } from "../common/prisma.service";
 import { EventsModule } from "../events/events.module";
@@ -8,7 +9,7 @@ import { ReportsController, SessionReportsController } from "./reports.controlle
 import { ReportsService } from "./reports.service";
 
 @Module({
-  imports: [BatteryModule, EventsModule, MlClientModule],
+  imports: [CliniciansModule, BatteryModule, EventsModule, MlClientModule],
   controllers: [ReportsController, SessionReportsController, MetricCatalogController],
   providers: [ReportsService, PrismaService],
   exports: [ReportsService],

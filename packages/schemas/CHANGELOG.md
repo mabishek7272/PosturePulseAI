@@ -321,3 +321,8 @@ behind a flag and emits no metric until a clinical lead signs it off).
   The unauthenticated create and get routes never return it.
 - Stays `v0`: a v0 reader ignores the new optional property.
 
+## assessment-report v0 (additive) - signer snapshot
+
+`signOff.signerSnapshot` (optional): the signing clinician's name, specialty, licence
+number and drawn signature, frozen at sign-off and covered by `contentSha256`. Optional
+so reports released before it existed remain valid.

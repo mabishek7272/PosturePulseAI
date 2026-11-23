@@ -71,7 +71,22 @@ export interface AssessmentReportBody {
   rows: ReportRow[];
   notMeasurable: MetricCatalog["notMeasurable"];
   clinicianAssessment: { text: string; clinicianId: string } | null;
-  signOff: { clinicianId: string; signedAt: string; contentSha256: string } | null;
+  signOff: {
+    clinicianId: string;
+    signedAt: string;
+    contentSha256: string;
+    /** Absent on reports released before it existed. */
+    signerSnapshot?: {
+      fullName: string;
+      specialty: string;
+      licenceNumber: string;
+      qualifications?: string;
+      licensingAuthority?: string;
+      clinic?: string;
+      signature: { width: number; height: number; paths: string[] };
+      signatureSha256: string;
+    };
+  } | null;
   provenance: {
     schemaVersion: string;
     modelVersion: string;

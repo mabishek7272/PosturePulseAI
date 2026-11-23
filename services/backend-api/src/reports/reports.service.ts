@@ -10,6 +10,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import * as bcrypt from "bcryptjs";
+import { ClinicianProfileService } from "../clinicians/clinician-profile.service";
 import { v4 as uuid } from "uuid";
 import { BatteryService } from "../battery/battery.service";
 import { PrismaService } from "../common/prisma.service";
@@ -71,7 +72,8 @@ export class ReportsService implements OnApplicationBootstrap {
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
     private readonly battery: BatteryService,
-    private readonly ml: MlClientService
+    private readonly ml: MlClientService,
+    private readonly profiles: ClinicianProfileService
   ) {}
 
   /** Not awaited: startup must not wait for ml-service. */
@@ -266,10 +268,14 @@ export class ReportsService implements OnApplicationBootstrap {
     }
     this.failedSignOffs.delete(clinicianId);
 
+    // Frozen into the signed body. Refuses (409) when the profile is incomplete, so a
+    // report is never released under a name with no licence number or signature.
+    const { clinicianId: _id, username: _username, ...signerSnapshot } = await this.profiles.signerSnapshot(clinicianId);
+
     const signedAt = new Date();
     const body = structuredClone(row.body) as AssessmentReportBody;
     body.status = "released";
-    body.signOff = { clinicianId, signedAt: signedAt.toISOString(), contentSha256: "" };
+    body.signOff = { clinicianId, signedAt: signedAt.toISOString(), contentSha256: "", signerSnapshot };
     body.signOff.contentSha256 = reportContentSha256(body as never);
     this.assertValid(body);
 

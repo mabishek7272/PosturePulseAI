@@ -117,7 +117,31 @@
       "properties": {
         "clinicianId": { "type": "string" },
         "signedAt": { "$ref": "common.schema.json#/$defs/isoTimestamp" },
-        "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "signerSnapshot": {
+          "type": "object",
+          "description": "The signing clinician's professional details and drawn signature as they were at sign-off, frozen into the signed (hashed) body so a later profile edit cannot change who signed. Optional so reports released before this field existed stay valid.",
+          "required": ["fullName", "specialty", "licenceNumber", "signature", "signatureSha256"],
+          "properties": {
+            "fullName": { "type": "string", "minLength": 1 },
+            "specialty": { "type": "string", "minLength": 1 },
+            "licenceNumber": { "type": "string", "minLength": 1 },
+            "qualifications": { "type": "string" },
+            "licensingAuthority": { "type": "string" },
+            "clinic": { "type": "string" },
+            "signature": {
+              "type": "object",
+              "description": "The drawn signature as SVG move/line path data in a width x height box.",
+              "required": ["width", "height", "paths"],
+              "properties": {
+                "width": { "type": "number", "exclusiveMinimum": 0 },
+                "height": { "type": "number", "exclusiveMinimum": 0 },
+                "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[ML0-9.\\- ]+$" } }
+              }
+            },
+            "signatureSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        }
       }
     },
     "provenance": { "$ref": "common.schema.json#/$defs/provenance" }

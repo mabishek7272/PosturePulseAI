@@ -73,7 +73,17 @@ interface Row {
   createdAt: Date;
 }
 
-function setup(options: { reports?: Row[]; catalogError?: Error; clips?: unknown[]; results?: unknown[]; sessionExists?: boolean } = {}) {
+const SIGNER = {
+  clinicianId: "clin1",
+  username: "drchen",
+  fullName: "Dr Mei Chen",
+  specialty: "Physiotherapy",
+  licenceNumber: "PT-12345",
+  signature: { width: 300, height: 120, paths: ["M 10 10 L 50 60 L 90 20"] },
+  signatureSha256: "a".repeat(64),
+};
+
+function setup(options: { reports?: Row[]; catalogError?: Error; clips?: unknown[]; results?: unknown[]; sessionExists?: boolean; profileError?: Error } = {}) {
   const store: Row[] = [...(options.reports ?? [])];
   const prisma = {
     session: {
@@ -123,8 +133,13 @@ function setup(options: { reports?: Row[]; catalogError?: Error; clips?: unknown
       ? jest.fn().mockRejectedValue(options.catalogError)
       : jest.fn().mockResolvedValue(CATALOG),
   };
-  const service = new ReportsService(prisma as never, events as never, battery, ml as never);
-  return { service, prisma, events, ml, store };
+  const profiles = {
+    signerSnapshot: options.profileError
+      ? jest.fn().mockRejectedValue(options.profileError)
+      : jest.fn().mockResolvedValue(SIGNER),
+  };
+  const service = new ReportsService(prisma as never, events as never, battery, ml as never, profiles as never);
+  return { service, prisma, events, ml, store, profiles };
 }
 
 const draftRow = (overrides: Partial<Row> = {}): Row => ({
@@ -336,6 +351,42 @@ describe("ReportsService.signOff", () => {
     expect(store[0].body).toEqual(body);
   });
 
+  it("freezes the signer's name, specialty, licence and signature into the signed, hashed body", async () => {
+    const { service, store } = setup({ reports: [draftRow()] });
+    const body = await service.signOff("rep-1", "clin1", "correct horse");
+
+    expect(body.signOff!.signerSnapshot).toMatchObject({
+      fullName: "Dr Mei Chen",
+      specialty: "Physiotherapy",
+      licenceNumber: "PT-12345",
+      signature: { width: 300, height: 120 },
+      signatureSha256: "a".repeat(64),
+    });
+    // The login username and internal id are not repeated into the patient-readable snapshot.
+    expect(JSON.stringify(body.signOff!.signerSnapshot)).not.toContain("drchen");
+    expect(getValidator("assessment-report")(body)).toBe(true);
+    // Covered by the hash: changing the snapshot changes the digest.
+    const tampered = structuredClone(body);
+    tampered.signOff!.signerSnapshot!.licenceNumber = "PT-99999";
+    expect(reportContentSha256(tampered as never)).not.toBe(body.signOff!.contentSha256);
+    expect(store[0].status).toBe("released");
+  });
+
+  it("refuses to sign when the doctor profile is incomplete, leaving the draft untouched", async () => {
+    const { service, store } = setup({
+      reports: [draftRow()],
+      profileError: new ConflictException("Complete your doctor profile first."),
+    });
+    await expect(service.signOff("rep-1", "clin1", "correct horse")).rejects.toThrow(ConflictException);
+    expect(store[0]).toMatchObject({ status: "draft" });
+  });
+
+  it("does not look at the profile when the password is wrong", async () => {
+    const { service, profiles } = setup({ reports: [draftRow()] });
+    await expect(service.signOff("rep-1", "clin1", "wrong")).rejects.toThrow(ForbiddenException);
+    expect(profiles.signerSnapshot).not.toHaveBeenCalled();
+  });
+
   it("refuses a wrong password and leaves the draft untouched", async () => {
     const { service, store } = setup({ reports: [draftRow()] });
     await expect(service.signOff("rep-1", "clin1", "wrong")).rejects.toThrow(ForbiddenException);
@@ -497,7 +548,7 @@ describe("ReportsService.verifyReferences", () => {
       referenceSet: { ...battery.referenceSet, entries: [{ ...entry, kind: "literature" }] },
     };
     const { ml, prisma, events } = setup();
-    const bad = new ReportsService(prisma as never, events as never, badBattery as never, ml as never);
+    const bad = new ReportsService(prisma as never, events as never, badBattery as never, ml as never, { signerSnapshot: jest.fn() } as never);
     const result = await bad.verifyReferences();
     expect(result.checked).toBe(false);
     expect((result as { error: string }).error).toMatch(/proxy/);

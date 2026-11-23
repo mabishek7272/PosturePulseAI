@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CliniciansModule } from "../clinicians/clinicians.module";
 import { PrismaService } from "../common/prisma.service";
 import { PatientCrypto } from "./patient-crypto";
 import { PatientErasureService } from "./patient-erasure.service";
@@ -11,6 +12,7 @@ import { PatientsService } from "./patients.service";
  * stops the application from starting rather than failing on the first request.
  */
 @Module({
+  imports: [CliniciansModule],
   controllers: [PatientsController],
   providers: [PrismaService, { provide: PatientCrypto, useFactory: () => PatientCrypto.fromEnv() }, PatientsService, { provide: PatientErasureService, useFactory: (prisma: PrismaService, crypto: PatientCrypto) => new PatientErasureService(prisma, crypto), inject: [PrismaService, PatientCrypto] }],
 })

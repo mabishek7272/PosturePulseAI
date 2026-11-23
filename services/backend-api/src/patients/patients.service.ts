@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ClinicianProfileService } from "../clinicians/clinician-profile.service";
 import { PrismaService } from "../common/prisma.service";
 import { PatientCrypto } from "./patient-crypto";
 
@@ -9,7 +10,15 @@ const MAX_NOTE_CHARS = 500;
 const SMOKING_VALUES = ["never", "former", "current"] as const;
 const ALCOHOL_VALUES = ["never", "occasional", "regular"] as const;
 const ACTIVITY_VALUES = ["sedentary", "light", "moderate", "active"] as const;
+const SEX_AT_BIRTH_VALUES = ["female", "male", "intersex", "prefer_not_to_say"] as const;
+const GENDER_IDENTITY_VALUES = ["woman", "man", "non_binary", "other", "prefer_not_to_say"] as const;
+const MAX_NATIONALITY_CHARS = 100;
 
+/** Answers the clinician must give when registering a patient (an explicit "prefer not to say" counts as an answer). */
+export const REQUIRED_INTAKE_FIELDS = ["nationality", "sexAtBirth", "genderIdentity", "smoking", "alcohol"] as const;
+
+export type SexAtBirth = (typeof SEX_AT_BIRTH_VALUES)[number];
+export type GenderIdentity = (typeof GENDER_IDENTITY_VALUES)[number];
 export type Smoking = (typeof SMOKING_VALUES)[number];
 export type Alcohol = (typeof ALCOHOL_VALUES)[number];
 export type PhysicalActivityLevel = (typeof ACTIVITY_VALUES)[number];
@@ -22,6 +31,9 @@ export type PhysicalActivityLevel = (typeof ACTIVITY_VALUES)[number];
  * decision this repo does not make unilaterally (CLAUDE.md, docs/claims-and-scope.md).
  */
 export interface PatientIntake {
+  nationality?: string;
+  sexAtBirth?: SexAtBirth;
+  genderIdentity?: GenderIdentity;
   heightCm?: number;
   weightKg?: number;
   smoking?: Smoking;
@@ -45,6 +57,8 @@ export interface PatientRecord {
   dateOfBirth: string;
   contact: string | null;
   intake: PatientIntake | null;
+  /** Who registered the patient (their licence number), copied from their profile by the server. */
+  registeredBy: { fullName: string; licenceNumber: string; registeredAt: string } | null;
   createdAt: Date;
 }
 
@@ -71,7 +85,8 @@ export interface LinkedSession {
 export class PatientsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly crypto: PatientCrypto
+    private readonly crypto: PatientCrypto,
+    private readonly profiles: ClinicianProfileService
   ) {}
 
   async create(input: NewPatient, clinicianId: string): Promise<PatientRecord> {
@@ -79,6 +94,10 @@ export class PatientsService {
     const dateOfBirth = this.dateOfBirth(input?.dateOfBirth);
     const contact = input?.contact === undefined || input?.contact === null ? null : this.requiredText(input.contact, "contact", true);
     const intake = this.intake(input?.intake);
+    this.assertRequiredIntake(intake);
+    // The registering clinician's licence and signature on file, taken from the server-side
+    // profile (never from the request). 409 when their profile is incomplete.
+    const registrar = await this.profiles.registrarSnapshot(clinicianId);
 
     const row = await this.prisma.patient.create({
       data: {
@@ -87,9 +106,18 @@ export class PatientsService {
         contactEnc: contact === null || contact === "" ? null : this.crypto.encrypt("contact", contact),
         intakeEnc: intake ? this.crypto.encrypt("intake", JSON.stringify(intake)) : null,
         createdBy: clinicianId,
+        registrarSnapshot: registrar as unknown as object,
       },
     });
-    return { id: row.id, name, dateOfBirth, contact: contact || null, intake, createdAt: row.createdAt };
+    return {
+      id: row.id,
+      name,
+      dateOfBirth,
+      contact: contact || null,
+      intake,
+      registeredBy: { fullName: registrar.fullName, licenceNumber: registrar.licenceNumber, registeredAt: registrar.registeredAt },
+      createdAt: row.createdAt,
+    };
   }
 
   /**
@@ -176,6 +204,7 @@ export class PatientsService {
     dobEnc: string | null;
     contactEnc: string | null;
     intakeEnc: string | null;
+    registrarSnapshot?: unknown;
     createdAt: Date;
   }): PatientRecord | null {
     // A self-signup patient (Part 1 of the accounts redesign) has no
@@ -189,6 +218,7 @@ export class PatientsService {
         dateOfBirth: this.crypto.decrypt("dob", row.dobEnc),
         contact: row.contactEnc ? this.crypto.decrypt("contact", row.contactEnc) : null,
         intake: row.intakeEnc ? (JSON.parse(this.crypto.decrypt("intake", row.intakeEnc)) as PatientIntake) : null,
+        registeredBy: this.registrar(row.registrarSnapshot),
         createdAt: row.createdAt,
       };
     } catch {
@@ -199,8 +229,23 @@ export class PatientsService {
     }
   }
 
+  private registrar(value: unknown): PatientRecord["registeredBy"] {
+    const r = value as { fullName?: unknown; licenceNumber?: unknown; registeredAt?: unknown } | null | undefined;
+    if (!r || typeof r.fullName !== "string" || typeof r.licenceNumber !== "string" || typeof r.registeredAt !== "string") return null;
+    return { fullName: r.fullName, licenceNumber: r.licenceNumber, registeredAt: r.registeredAt };
+  }
+
+  /** New registrations must answer these. Older records without them are still readable. */
+  private assertRequiredIntake(intake: PatientIntake | null): void {
+    const missing = REQUIRED_INTAKE_FIELDS.filter((field) => intake?.[field] === undefined);
+    if (missing.length > 0) {
+      throw new BadRequestException(`These answers are required to register a patient: ${missing.map((f) => `intake.${f}`).join(", ")}.`);
+    }
+  }
+
   /**
-   * Every field is optional; only the ones a clinician actually knows get
+   * Fields are optional here (older records have none of them); registration
+   * itself requires REQUIRED_INTAKE_FIELDS. Only the ones a clinician actually knows get
    * sent. Bounds here are sanity limits against garbage input (a mistyped
    * 2500cm height), not a clinical judgement of what is plausible for a
    * given patient.
@@ -209,6 +254,11 @@ export class PatientsService {
     if (value === null || value === undefined) return null;
     const out: PatientIntake = {};
 
+    if (value.nationality !== undefined) out.nationality = this.nationality(value.nationality);
+    if (value.sexAtBirth !== undefined) out.sexAtBirth = this.enumValue(value.sexAtBirth, "intake.sexAtBirth", SEX_AT_BIRTH_VALUES);
+    if (value.genderIdentity !== undefined) {
+      out.genderIdentity = this.enumValue(value.genderIdentity, "intake.genderIdentity", GENDER_IDENTITY_VALUES);
+    }
     if (value.heightCm !== undefined) {
       out.heightCm = this.boundedNumber(value.heightCm, "intake.heightCm", 30, 272);
     }
@@ -245,6 +295,14 @@ export class PatientsService {
     if (typeof value !== "string") throw new BadRequestException(`${field} must be a string.`);
     const trimmed = value.trim().slice(0, MAX_NOTE_CHARS);
     return trimmed || null;
+  }
+
+  private nationality(value: unknown): string {
+    if (typeof value !== "string") throw new BadRequestException("intake.nationality must be a string.");
+    const trimmed = value.trim();
+    if (!trimmed) throw new BadRequestException("intake.nationality is required.");
+    if (trimmed.length > MAX_NATIONALITY_CHARS) throw new BadRequestException(`intake.nationality is longer than ${MAX_NATIONALITY_CHARS} characters.`);
+    return trimmed;
   }
 
   private boundedNumber(value: unknown, field: string, min: number, max: number): number {
