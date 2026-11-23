@@ -30,7 +30,9 @@ function resolveJwtSecret(): string {
     JwtModule.register({
       global: true,
       secret: resolveJwtSecret(),
-      signOptions: { expiresIn: "8h" },
+      // Short-lived: the refresh token (30 days, rotating) is what keeps a clinician signed in,
+      // and a deactivated account stops working within this window.
+      signOptions: { expiresIn: (process.env.ACCESS_TOKEN_TTL ?? "1h") as never },
     }),
   ],
   controllers: [AuthController, PatientAuthController],

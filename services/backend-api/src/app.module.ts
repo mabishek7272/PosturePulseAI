@@ -4,6 +4,7 @@ import { AnalysisModule } from "./analysis/analysis.module";
 import { AdverseEventsModule } from "./adverse-events/adverse-events.module";
 import { AuditLogModule } from "./audit/audit-log.module";
 import { AuthModule } from "./auth/auth.module";
+import { CliniciansModule } from "./clinicians/clinicians.module";
 import { BatteryModule } from "./battery/battery.module";
 import { ClipsModule } from "./clips/clips.module";
 import { ConsentModule } from "./consent/consent.module";
@@ -30,6 +31,7 @@ import { WsModule } from "./ws/ws.module";
     ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
     AuthModule,
+    CliniciansModule,
     BatteryModule,
     ClipsModule,
     AnalysisModule,

@@ -28,7 +28,12 @@ async function main() {
       create: { username, passwordHash, role: "clinician" },
       update: { passwordHash },
     });
-    console.log(`Clinician account ready: ${clinician.username} (id ${clinician.id})`);
+    // A changed password must end every existing session: revoke all refresh tokens.
+    const revoked = await prisma.refreshToken.updateMany({
+      where: { clinicianId: clinician.id, revokedAt: null },
+      data: { revokedAt: new Date(), revokedReason: "password_changed" },
+    });
+    console.log(`Clinician account ready: ${clinician.username} (id ${clinician.id}); revoked ${revoked.count} active session(s).`);
   } finally {
     await prisma.$disconnect();
   }

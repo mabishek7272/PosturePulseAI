@@ -86,11 +86,47 @@ model ProtocolVersion {
 // self-service signup this phase - accounts are created via
 // scripts/seed-clinician.ts, run by whoever operates the deployment.
 model Clinician {
-  id           String   @id @default(uuid())
-  username     String   @unique
-  passwordHash String
-  role         String   @default("clinician")
-  createdAt    DateTime @default(now())
+  id                  String         @id @default(uuid())
+  username            String         @unique
+  passwordHash        String
+  role                String         @default("clinician")
+  createdAt           DateTime       @default(now())
+  // Set by scripts/deactivate-clinician.ts. A deactivated clinician cannot log in
+  // or refresh, and every refresh token they hold is revoked at the same moment.
+  deactivatedAt       DateTime?
+  // One-time professional profile (shown after the first login). The signature is
+  // AES-256-GCM sealed (PatientCrypto, field "clinician_signature"); the API only
+  // ever reports hasSignature, never the drawing, except to the signed report.
+  fullName            String?
+  specialty           String?
+  licenceNumber       String?
+  qualifications      String?
+  licensingAuthority  String?
+  clinic              String?
+  professionalContact String?
+  signatureEnc        String?
+  profileUpdatedAt    DateTime?
+  refreshTokens       RefreshToken[]
+}
+
+// Opaque refresh tokens (sha256 of the token is stored, never the token). Every
+// login starts a family; rotation replaces a token with a successor in the same
+// family, and presenting an already-rotated or revoked token revokes the whole
+// family (theft detection).
+model RefreshToken {
+  id            String    @id @default(uuid())
+  clinicianId   String
+  clinician     Clinician @relation(fields: [clinicianId], references: [id], onDelete: Cascade)
+  familyId      String
+  tokenHash     String    @unique
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  revokedAt     DateTime?
+  revokedReason String?
+  replacedById  String?
+
+  @@index([clinicianId])
+  @@index([familyId])
 }
 
 // Who looked at which subject's data, and when (docs/adr/010's named
@@ -207,23 +243,26 @@ model AssessmentReport {
 // instead, with the ciphertext fields left null - PatientsService only
 // ever operates on the register shape (see its own doc comment).
 model Patient {
-  id           String               @id @default(uuid())
-  nameEnc      String?
-  dobEnc       String?
-  contactEnc   String?
-  createdBy    String?
+  id                String               @id @default(uuid())
+  nameEnc           String?
+  dobEnc            String?
+  contactEnc        String?
+  createdBy         String?
   // Self-signup auth (docs/adr/019-patient-self-signup.md) - null for
   // clinician-register rows created via PatientsService.create.
-  email        String?              @unique
-  passwordHash String?
+  email             String?              @unique
+  passwordHash      String?
   // Optional clinical intake (height, weight, lifestyle, presenting problem),
   // stored as one AES-256-GCM-sealed JSON blob rather than a column per
   // field, since the question set is expected to keep growing. Documentary
   // only: nothing in the pipeline computes against it (no stratified
   // reference ranges without clinical-lead sign-off, CLAUDE.md).
-  intakeEnc    String?
-  createdAt    DateTime             @default(now())
-  links        PatientSubjectLink[]
+  intakeEnc         String?
+  // Who registered the patient: the registering clinician's licence and a hash of
+  // the signature on file at that moment, copied server-side from their profile.
+  registrarSnapshot Json?
+  createdAt         DateTime             @default(now())
+  links             PatientSubjectLink[]
 }
 
 // Patient -> pseudonymous subjectPseudoId. A subjectPseudoId belongs to at most
